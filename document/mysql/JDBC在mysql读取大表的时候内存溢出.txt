@@ -1,0 +1,48 @@
+
+原因:
+今天在执行sqoop导出3000万条数据的时候,出现内存溢出了,按道理不应该,因此查看了一下原因
+
+代码解析:
+代码会在bbb和ccc之间停留一定时间,默认是jdbc会将查询的所有数据都抓去到内存中,然后进行游标处理,因此当表内数据量很大的时候,会出现内存溢出。
+jdbc:mysql://host:port/xxxx?useCursorFetch=true\&dontTrackOpenResources=true\&defaultFetchSize=2000\&useCursorFetch=true --driver com.mysql.jdbc.Driver --username odsuser --password odsdata2015 
+添加useCursorFetch和defaultFetchSize=2000,则会每隔2000条查询后就会执行ccc这段代码,因此不会出现内存溢出现象
+注意:
+1.sqoop中国需要\&进行转义
+2.具体参见github上readFile代码库com.maming.common.db
+3.上面加的两个参数只是对mysql有意义。
+4.Sqlserver和Oracle：
+方法：采用分页查询的方式，在不使用连接池的情况下，可采用同一个Connection对象，每执行完一次操作就关闭PreparedStatement对象和ResultSet对象。然后在下一次操作的时候，重新打开PreparedStatement对象和ResultSet对象。
+5.内部原理与探讨
+采用Java的JDBC操作数据库时，默认数据缓存的方式，即将从数据库查询得到的数据先缓存到本地内存中，
+然后从内存中读取数据（这也是JDBC的结果集支持上下移动的原因，但Oracle提供的JDBC实现默认是不支持这种上下移动的）,
+所以如果从数据库中得到的数据被过多的缓存在本地内存中，如果超出了内存承受的范围，就会造成内存溢出的情况。
+
+像Mysql的方法一，使用的是URL加参数的方式，这其实是采用了Mysql的游标，数据就不会缓存在本地内存中，而是ResultSet对象指向的是数据库中的记录，即使是上亿条记录，只要网络不断，也不会出现异常情况。
+
+像Mysql的方法二，依然采用了数据缓存的方式，但这种情况下缓存的数据量不会太对，只要PreparedStatement对象和ResultSet对象关闭了，缓存的数据也就消失了，故也不会出现内存溢出的情况。
+
+
+public void query1(){
+		try{
+			Connection commonConnection = connectPool.getCommonConnection();
+			PreparedStatement st = commonConnection.prepareStatement("select * FROM user_info");
+			System.out.println("bbb");
+			ResultSet rs = st.executeQuery();
+			System.out.println("cc");
+			
+			System.out.println(rs.next());
+			int c = 0;
+			 while (rs.next()) {
+				 c++;
+	                long uid = rs.getLong(1);  
+	                String ufname = rs.getString(2);  
+	                String ulname = rs.getString(3);  
+	                String udate = rs.getString(4);  
+	                System.out.println(uid + "\t" + ufname + "\t" + ulname + "\t" + udate );  
+	         }
+			 System.out.println(c);
+			 connectPool.close(commonConnection, st, rs);
+		}catch(Exception ex){
+			ex.printStackTrace();
+		}
+	}

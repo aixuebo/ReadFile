@@ -1,0 +1,21 @@
+1.JDBC在mysql读取大表的时候内存溢出
+2.使用sqoop将mysql数据库导入到hive中
+a.发现passport密码没办法保存在job中,因此修改配置文件conf/sqoop-site.xml
+<property>   
+	<name>sqoop.metastore.client.record.password</name>   
+	<value>true</value>   
+	<description>If true, allow saved passwords in the metastore. </description>
+</property>
+b.没办法在hadoop集群上跑sqoop,因为目录的权限不对
+  su hdfs 
+  hdfs dfs -chown -R root:hdfs /user/root 执行hdfs dfs命令,为该目录赋予权限,user是root 组是hdfs,目录是/user/root -R表示递归该目录下所有文件都是这个权限
+c.--target-dir /tmp/test/sqoop/sqoop/regular_info
+  表示sqoop输出到什么目录上去
+d.create database if not exists jlc location '/tmp/test/sqoop/sqoop';
+  先要创建hive的数据库
+e.发现user_info中status 的bit类型,hive不支持,因此使用--columns属性,只要需要的列被导出到hive中
+f.--hive-overwrite对hive存在的表数据进行覆盖,但是依然发现说临时目录存在,不允许覆盖,原因是没有加入参数--delete-target-dir
+g.-m 30 让多个map去抓去程序,这个值不适合过大
+h.--hive-database jlc指定sqoop抓去后存储在哪个hive中
+i.--hive-import 说明该sqoop输出的内容是要到hive中的
+j.--driver com.mysql.jdbc.Driver 有时候报错,需要加入这个

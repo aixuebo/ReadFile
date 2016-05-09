@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info" strict="true" name="shopApiLog4jConfig" monitorInterval="600"
+               dest="file:/data/coohua/logs/statistics/log/all.log">
+
+    <Properties>
+        <Property name="logRootPath">E://linux//data//maming//read</Property>
+        <Property name="errorLogFilePath">${logRootPath}/error.log</Property>
+        <Property name="commonLogFilePath">${logRootPath}/common.log</Property>
+        <Property name="otherLogFilePath">${logRootPath}/other.log</Property>
+        <Property name="shareLogFilePath">${logRootPath}/share.log</Property>
+        <Property name="logLevel">info</Property>
+        <Property name="isBufferedIO">true</Property>
+        <Property name="isImmediateFlush">true</Property>
+        <Property name="isIgnoreExceptions">false</Property>
+        <Property name="bufferSize">8192</Property>
+        <Property name="encodingType">UTF-8</Property>
+        <Property name="interval">1</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="STDOUT">
+            <PatternLayout pattern="%m%n"/>
+        </Console>
+
+        <RollingFile name="errorLog" fileName="${errorLogFilePath}"
+                     filePattern="${errorLogFilePath}.%d{yyyyMMdd}"
+                     bufferedIO="${isBufferedIO}" immediateFlush="${isImmediateFlush}"
+                     ignoreExceptions="${isIgnoreExceptions}" bufferSize="${bufferSize}">
+            <PatternLayout pattern="%d %p %c{1.} [%t] %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${interval}"/>
+            </Policies>
+        </RollingFile>
+
+        <Async name="asyncErrorLog">
+            <AppenderRef ref="errorLog"/>
+        </Async>
+
+
+        <RollingFile name="commonLog" fileName="${commonLogFilePath}"
+                     filePattern="${commonLogFilePath}.%d{yyyyMMdd}"
+                     bufferedIO="${isBufferedIO}" immediateFlush="${isImmediateFlush}"
+                     ignoreExceptions="${isIgnoreExceptions}" bufferSize="${bufferSize}">
+            <PatternLayout pattern="%d %p %c{1.} [%t] %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${interval}"/>
+            </Policies>
+        </RollingFile>
+
+        <Async name="asyncCommontLog">
+            <AppenderRef ref="commonLog"/>
+        </Async>
+
+        <RollingFile name="otherLog" fileName="${otherLogFilePath}"
+                     filePattern="${otherLogFilePath}.%d{yyyyMMdd}"
+                     bufferedIO="${isBufferedIO}" immediateFlush="${isImmediateFlush}"
+                     ignoreExceptions="${isIgnoreExceptions}" bufferSize="${bufferSize}">
+            <PatternLayout pattern="%d %p %c{1.} [%t] %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${interval}"/>
+            </Policies>
+        </RollingFile>
+
+        <Async name="asyncOtherLog">
+            <AppenderRef ref="otherLog"/>
+        </Async>
+
+        <RollingFile name="shareLog" fileName="${shareLogFilePath}"
+                     filePattern="${shareLogFilePath}.%d{yyyyMMdd}"
+                     bufferedIO="${isBufferedIO}" immediateFlush="${isImmediateFlush}"
+                     ignoreExceptions="${isIgnoreExceptions}" bufferSize="${bufferSize}">
+            <PatternLayout pattern="%d %p %c{1.} [%t] %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="${interval}"/>
+            </Policies>
+        </RollingFile>
+
+        <Async name="asyncShareLog">
+            <AppenderRef ref="shareLog"/>
+        </Async>
+        
+    </Appenders>
+
+    <Loggers>
+
+        <AsyncLogger name="logger.common" level="${logLevel}" additivity="false">
+            <AppenderRef ref="asyncCommontLog"/>
+        </AsyncLogger>
+
+        <AsyncLogger name="logger.error" level="${logLevel}" additivity="false">
+            <AppenderRef ref="asyncErrorLog"/>
+        </AsyncLogger>
+
+        <AsyncLogger name="logger.other" level="${logLevel}" additivity="false">
+            <AppenderRef ref="asyncOtherLog"/>
+        </AsyncLogger>
+
+        <AsyncLogger name="logger.share" level="${logLevel}" additivity="false">
+            <AppenderRef ref="asyncShareLog"/>
+        </AsyncLogger>
+        
+        <Root level="${logLevel}">
+            <AppenderRef ref="STDOUT"/>
+        </Root>
+
+    </Loggers>
+</Configuration>
