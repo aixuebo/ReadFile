@@ -12,6 +12,10 @@ public class PropertiesUtils {
 	private String commonUser;
 	private String commonPass;
 	
+	private String redisHost;
+	private String redisPort;
+	private int redisMaxTotal;
+	
 	private static PropertiesUtils INSTANCE = new PropertiesUtils();
 
 	public static PropertiesUtils getInstance() {
@@ -34,6 +38,10 @@ public class PropertiesUtils {
 			commonUrl = properties.getProperty("jdbc.common.url");
 			commonUser = properties.getProperty("jdbc.common.userName");
 			commonPass = properties.getProperty("jdbc.common.password");
+	
+			redisHost = properties.getProperty("common.redis.host");
+			redisPort = properties.getProperty("common.redis.port");
+			redisMaxTotal = Integer.parseInt(properties.getProperty("common.redis.maxTotal"));
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -76,7 +84,19 @@ public class PropertiesUtils {
 		this.commonPass = commonPass;
 	}
 	
+	public String getRedisHost() {
+		return redisHost;
+	}
+
+	public String getRedisPort() {
+		return redisPort;
+	}
+
+	public int getRedisMaxTotal() {
+		return redisMaxTotal;
+	}
+
 	public static void main(String[] args) {
-		System.out.println(PropertiesUtils.getInstance().getCommonUrl());
+		System.out.println(PropertiesUtils.getInstance().getRedisMaxTotal());
 	}
 }

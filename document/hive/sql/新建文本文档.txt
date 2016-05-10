@@ -1,0 +1,60 @@
+如果查询历史上一个user,第一个购买时间、购买金额、第二次购买时间、购买金额、最后一次购买时间、购买金额、总购买次数、总购买金额
+
+优化方式:
+1.
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn 
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+正常查询sql,但是多了一个rn列,表示对该sql中,userid进行分组,并且每组中按照时间进行排序。这样之后产生的序号。
+例如:同一个userid购买3次,那么这个sql就对应三行,每一个rn分别代表1 2 3
+
+2.select * from  上面的sql1 where temp.rn = 1 这样就可以获取首次购买时间和金额了
+
+3.同理可以获取第二次购买时间和金额、最后一次购买时间和金额
+
+4.将其都作为子查询,进行join,最终输出总结果即可
+	
+
+总sql:
+select first.userId,first.investamount,first.investtime,second.investamount,second.investtime,last.investamount,last.investtime,collect.c,collect.s
+from 
+(
+	select *
+	from 
+	(
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn 
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	) temp
+	where temp.rn = 1
+) first left join 
+(
+	select *
+	from 
+	(
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn 
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	) temp
+	where temp.rn = 2
+) second on first.userId = second.userId  left join 
+(
+	select *
+	from 
+	(
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime desc) AS rn 
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	) temp
+	where temp.rn = 1
+) last on first.userId = last.userId left join 
+(
+	select userId,COUNT(*) c,SUM(investamount) s
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	GROUP BY userId
+) collect on first.userId = collect.userId

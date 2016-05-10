@@ -1,0 +1,6 @@
+1.查找yarn的application页面
+http://10.1.5.91:8088/cluster
+其中端口在yarn-site.xml配置的yarn.resourcemanager.webapp.address中指定
+2.查看web版的hdfs页面
+http://10.1.5.91:50070/dfshealth.html#tab-overview
+默认就是50070

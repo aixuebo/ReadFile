@@ -12,7 +12,7 @@ public class QueyeSqlTest {
 	public void query1(){
 		try{
 			Connection commonConnection = connectPool.getCommonConnection();
-			PreparedStatement st = commonConnection.prepareStatement("select * FROM user_info");
+			PreparedStatement st = commonConnection.prepareStatement("select * FROM user_info limit 10");
 			System.out.println("bbb");
 			ResultSet rs = st.executeQuery();
 			System.out.println("cc");

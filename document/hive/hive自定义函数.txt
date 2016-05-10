@@ -1,0 +1,8 @@
+创建/home/nobody/.hiverc文件 或者在$hive_home/bin下面创建.hiverc文件
+add jar /data11/coohua/app/hive/coohuaHive.jar;
+create temporary function  strstart as 'com.coohua.udf.StrStart';  
+create temporary function  strDateFormat as 'com.coohua.udf.StrDateFormat';
+create temporary function  strContain as 'com.coohua.udf.StrContain'; 
+create temporary function  parse_uri as 'com.coohua.udf.ParseUri';
+create temporary function  strEnd as 'com.coohua.udf.StrEnd';
+create temporary function  split_by_index as 'com.coohua.udf.SplitByIndex';  

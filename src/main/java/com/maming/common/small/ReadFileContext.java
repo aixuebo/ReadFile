@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 public class ReadFileContext extends ReadFile{
 
-	public static Logger log = LogWriter.getCommonLog();
+	public static Logger log = LogWriter.getShare();
 	
 	public ReadFileContext(String path){
 		super(path,"UTF-8");
@@ -40,15 +40,23 @@ public class ReadFileContext extends ReadFile{
 	int count3 = 0;
     
     String[] arr = null;
+    String[] arr1 = null;
+    int i=0;
     private List<String> list = new ArrayList<String>();
 	@Override
 	public void parse(String line) {
-		set.add(line);
+		arr = line.split("\t");
+		arr1 = arr[1].split(":");
+		log.info(arr[0]+"\t"+arr1[0]+"\t"+arr1[1]);
+		System.out.println(arr[0]+"\t"+arr1[0]+"\t"+arr1[1]);
+		i++;
+		//set.add(line);
 	}
 	
     @Override
     public void parseEnd() {
     	System.out.println(StringUtil.setStringToString(set));
+    	System.out.println(i);
     	System.out.println(count1+"===="+count2+"=="+count3);
     /*	for(String s:set){
     		System.out.println(s);
@@ -56,7 +64,7 @@ public class ReadFileContext extends ReadFile{
     }
     int s = 0;
 	public static void main(String[] args) {
-		String path = "E:\\linux\\temp.txt";
+		String path = "E:\\linux\\temp1.txt";
 		ReadFileContext test = new ReadFileContext(path);
 		test.start();
 	}
