@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="info" strict="true" name="shopApiLog4jConfig" monitorInterval="600"
-               dest="file:/data/coohua/logs/statistics/log/all.log">
+               dest="file:E:/linux/data/maming/read/all.log">
 
     <Properties>
         <Property name="logRootPath">E://linux//data//maming//read</Property>

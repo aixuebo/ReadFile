@@ -19,7 +19,7 @@ public class ReadTwoIntersectionSet{
 		      this.setEncoding("UTF-8");
 		    };
 			public void parse(String line) {
-			  set1.add(line);
+				set1.add(line.split("\t")[1]);
 			}
 		}.start();
 	}
@@ -58,8 +58,8 @@ public class ReadTwoIntersectionSet{
 	
 	public static void main(String[] args) {
 	    ReadTwoIntersectionSet test = new ReadTwoIntersectionSet();
-		test.read1("E:\\linux\\temp.txt");
-		test.read2("E:\\linux\\temp2.txt");
+		test.read1("E:\\linux\\mysql.log");
+		test.read2("E:\\linux\\hive.txt");
 		test.end();
 	}
 }

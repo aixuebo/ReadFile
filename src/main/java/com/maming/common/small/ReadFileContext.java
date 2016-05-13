@@ -45,26 +45,21 @@ public class ReadFileContext extends ReadFile{
     private List<String> list = new ArrayList<String>();
 	@Override
 	public void parse(String line) {
+		line = HiveConverter.convert(line);
 		arr = line.split("\t");
-		arr1 = arr[1].split(":");
-		log.info(arr[0]+"\t"+arr1[0]+"\t"+arr1[1]);
-		System.out.println(arr[0]+"\t"+arr1[0]+"\t"+arr1[1]);
-		i++;
+		System.out.println(arr.length);
 		//set.add(line);
 	}
 	
     @Override
     public void parseEnd() {
-    	System.out.println(StringUtil.setStringToString(set));
-    	System.out.println(i);
-    	System.out.println(count1+"===="+count2+"=="+count3);
     /*	for(String s:set){
     		System.out.println(s);
     	}*/
     }
     int s = 0;
 	public static void main(String[] args) {
-		String path = "E:\\linux\\temp1.txt";
+		String path = "E:\\linux\\000000_0.0";
 		ReadFileContext test = new ReadFileContext(path);
 		test.start();
 	}

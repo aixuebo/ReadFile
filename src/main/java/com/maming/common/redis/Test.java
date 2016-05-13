@@ -20,13 +20,9 @@ public class Test {
 		}
 		System.out.println("ii:"+i);//287302
 	}
-	
-	public void test2(){
-		System.out.println(9/4);
-	}
-	
+
 	public static void main(String[] args) {
 		Test test = new Test();
-		test.test2();
+		test.test1();
 	}
 }

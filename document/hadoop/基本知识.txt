@@ -4,3 +4,7 @@ http://10.1.5.91:8088/cluster
 2.查看web版的hdfs页面
 http://10.1.5.91:50070/dfshealth.html#tab-overview
 默认就是50070
+3.设置hdfs上的权限
+没办法在hadoop集群上跑sqoop,因为目录的权限不对
+  su hdfs 
+  hdfs dfs -chown -R root:hdfs /user/root 执行hdfs dfs命令,为该目录赋予权限,user是root 组是hdfs,目录是/user/root -R表示递归该目录下所有文件都是这个权限
