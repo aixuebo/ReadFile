@@ -1,0 +1,40 @@
+问题:
+userId	code	isEffect(有效性,1表示有效)	time
+张三	111	1	20150101
+张三	222	1	20150102
+李四	33	0	20150101
+李四	444	1	20150102
+王五	555	0	20150101
+王五	5555	0	20150102
+			
+			
+			
+			
+一个用户对应多条记录,每一条记录有时间,可以得到顺序			
+			
+现在要查询有效的用户对应的code值			
+约束:			
+1.找到用于有效的第一条code,顺序用time			
+2.如果用户没有有效的,则仅仅返回该第一个code,顺序用time			
+			
+结果			
+userId	code	isEffect(有效性,1表示有效)	time
+张三	111	1	20150101
+李四	444	1	20150102
+王五	555	0	20150101
+
+
+答案:
+
+select * 
+from (
+select
+userid,
+useridno,
+iseffective,
+lastupdatetime,
+ROW_NUMBER() OVER (PARTITION BY userid order by find_in_set(iseffective,'1') desc,lastupdatetime asc) as rn
+from jlc.bank_card
+) a where a.rn = 1
+
+因为find_in_set(iseffective,'1') 表示对iseffective的值要是在后面的字符串的话,选择出在第几个位置,如果不再.则直接返回0,因此就可以解决该问题
