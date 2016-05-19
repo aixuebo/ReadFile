@@ -1,0 +1,5 @@
+1.前后浏览代码位置
+Navigate -- back  和forward
+2.如何将navigate上面很多按钮添加到最上面的工具条中
+view--toolbar
+然后在工具条中右键选择自定义按钮即可
