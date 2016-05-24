@@ -4,7 +4,28 @@ Navigate -- back  和forward
 view--toolbar
 然后在工具条中右键选择自定义按钮即可
 3.main syso快捷键
+比较常用的快捷键
+Ctrl+Tab 切换一大堆的tab页面,即class类
+Alt+回车 自动import导入包
 ctrl+j 可以查找main 然后sout
+alt + insert 可以设置set/get、重写父类等方法
+ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
+ctrl+N 可以查找class,即navigate--class
+Shift+Shift 即可在一个弹出框中搜索任何东西，包括类、资源、配置项、方法等等。
+ctrl + F12获取该类所有的方法,再次F12,则显示父类的所有方法
+Alt+F7 查找该方法或该类在哪些地方被调用了
+Ctrl+F 在当前窗口中查找任意字符出现位置,再配合F3/Shift+F3前后移动到下一匹配处。
+Ctrl+Shift+F 在全工程中查找任意字符出现位置,再配合F3/Shift+F3前后移动到下一匹配处。
+
+
+不是经常使用的快捷键
+ctrl+H显示该类的继承关系
+Ctrl+Shift+A可以查找所有Intellij的命令，并且每个命令后面还有其快捷键,所以它不仅是一大神键，也是查找学习快捷键的工具。
+Ctrl+Alt+L 格式化代码
+Ctrl+Alt+O 将无效的import清除掉
+运行：Alt+Shift+F10运行程序，Shift+F9启动调试，Ctrl+F2停止。
+F7/F8/F9分别对应Step into，Step over，Continue。
+
 4.安装插件
 setting--pulgin--搜索要的插件--install即可
 
