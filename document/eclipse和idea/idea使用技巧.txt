@@ -3,3 +3,8 @@ Navigate -- back  和forward
 2.如何将navigate上面很多按钮添加到最上面的工具条中
 view--toolbar
 然后在工具条中右键选择自定义按钮即可
+3.main syso快捷键
+ctrl+j 可以查找main 然后sout
+4.安装插件
+setting--pulgin--搜索要的插件--install即可
+
