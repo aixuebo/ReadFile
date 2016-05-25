@@ -7,3 +7,7 @@
 然后打开Options–>Session Options–>Terminal–>Emulation–>Mapped Keys
 (中文：选项–>回话选项–>终端–>仿真–>映射键)
 选中复选框  (Backspace sends delete、  Delete sends backspace)
+二、linux命令返回开头和结尾
+ctrl + A 返回命令开头
+ctrl + E 返回命令结尾
+ctrl + D 向后删除del操作

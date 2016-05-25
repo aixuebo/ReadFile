@@ -1,0 +1,104 @@
+
+org.apache.hadoop.hive.serde2.typeinfo;
+
+TypeInfoFactory
+PrimitiveObjectInspectorUtils
+Serializable
+    TypeInfo
+        PrimitiveTypeInfo
+
+Serializable
+说明该对象支持java的序列化
+
+TypeInfo
+1.第一级抽象
+2.public abstract Category getCategory();
+返回该对象是哪个分类的抽象
+3.public abstract String getTypeName();
+获取该对象的类型简称
+4.public String getQualifiedName() 
+需要子类覆盖实现
+5. public String toString() {
+需要子类覆盖实现
+6.public abstract boolean equals(Object o);
+判断两个类型是否相同
+7.public abstract int hashCode();
+8.public boolean accept(TypeInfo other) {
+    return this.equals(other);
+  }
+
+
+PrimitiveTypeInfo
+1.基础类型的实现类
+2.构造函数传递一个typeName简称
+3.public PrimitiveCategory getPrimitiveCategory()
+  public Class<?> getPrimitiveWritableClass() 
+  public Class<?> getPrimitiveJavaClass()
+可以知道二级分类、序列化hadoop、java类型
+4.public PrimitiveTypeEntry getPrimitiveTypeEntry(){
+    return PrimitiveObjectInspectorUtils.getTypeEntryFromTypeName(typeName);
+  }
+根据简称获取该简称对应的全部信息。
+
+
+MapTypeInfo extends TypeInfo
+1.对map的key和value设置类型
+  private TypeInfo mapKeyTypeInfo;
+  private TypeInfo mapValueTypeInfo;
+2.
+  public String getTypeName() {
+    return org.apache.hadoop.hive.serde.serdeConstants.MAP_TYPE_NAME + "<"
+        + mapKeyTypeInfo.getTypeName() + "," + mapValueTypeInfo.getTypeName()
+        + ">";
+  }
+
+ListTypeInfo extends TypeInfo
+1.private TypeInfo listElementTypeInfo;
+list存储的类型
+2.
+  public String getTypeName() {
+    return org.apache.hadoop.hive.serde.serdeConstants.LIST_TYPE_NAME + "<"
+        + listElementTypeInfo.getTypeName() + ">";
+  }
+
+
+UnionTypeInfo extends TypeInfo
+1.private List<TypeInfo> allUnionObjectTypeInfos;
+该类存储一个List,该List可以存储任意类型的对象
+
+StructTypeInfo extends TypeInfo
+1.因为该类表示一个对象,因此有N个属性,每一个属性对应一个类型
+  private ArrayList<String> allStructFieldNames;每一个属性
+  private ArrayList<TypeInfo> allStructFieldTypeInfos;每一个属性对应的类型
+2.public TypeInfo getStructFieldTypeInfo(String field)
+根据属性name,查找该属性对应的类型,循环allStructFieldNames,找到与参数相同的index,根据index返回类型
+
+
+abstract BaseCharTypeInfo extends PrimitiveTypeInfo
+1.private int length;
+该类要设置类型需要的长度
+
+2.public String getQualifiedName()
+返回typeName(length)
+
+
+CharTypeInfo  extends BaseCharTypeInfo
+1.设置类型char,并且设置length
+2.该类length不能超过255,即2个字节存储该值
+
+VarcharTypeInfo extends BaseCharTypeInfo
+1.设置类型为varchar,并且设置length
+2.该类length不能超过65536,即4个字节存储该值
+
+
+DecimalTypeInfo extends PrimitiveTypeInfo
+1.设置类型为decimal,还有精度precision、scale
+2.String getTypeName()和String getQualifiedName()
+返回decimal(precision,scale)
+3.boolean accept(TypeInfo other)
+ if (other == null || !(other instanceof DecimalTypeInfo)) {
+      return false;
+    }
+    DecimalTypeInfo dti = (DecimalTypeInfo)other;
+    // Make sure "this" has enough integer room to accomodate other's integer digits.
+    return this.precision() - this.scale() >= dti.precision() - dti.scale();

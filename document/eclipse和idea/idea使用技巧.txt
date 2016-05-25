@@ -28,4 +28,10 @@ F7/F8/F9分别对应Step into，Step over，Continue。
 
 4.安装插件
 setting--pulgin--搜索要的插件--install即可
+5.maven插件有异常,不能使用
+异常提示maven.multiModuleProjectDirectory system property is not set
+解决方案
+setting---maven--runner--vm options 设置-Dmaven.multiModuleProjectDirectory=$M2_HOME即可
+
+-Dmaven.multiModuleProjectDirectory=$M2_HOME
 

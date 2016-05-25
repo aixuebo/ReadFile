@@ -1,0 +1,57 @@
+ObjectInspector
+   PrimitiveObjectInspector
+       IntObjectInspector
+             SettableIntObjectInspector
+	          WritableIntObjectInspector
+		  JavaIntObjectInspector
+
+
+ObjectInspector
+1.参数和返回值都是object,因此可以做到通用化,具体类型会有具体的实现类,该类可以转换成对应的数据
+2.最上层的抽象
+3.  public static enum Category {
+    PRIMITIVE, LIST, MAP, STRUCT, UNION
+  };
+4.Category getCategory();可以知道一个对象是什么类型的对象
+5.String getTypeName();//可以知道该最上层的抽象到底是什么类型的对象,直接映射成TypeInfo对象,比如 PrimitiveTypeInfo对象
+
+PrimitiveObjectInspector
+1.第二层的抽象,属于二级分类
+2.
+  public static enum PrimitiveCategory {
+    VOID, BOOLEAN, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, STRING,
+    DATE, TIMESTAMP, BINARY, DECIMAL, VARCHAR, CHAR, INTERVAL_YEAR_MONTH, INTERVAL_DAY_TIME,
+    UNKNOWN
+  };
+3.PrimitiveCategory getPrimitiveCategory();
+获取二级分类
+4.public PrimitiveTypeInfo getTypeInfo();
+可以知道该抽象到底是指代什么具体的class
+5.从PrimitiveTypeInfo中可以获取到该抽象类在实例化生成对应的java或者hadoop对象的时候,最终类型是什么class类型
+Class<?> getPrimitiveWritableClass();
+Class<?> getJavaPrimitiveClass();
+6.给定对象生成对应的java和hadoop对象
+Object getPrimitiveWritableObject(Object o);
+Object getPrimitiveJavaObject(Object o);
+Object copyObject(Object o);
+7.boolean preferWritable();
+true,表示该对象更宁愿返回hadoop的对象
+false,表示更想返回java对象
+8.用于HiveDecimalUtils时候控制小数点
+int precision();
+int scale();
+
+IntObjectInspector
+1.int get(Object o);
+给定一个object对象,返回int,即获取对象的值
+对object进行强转,返回对应的int值即可
+
+SettableIntObjectInspector
+1.类的目的
+通过value设置和创建一个对象
+2.Object create(int value);
+用给定的值,创建新的对象
+3.Object set(Object o, int value);
+用给定的value值,重新设置o对象,返回一个对象,值是参数value的值
+大多数情况下value都是针对参数o设置的,不会创建一个新的对象,但是当o对象是不可变对象的时候除外,会产生新的对象，比如JavaIntObjectInspector,java原生的对象作为参数
+
