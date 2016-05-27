@@ -6,7 +6,7 @@ import org.apache.hadoop.hive.ql.exec.UDF;
 /**
  * UDF to extract specfic parts from URL For example,
  * 将URI中path部分.根据参数key获取对应的value值,默认查找不到返回""
- * create temporary function  parse_uri as 'com.coohua.udf.ParseUri';
+ * create temporary function  parse_uri as 'com.xuebo.udf.ParseUri';
  */
 @Description(name = "parse_uri",
     value = "_FUNC_(uri, key) - extracts a key from a URI's query ",

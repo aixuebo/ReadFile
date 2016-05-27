@@ -7,7 +7,7 @@ import org.apache.hadoop.io.Text;
 /**
  * 实现string的startsWith方法
  * true返回true,false返回false
- * create temporary function  strStart as 'com.coohua.udf.StrStart';  
+ * create temporary function  strStart as 'com.xuebo.udf.StrStart';  
  */
 @Description(name = "strStart",
 value = "_FUNC_(str,prefix) - true return true,false return false ",

@@ -7,7 +7,7 @@ import org.apache.hadoop.io.Text;
 
 /**
  * 实现string的通过split方法拆分成数组后.获取第几个元素的值,从0开始计算
- * create temporary function  split_by_index as 'com.coohua.udf.SplitByIndex';  
+ * create temporary function  split_by_index as 'com.xuebo.udf.SplitByIndex';  
  */
 @Description(name = "split_by_index",
 value = "_FUNC_(str,prefix) - true return true,false return false ",

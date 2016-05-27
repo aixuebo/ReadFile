@@ -7,7 +7,7 @@ import org.apache.hadoop.io.Text;
 /**
  * 实现string的endsWith方法
  * true返回true,false返回false
- * create temporary function  strEnd as 'com.coohua.udf.StrEnd';  
+ * create temporary function  strEnd as 'com.xuebo.udf.StrEnd';  
  */
 @Description(name = "strEnd",
 value = "_FUNC_(str,suffer) - true return true,false return false ",

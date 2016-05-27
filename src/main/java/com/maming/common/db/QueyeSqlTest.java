@@ -4,6 +4,10 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class QueyeSqlTest {
@@ -61,9 +65,50 @@ public class QueyeSqlTest {
 			ex.printStackTrace();
 		}
 	}
+	// statement = this.getConnection().prepareStatement(stmt,ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+	
+	public void query3(){
+		try{
+			Connection commonConnection = connectPool.getCommonConnection();
+			
+			StringBuffer sql = new StringBuffer();
+			sql.append("select * FROM user_info limit 10");
+
+			PreparedStatement st = commonConnection.prepareStatement(sql.toString(),ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+			ResultSet rs = st.executeQuery();
+			
+			  int cols = rs.getMetaData().getColumnCount();
+		      ResultSetMetaData metadata = rs.getMetaData();
+		      for (int i = 1; i < cols + 1; i++) {
+		        int typeId = metadata.getColumnType(i);//获取属性类型
+		        int precision = metadata.getPrecision(i);//属性的整数位
+		        int scale = metadata.getScale(i);//属性的小数点
+
+		        // If we have an unsigned int we need to make extra room by
+		        // plopping it into a bigint
+		        if (typeId == Types.INTEGER &&  !metadata.isSigned(i)){
+		            typeId = Types.BIGINT;
+		        }
+
+		        String colName = metadata.getColumnLabel(i);
+		        if (colName == null || colName.equals("")) {
+		          colName = metadata.getColumnName(i);
+		        }
+		        List<Integer> info = new ArrayList<Integer>(3);
+		        info.add(Integer.valueOf(typeId));
+		        info.add(precision);
+		        info.add(scale);
+		        System.out.println(typeId+"=="+precision+"=="+scale);
+		      }
+			 connectPool.close(commonConnection, st, rs);
+		}catch(Exception ex){
+			ex.printStackTrace();
+		}
+	}
+	
 	
 	public static void main(String[] args) {
 		QueyeSqlTest test = new QueyeSqlTest();
-		test.query2();
+		test.query3();
 	}
 }

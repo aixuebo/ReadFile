@@ -8,7 +8,7 @@ import org.apache.hadoop.io.Text;
 
 /**
  * 实现string转化为对应的日期格式yyyy-MM-dd,因为hive默认只支持yyyy-MM-dd格式,默认参数格式是yyyyMMdd
- * create temporary function  strDateFormat as 'com.coohua.udf.StrDateFormat';
+ * create temporary function  strDateFormat as 'com.xuebo.udf.StrDateFormat';
  */
 @Description(name = "strDateFormat",
 value = "_FUNC_(date1,date1Format) -",
