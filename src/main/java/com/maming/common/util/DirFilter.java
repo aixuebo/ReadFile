@@ -118,6 +118,6 @@ public class DirFilter {
         for (File p : list) {
             System.out.println("===" + p.getPath());
         }
-      //System.out.println("log.log_coohua_com.20150803.2310.gz".matches("^log(.)?log_coohua_com." + date + ".*.gz$"));
+      //System.out.println("log.log_xuebo_com.20150803.2310.gz".matches("^log(.)?log_xuebo_com." + date + ".*.gz$"));
     }
 }
