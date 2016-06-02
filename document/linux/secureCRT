@@ -11,3 +11,6 @@
 ctrl + A 返回命令开头
 ctrl + E 返回命令结尾
 ctrl + D 向后删除del操作
+三、SecureCRT的快捷键
+1.复制粘贴,不使用鼠标右键的情况下
+ctrl+shift+c  ctrl+shift+v

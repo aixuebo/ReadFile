@@ -1,0 +1,15 @@
+一、设置reduce数量
+set mapred.reduce.tasks = 5;
+
+注意:
+一定要在-------------之前设置,否则会抛异常
+
+hive <<EOF
+
+set mapred.reduce.tasks = 5;
+
+-------------
+sql
+
+quit;
+EOF

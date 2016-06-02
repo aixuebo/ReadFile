@@ -1,0 +1,52 @@
+export
+--connect
+jdbc:mysql://ip:3306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000
+--username
+name
+--password
+pass
+--connection-manager
+org.apache.sqoop.manager.MySQLManager
+--outdir
+/server/app/sqoop/vo
+
+注意事项:
+1.update-insert方式export操作
+a.
+Error during export: Mixed update/insert is not supported against the target database yet
+这个异常为什么把driver去掉就好使了
+说明设置了driver,没有设置--connection-manager,则返回GenericJdbcManager,
+而他是没有实现update-insert方法的
+
+b.sqoop时候
+进行export的时候,如果要insert-update操作,则要设置
+--connection-manager org.apache.sqoop.manager.MySQLManager 或者取消driver
+在import的时候要设置驱动,不用设置--connection-manager,即要使用GenericJdbcManager即可
+
+2.demo
+| mobile | CREATE TABLE `mobile` (
+  `mobile` varchar(7) DEFAULT NULL,
+  `area` varchar(30) DEFAULT NULL,
+  `city` varchar(30) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 |
+
+sqoop  --options-file /path/export_hive_ykw_dw.txt -m 3 
+--table mobile --export-dir /path/mobileRegion.txt 
+--input-fields-terminated-by '\t' --update-key mobile --update-mode allowinsert
+--columns mobile,area,city
+注意:
+--columns的字段顺序与--export-dir文件内的顺序一致即可,--columns中必须包含--update-key中所有的属性,并且最好将--update-key中存在的属性放在--columns最后
+--input-fields-terminated-by表示文件--export-dir的分隔符
+--update-key mobile 表示按照mobile字段进行查看属于insert还是update操作
+--update-mode allowinsert/updateonly allowinsert表示模式使用inser-update模式进行操作,updateonly表示仅仅做更新操作,不做insert操作,遇见insert的就跳过记录即可
+
+3.demo
+sqoop --options-file /path/export_hive_ykw_dw.txt -m 1 --table xxx --export-dir /path/log_day=20160531 \
+--input-fields-terminated-by '\t' --update-key id --update-mode allowinsert --columns userNum,logDate
+
+4.异常sqoop java.sql.SQLException: Streaming result set com.mysql.jdbc.RowDataDynamicis still active
+mysql的mysql-connector-java-5.1.17.jar版本太低了,导致以下的两个方法在Date的数据库类型的时候,会抛异常。
+          int precision = metadata.getPrecision(i);//属性的整数位
+          int scale = metadata.getScale(i);//属性的小数点
+解决方法是:更换成mysql-connector-java-5.1.38-bin.jar包即可
+

@@ -1,4 +1,14 @@
-一、SecureCRT的快捷键
-1.复制粘贴,不使用鼠标右键的情况下
-ctrl+shift+c  ctrl+shift+v
- 
+一、更改文件的所有者和所属组
+chown命令来改变文件所有者及用户组
+chown [-R] 账号名称 文件或目录
+chown [-R] 账号名称:用户组名称 文件或目录
+-R : 进行递归( recursive )的持续更改，即连同子目录下的所有文件、目录
+例如:
+chown zjy /home/zjy/ 设置文件所属人
+chown zjy:hdfs /home/zjy/ 设置组
+
+
+chgrp命令来改变文件所在用户组
+chgrp [-R] users install.log 设置install.log的所属组是users
+
+二、

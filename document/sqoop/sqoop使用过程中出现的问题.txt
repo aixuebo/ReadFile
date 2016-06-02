@@ -1,3 +1,19 @@
+import
+--connect
+jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000
+--driver
+com.mysql.jdbc.Driver
+--username
+name
+--password
+pass
+--outdir
+/server/app/sqoop/vo
+--hive-database
+dabaname
+--hive-import
+--hive-overwrite
+
 1.JDBC在mysql读取大表的时候内存溢出
 2.使用sqoop将mysql数据库导入到hive中
 a.发现passport密码没办法保存在job中,因此修改配置文件conf/sqoop-site.xml
@@ -38,3 +54,21 @@ hiveDabaseName
 注意
 已经没有\&转义了
 每一个参数必须占用一行
+
+
+4.使用sql进行import
+a.sqoop --options-file /path/import_hive_test.txt --delete-target-dir -m 23 
+--target-dir path/aa 
+--split-by id --query "SELECT * FROM bank_card WHERE id = 88023 and \$CONDITIONS"  
+b.
+sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card 
+--where "id = 88023"
+
+sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card 
+--columns id,userId,userRealName,userIdNo,bankCard,bankName,isEffective,source,lastUpdateTime
+
+5.为什么mysqldump比jdbc快
+马明，mysqldump是比JDBC快很多，原因是mysqldump是锁整个库和表后，直接从数据库引擎查出数据。
+JDBC需要语法解析，建立连接，然后去通过查询引擎去查找数据
+。查找的数据不是全量的，
+和数据库的buffer有关，从buffer中读完后才能接着往里写数据。而且还面临其他客户端对数据库锁的争用。
