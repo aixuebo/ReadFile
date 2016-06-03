@@ -8,3 +8,4 @@ alter table summary.leave_users add partition (log_day='20160531') location '/pa
 
 hive这边是这样的,如果设置了一个分区后,该分区已经存在数据了,即使重新将数据写入到该分区中,但是select 查出来的数据依然是null.
 只有删除了该分区才能好用。
+
