@@ -1,0 +1,54 @@
+hive抽样的语法
+
+按照块取样
+SELECT * FROM lxw1 TABLESAMPLE (50 PERCENT);
+输入大小为1G，TABLESAMPLE (50 PERCENT)将会取样512M的数据；
+
+SELECT * FROM lxw1 TABLESAMPLE (30M);
+将会从表lxw1中取样30M的数据：
+
+
+TABLESAMPLE (n ROWS)
+这种方式可以根据行数来取样，但要特别注意：这里指定的行数，是在每个InputSplit中取样的行数，也就是，每个Map中都取样n ROWS。
+下面的语句：
+SELECT COUNT(1) FROM (SELECT * FROM lxw1 TABLESAMPLE (200 ROWS)) x;
+
+
+按照桶取样
+
+关于Hive中的分桶表（Bucket Table），其实就是根据某一个字段Hash取模，放入指定数据的桶中，
+比如将表lxw1234按照ID分成100个桶，其算法是hash(id) % 100，
+这样，hash(id) % 100 = 0的数据被放到第一个桶中，hash(id) % 100 = 1的记录被放到第二个桶中。
+分桶表在创建时候使用CLUSTER BY语句创建。
+
+Hive中分桶表取样的语法是：
+table_sample: TABLESAMPLE (BUCKET x OUT OF y [ON colname])  注意:on后面的列不能超过两列
+
+其中x是要抽样的桶编号，桶编号从1开始，colname表示抽样的列，y表示桶的数量。
+
+FROM d_user TABLESAMPLE(BUCKET 1 OUT OF 2 ON coohua_id) u
+注意 别名u要放在最后
+
+例子1：
+
+SELECT COUNT(1)
+
+FROM lxw1 TABLESAMPLE (BUCKET 1 OUT OF 10 ON rand());
+
+该语句表示将表lxw1随机分成10个桶，抽样第一个桶的数据；
+
+2.如果基于一个已经分桶表进行取样，将会更有效率。
+执行下面的语句，创建一个分桶表，并插入数据：
+CREATE TABLE lxw1_bucketed (pcid STRING)
+CLUSTERED BY(pcid) INTO 10 BUCKETS;
+
+表示从10个桶中抽样第一个桶的数据：
+SELECT COUNT(1) FROM lxw1_bucketed TABLESAMPLE(BUCKET 1 OUT OF 10 ON pcid);
+
+表只有10个桶，如果指定20，看结果：
+SELECT COUNT(1) FROM lxw1_bucketed TABLESAMPLE(BUCKET 1 OUT OF 20 ON pcid)
+结果差不多是源表记录的1/20，Hive在运行时候，会在第一个桶中抽样一半的数据。
+
+如果从源表中直接分桶抽样，也能达到一样的效果，比如：
+SELECT COUNT(1) FROM lxw1 TABLESAMPLE(BUCKET 1 OUT OF 20 ON pcid);
+区别在于基于已经分桶的表抽样，查询只会扫描相应桶中的数据，而基于未分桶表的抽样，查询时候需要扫描整表数据，先分桶，再抽样。
