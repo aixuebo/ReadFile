@@ -72,3 +72,18 @@ sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --tab
 JDBC需要语法解析，建立连接，然后去通过查询引擎去查找数据
 。查找的数据不是全量的，
 和数据库的buffer有关，从buffer中读完后才能接着往里写数据。而且还面临其他客户端对数据库锁的争用。
+
+6.修改sqoop的代码,适应业务需求
+1.修改sqoop代码,对不规范的数据进行处理
+org.apache.sqoop.lib.JdbcWritableBridge
+  public static String convertString(String value){
+	  return value == null ? null : value.trim();
+  }
+  public static String readString(int colNum, ResultSet r) throws SQLException {
+    return convertString(r.getString(colNum));
+  }
+测试
+select * from bank_card where id = 88023;
+主要是发现
+a.bank_card表数据有很多应该有值的字段变成null了
+b.user_info表有id 和userid 是null的,原因也是回车问题导致的串行

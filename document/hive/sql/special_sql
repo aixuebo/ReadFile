@@ -1,0 +1,18 @@
+1.查询一个表,执行多个insert插入
+FROM nginx n
+INSERT OVERWRITE TABLE shareStatis
+ PARTITION (task = 'share', date = '20150905')
+ SELECT substr(n.accessTime,0,2)  as hour,n.platformId,1,n.coohuaId,n.sharedTitleId,n.sharedTextId,n.age
+ where n.date = 20150905 AND n.fileType = 'shareFile' AND n.requestType = 'HEAD' AND strContain(n.requestUri,'/share.txt?') ='1'
+INSERT OVERWRITE TABLE shareStatis
+ PARTITION (task = 'shareSuccess', date = '20150905')
+ SELECT substr(n.accessTime,0,2)  as hour,n.platformId,1,n.coohuaId,n.sharedTitleId,n.sharedTextId,n.age
+ where n.date = 20150905 AND n.fileType = 'shareFile' AND n.requestType = 'HEAD' AND strContain(n.requestUri,'/share_success.txt?')='1'
+ 
+2.行转列
+获取date、小时、userid下 不同表的数据汇总,比如该用户在该小时有多少笔投资和投资金额、赎回笔数、赎回金额
+只要四个属性任意一个满足,则都把这行数据输出出来,其他字段默认是0即可
+方案:
+a.可以用union将每一个表的数据查询出来,并且多写一个标识符字段,表示数据出于什么表的结果，
+b.对a的结果进行group by date、小时、userid,select中根据标识符进行case when then处理即可。
+

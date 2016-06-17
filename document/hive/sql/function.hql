@@ -2,6 +2,9 @@
 1.concat_ws
 例如ELECT concat_ws('.', 'www', array('facebook', 'com')) FROM src LIMIT 1
  返回www.facebook.com
+ 
+连接字符串concat(string A, string B…)
+ 
 2.collect_set,该函数要配合group by语法
 例如 collect_set(age),返回array,类似set,包含所有不重复的age信息
 size(collect_set(age)),即array的值是可以放到size函数里面的
