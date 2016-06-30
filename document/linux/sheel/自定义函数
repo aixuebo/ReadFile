@@ -1,0 +1,25 @@
+#!/bin/bash
+create_time=${1}
+
+##校验参数必须有一个,时间不能省略
+if [ $# != 1 ]
+then
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!!         输入参数不正确         !!"
+  echo "!!      导出失败，未生成文件      !!"
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  exit 1
+fi
+
+function copyFile()
+{
+###接受函数参数
+tablename=${1}
+hadoop fs -rm -r /log/statistics/mysql/backup/${tablename}/${create_time}/
+hadoop fs -mkdir -p /log/statistics/mysql/backup/${tablename}/${create_time}/
+hadoop fs -cp /log/statistics/mysql/${tablename}/* /log/statistics/mysql/backup/${tablename}/${create_time}/ 
+echo "finished"
+}
+
+###调用函数,并且传递参数
+copyFile user_info

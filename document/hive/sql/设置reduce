@@ -2,7 +2,8 @@
 set mapred.reduce.tasks = 5;
 
 注意:
-一定要在-------------之前设置,否则会抛异常
+1.一定要在-------------之前设置,否则会抛异常
+2.set mapred.reduce.tasks = 5;前面一定不能是-----,否则会说解析语法错误,就直接设置set mapred.reduce.tasks = 5;即可
 
 hive <<EOF
 

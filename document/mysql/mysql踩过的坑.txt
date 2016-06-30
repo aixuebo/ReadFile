@@ -1,4 +1,4 @@
-
+一、JDBC在mysql读取大表的时候内存溢出
 原因:
 今天在执行sqoop导出3000万条数据的时候,出现内存溢出了,按道理不应该,因此查看了一下原因
 
@@ -46,3 +46,19 @@ public void query1(){
 			ex.printStackTrace();
 		}
 	}
+	
+二、mysql和Oracle中not in子连接查询不到值的问题（not in 不能查询null数据）
+因为今天有同事问我一个很简单的sql,但是却查询不到内容,这个很奇怪。
+SELECT *
+FROM user_info
+WHERE user_id = '51041d4dfcc34b6fbaa2c85c2f073c6a'
+AND user_id NOT IN (
+	SELECT userid FROM bank_card 
+)
+很是奇怪啊,这sql经常使用,怎么会查询出问题呢。
+
+问题原因:
+SELECT userid FROM bank_card 表中userid 存在null的记录,因此mysql的not in是不支持的
+
+修改:
+SELECT userid FROM bank_card 添加WHERE userid IS NOT NULL即可

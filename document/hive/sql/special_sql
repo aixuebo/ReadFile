@@ -16,3 +16,26 @@ INSERT OVERWRITE TABLE shareStatis
 a.可以用union将每一个表的数据查询出来,并且多写一个标识符字段,表示数据出于什么表的结果，
 b.对a的结果进行group by date、小时、userid,select中根据标识符进行case when then处理即可。
 
+或者将所有的可能列情况都写在一行,只是没有值的时候用0表示即可,这样最终外层循环用sum就可以了
+
+
+3.学习使用full join操作,相当于left join和right join的综合版
+测试的话可以获取两个表的各两条记录,full join后还是4条记录
+该方式也可以完成2行转列的操作
+
+注意:
+a.3个表以上的full join是有问题的,因为两个表full join后,主键位置就不固定了,因为会出现两个表的主键都在同一行,但是数据却有的是null。
+因此三个表以上full join的时候有问题。
+b. 注意该表用full join ,因此对于关联的主键要用COALESCE(money.userid,interest.userid)处理
+
+4.设置动态分区
+a.set hive.exec.dynamic.partition.mode=nostrick;
+----------------------------------------
+b.insert overwrite table dim_jlc.topic_user_partition partition(log_day)
+c.select的最后几个字段的值就是分区的值
+
+注意:动态分区不要过多,否则会引起问题,因此有时候太多分区的话,要分批进行,比如我这边时间跨度是1年半,我就按照季度执行一次即可。
+当然你也可以写mr自己做这事儿,但是有时候不必要那么麻烦,多循环几次也还可以接受。
+
+5.在select中用两个case when 的sum做差,获取连续两天的数据增量
+sum(case when log_day = '20160623' then premium_final else 0 end )-sum(case when log_day = '20160622' then premium_final else 0 end ) premium_final_last,

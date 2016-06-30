@@ -4,7 +4,7 @@
  返回www.facebook.com
  
 连接字符串concat(string A, string B…)
- 
+
 2.collect_set,该函数要配合group by语法
 例如 collect_set(age),返回array,类似set,包含所有不重复的age信息
 size(collect_set(age)),即array的值是可以放到size函数里面的
@@ -93,6 +93,7 @@ if( Test Condition, True Value, False Value )
 Example: if(1=1, 'working', 'not working') returns 'working'
 22.返回第一个不是null的值
 COALESCE( value1,value2,... ) 返回第一个不是null的值,如果都是null,则返回null
+例如COALESCE(cur_plus_money,0)
 23.case when then else 语法
 a。
 CASE Fruit
@@ -108,6 +109,10 @@ CASE
   WHEN Fruit = 'ORANGE' THEN 'The owner is ORANGE'
   ELSE 'It is another Fruit'
 END
+
+24.percentile_approx函数 org.apache.hadoop.hive.ql.udf.generic.GenericUDAFPercentileApprox
+会对id列的值进行分桶,分到第三个桶中,获取10分位数中百分比是3%,30%,50%最接近的数值,得到的结果与自己知道的概率比较,看看差距是否很大,差距越大,越说明异常值较多
+select percentile_approx(id, array(0.03,0.3,0.5), 10) from dim_temporary.test;
 
 二、generic
 1.对case column when a then b else c end 形式进行处理
