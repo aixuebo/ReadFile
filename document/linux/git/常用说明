@@ -1,0 +1,5 @@
+一、忽略文件,具体参考mysql_log下的.gitignore文件
+target/ 表示下面所有的target子子孙孙都可以被忽略
+/target 只是忽略根目录下的target
+*.class 忽略所有的class
+.DS_Store

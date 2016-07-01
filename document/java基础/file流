@@ -1,0 +1,6 @@
+一、FileInputStream fin
+limit = fin.read(buffer, 0, len);
+从文件流中最多读取len个字节,存储到buffer中,从buffer的0位置开始存储数据,最终读取了多少个字节就是limit
+
+二、FileOutputStream os 
+os.write(buf, off, len) 将buffer缓冲区内从off开始,写len个字节,写入到输出流中

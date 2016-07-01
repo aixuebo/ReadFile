@@ -1,0 +1,58 @@
+一、仓库
+默认有一个central仓库
+增加一个额外仓库
+	<repository>
+	  <id>scala-tools.org</id>
+	  <name>Scala-Tools Maven2 Repository</name>
+	  <url>https://oss.sonatype.org/content/repositories/public/</url>
+	</repository>
+二、仓库需要密码
+在<servers>标签中配置仓库对应的用户名和密码
+<id>设置的内容就是对应仓库的id
+三、镜像
+<mirror>
+      <id>nexus</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Human Readable Name for this Mirror.</name>
+      <url>http://10.1.xx.xx:8081/nexus/content/groups/public/</url>
+</mirror>
+用于配置仓库的镜像.
+同一个仓库可以配置多个镜像,但是只会有一个镜像被真实使用,顺序是通过id的顺序决定的.防止本地私服镜像挂了,maven无法使用的情况,应该配置多余的镜像指向官方网站。
+id表示镜像的名称,同一个仓库的镜像加载顺序是通过id决定的
+
+高级的镜像配置： 
+1.<mirrorOf>*</mirrorOf> 
+匹配所有远程仓库。 这样所有pom中定义的仓库都不生效
+2.<mirrorOf>external:*</mirrorOf> 
+匹配所有远程仓库，使用localhost的除外，使用file://协议的除外。也就是说，匹配所有不在本机上的远程仓库。 
+3.<mirrorOf>repo1,repo2</mirrorOf> 
+匹配仓库repo1和repo2，使用逗号分隔多个远程仓库。 
+4.<mirrorOf>*,!repo1</miiroOf> 
+匹配所有远程仓库，repo1除外，使用感叹号将仓库从匹配中排除。 
+
+
+四、部署至远程仓库
+    在远程仓库中配置构件部署地址：分别部署快照版和发布版
+    <project>
+         <distributionManagment>
+              <repository>
+                   <id>proj-release</id>
+                   <name>Project Release Repository</name>
+                   <url>http://192.168.1.100/content/repositories/proj-releases</url>
+              </repository>
+              <snapshotRepository>
+                   <id>proj-snapshots</id>
+                   <name>Proj Snapshot Repository</name>
+                   <url>http://192.168.1.100/content/repositories/proj-snapshots</url>
+              </snapshotRepository>
+         </distributionManagment>
+    </project>
+         
+五、流程
+去maven下载jar包---按照仓库配置的顺序,去仓库查对应的jar包。
+首先查找仓库对应的镜像中去搜,因此镜像要配置一个本地私服的原因.
+如果在第一个仓库中查找不到jar包,则去第二个仓库查找jar
+
+
+六、强制刷新命令
+mvn clean install -U

@@ -1,0 +1,16 @@
+1.maven插件有异常,不能使用
+异常提示maven.multiModuleProjectDirectory system property is not set
+解决方案
+setting---maven--runner--vm options 设置-Dmaven.multiModuleProjectDirectory=$M2_HOME即可
+
+-Dmaven.multiModuleProjectDirectory=$M2_HOME
+
+2.项目手动打包
+file--project structure --artifacts -- jar --empty--other--添加jar包名称,这样会创建出来的jar包
+配置:
+1.从右侧的maven中添加各种第三方jar,因此生成的结果就是jar包了
+3.将compile output 编译输出文件 右键 按照附件形式打包
+或者
+创建一个archive附件对象,并且移动到内部,将compile output 编译输出文件拖进该附件对象内即可完成。
+
+
