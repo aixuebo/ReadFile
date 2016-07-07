@@ -1,0 +1,5 @@
+一、解析binlog
+因为binlog是二进制的,因此要可视化必须用工具
+ /server/mysql/bin/mysqlbinlog /server/data/mysql/mysql-bin.000748 | more 
+ hexdump -C /server/data/mysql/mysql-bin.000749 | more 查看文件二进制形式
+ 

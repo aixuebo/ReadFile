@@ -39,3 +39,7 @@ c.select的最后几个字段的值就是分区的值
 
 5.在select中用两个case when 的sum做差,获取连续两天的数据增量
 sum(case when log_day = '20160623' then premium_final else 0 end )-sum(case when log_day = '20160622' then premium_final else 0 end ) premium_final_last,
+
+6.not in或者in的sql转换成
+left join,然后在最后用where条件,将column is null 或者将column is not null来决定是否是not in 还是in。
+其中column is null 表示not in 

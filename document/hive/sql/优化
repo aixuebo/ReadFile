@@ -5,3 +5,16 @@ demo:从15分钟的洗数据,最终结果改成3分钟
 优化的原因；hive当输入源很大的时候,比如8G,会有200多个map,因此就会有200多个结果集,
 因此他预估reduce也要很多,比如reduce预估100个,因此这100个都会去那200个map中获取信息,这样就会产生100*200个连接请求,
 因此速度会慢很多了,而设置1个reduce后,就变成1*200,连接从2万变成200个,速度提升100倍。
+
+2.为hive的任务设置job的name
+set mapred.job.name='topic_channel-1';
+因为备注太长的时候,生成的name就很长,容易出异常,导致
+java.io.IOException: Could not find status of job:job_1466766941848_1739
+at org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper.progress(HadoopJobExecHelper.java:295)
+
+问题发现:
+去页面查看job:job_1466766941848_1739,会发现history日志有问题,没有历史日志,进详细log看全部日志,会发现提示名字太长导致的异常。
+/mr-history/tmp/root is exceeded: limit=255 length=330
+
+google搜索关键字:hadoop hdfs exceeded: limit=255
+

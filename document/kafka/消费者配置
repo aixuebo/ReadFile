@@ -1,0 +1,9 @@
+一、auto.offset.reset
+props.put("auto.offset.reset", "smallest");
+smallest, 将offset设为当前所能用的最小的offset。 注意不一定是0。
+largest, 将offset设为当前可用的最大的offset。也就是consumer将只处理最新写入的消息。 默认值。
+
+二、一个消费者挂掉了怎么办
+每一个消费者持有一个唯一ID，如果是一组消费者那么这个唯一ID就是groupId,表示对同一个groupId的所有消费者共同消费同一个topic信息。
+因此当消费者只有一个的时候，挂掉了，重新开启后，依然继续挂掉的位置去继续消费，因为该消费者消费到哪里了，是存储在zookeeper上的。
+如果像一个web页面，就需要看最新信息的时候，那么需要移动偏移量到最新位置去消费

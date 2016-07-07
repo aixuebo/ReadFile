@@ -4,3 +4,12 @@ limit = fin.read(buffer, 0, len);
 
 二、FileOutputStream os 
 os.write(buf, off, len) 将buffer缓冲区内从off开始,写len个字节,写入到输出流中
+
+三、ByteBuffer
+1. buffer.get(bytes, off, realLen)//从buffer中读取数据,len个,存储到bytes数组中,从off位置开始存储
+2. buffer.put(bytes, off, size) //向buffer中添加字节内容,添加的内容是bytes数组中从off位置开始写,写size个到buffer中
+3. buffer.putInt(size)//表示向buffer中写入一个int,值是size
+4. buffer.putInt(index, value)
+   表示在buffer中添加一个int,在buffer的第index个位置添加一个int,index后面的位置要向后移动
+5.buffer.rewind()//将buffer的position设置到0的位置
+
