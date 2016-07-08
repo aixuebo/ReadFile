@@ -11,17 +11,15 @@ import org.apache.hadoop.io.Text;
  * create temporary function  strDateFormat as 'com.xuebo.udf.StrDateFormat';
  */
 @Description(name = "strDateFormat",
-value = "_FUNC_(date1,date1Format) -",
+value = "_FUNC_(date1,sourceDateFormat,targetDateFormat) -",
 extended = "Example:\n"
-+ "  > SELECT strDateFormat('20150101','yyyyMMdd') FROM src LIMIT 1;\n" + "  return 2015-01-01"
-+ "  > SELECT strDateFormat('20150101') FROM src LIMIT 1;\n" + "  return 2015-01-01")
+		+ "  > SELECT strDateFormat('2015-01-01','yyyy-MM-dd','yyyyMMdd') FROM src LIMIT 1;\n" + "  return 20150101")
 public class StrDateFormat extends UDF{
 	  
-	  private final String sourceStr = "yyyyMMdd";
-	  private final Text sourceText = new Text(sourceStr);
-	  private final Text lastSourceText = new Text(sourceStr);
-	  private  SimpleDateFormat sourceFormatter = new SimpleDateFormat(sourceStr);
-	  private final SimpleDateFormat resultFormatter = new SimpleDateFormat("yyyy-MM-dd");
+	  private  Text sourceText = new Text("yyyy-MM-dd");
+	  private  Text targetText = new Text("yyyyMMdd");
+	  private  SimpleDateFormat sourceFormatter = new SimpleDateFormat(sourceText.toString());
+	  private  SimpleDateFormat targetFormatter = new SimpleDateFormat(targetText.toString());
 	  
 	  Text result = new Text();
 	  
@@ -30,21 +28,26 @@ public class StrDateFormat extends UDF{
 	  }
 
 	  public Text evaluate(Text date) {
-		  return evaluate(date,sourceText);
+		  return evaluate(date,sourceText,targetText);
 	  }
 	  
-	  public Text evaluate(Text date,Text dateFormat) {
-	    if (date == null || dateFormat == null) {
+	  public Text evaluate(Text date,Text sourceFormat,Text targetFormat) {
+	    if (date == null || sourceFormat == null || targetFormat == null) {
 	      return null;
 	    }
 	    
-	    if(!lastSourceText.equals(dateFormat)){
-	    	lastSourceText.set(dateFormat);
-	    	sourceFormatter = new SimpleDateFormat(dateFormat.toString());
+	    if(!sourceText.equals(sourceFormat)){
+	    	sourceText.set(sourceFormat);
+	    	sourceFormatter = new SimpleDateFormat(sourceText.toString());
+	    }
+	    
+	    if(!targetText.equals(targetFormat)){
+	    	targetText.set(targetFormat);
+	    	targetFormatter = new SimpleDateFormat(targetText.toString());
 	    }
 	    
 	    try{
-	    	result.set(resultFormatter.format(sourceFormatter.parse(date.toString())));
+	    	result.set(targetFormatter.format(sourceFormatter.parse(date.toString())));
 	    	return result;
 	    }catch(Exception ex){
 	    	return null;
