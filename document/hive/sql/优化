@@ -18,3 +18,6 @@ at org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper.progress(HadoopJobExecH
 
 google搜索关键字:hadoop hdfs exceeded: limit=255
 
+3.为hive设置后缀,在into的时候可以知道是哪个sql的输出,当重新跑数据的时候,只需要删除这部分输出内容即可,不需要全部数据重跑了
+set hive.output.file.extension=.c1;
+

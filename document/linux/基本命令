@@ -11,4 +11,15 @@ chown zjy:hdfs /home/zjy/ 设置组
 chgrp命令来改变文件所在用户组
 chgrp [-R] users install.log 设置install.log的所属组是users
 
-二、
+二、stat
+stat file可以查看文件的inode、最后访问事件、修改时间等属性信息
+
+三、inode
+可以通过stat file 或者ls -i来查看一个文件的inode号码
+用于删除一些乱码或者需要正则匹配的文件名的时候经常使用
+
+rm `find ./ -inum 7864517`
+表示要删除一些文件,删除的是find通过inode查找的文件结果,7864517是文件inode的号码
+
+或者find ./ -inum 388678 -exec rm -i {} \;
+

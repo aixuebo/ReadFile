@@ -114,6 +114,19 @@ END
 会对id列的值进行分桶,分到第三个桶中,获取10分位数中百分比是3%,30%,50%最接近的数值,得到的结果与自己知道的概率比较,看看差距是否很大,差距越大,越说明异常值较多
 select percentile_approx(id, array(0.03,0.3,0.5), 10) from dim_temporary.test;
 
+25.时间函数
+输入20160613 输出 2016-06-13
+strDateFormat('20160613','yyyyMMdd','yyyy-MM-dd')
+
+输入2016-06-14 输出 2016-06-13
+select date_add('2016-06-14',-1)
+
+输入2016-06-14 输出 20160613
+select strDateFormat(date_add('2016-06-14',-1),'yyyy-MM-dd','yyyyMMdd')
+
+输入20160613 输出2016-06-14
+select date_add(strDateFormat('20160613','yyyyMMdd','yyyy-MM-dd'),1)
+
 二、generic
 1.对case column when a then b else c end 形式进行处理
  注意:

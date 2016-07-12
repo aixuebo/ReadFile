@@ -11,9 +11,31 @@ FileChannel inChannel = aFile.getChannel();
 1.ByteBuffer buf = ByteBuffer.allocate(48);
 int bytesRead = inChannel.read(buf); 从inChannel流中读取内容,存储到buf中,最多存储48个字节,返回具体读取了多少个字节
 2.int bytesWritten = inChannel.write(buf) 将buf的内容写入到inChannel输出流中,返回具体写入了多少个字节
+3.inChannel.read(buffer, off) 表示从inChannel的off位置开始读取数据,读取到buffer中
+4.inChannel.write(ByteBuffer buf, long off) 表示将buf的内容写入到inChannel中第off位置上
+5.int bytesTransferred = inChannel.transferTo(off, math.len, destChannel)
+将inChannel的数据从off位置开始传输,最多传输len个字节,到另外一个地方destChannel,返回值是真正传输了多少个字节
+6.channel.truncate(targetSize)
+将channel内的文件太大了,进行截断,参数targetSize字节偏移量位置后面的字节将被删除,不是真的被删除了,数据还在,只是channel不用这部分数据而已。
+因此通常后面还会接channel.position(targetSize)//定位位置为截取后的位置,使输出流可以继续追加
+
+四、RandomAccessFile
+File file = new File("E:\\linux\\111");
+RandomAccessFile raf = new RandomAccessFile(file, "rw");
+1.long len = raf.length(); 返回该文件一共有多少个字节
+2.raf.setLength(24);该语句会将24字节偏移量之后的所有内容全部从文件中删除
+long len = raf.length(); 返回值就是24
+3.MappedByteBuffer buff = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, len);
+System.out.println(buff.position());
+System.out.println(buff.capacity());
+System.out.println(buff.limit());
+该方法会将文件流的所有内容,从偏移量0到len的所有内容用内存映射对象包装一下.因此返回的MappedByteBuffer就可以当作byteBuffer对象使用。
+包含三个属性position、limit、capacity
+4.对raf调用close方法,关闭raf文件流,但是生成的内存映射对象MappedByteBuffer依然还可以使用,但是必须MappedByteBuffer用于return即可被使用
 
 
-四、ByteBuffer
+    
+五、ByteBuffer
 1.ByteBuffer buffer = ByteBuffer.allocate(1024); 创建ByteBuffer对象
 2.byte array[] = new byte[1024];
   ByteBuffer buffer = ByteBuffer.wrap(array);
