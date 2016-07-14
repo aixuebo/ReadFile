@@ -1,3 +1,9 @@
 1.查找字符串是否包含另外一个字符串
 使用LOCATE(SUBSTR,str)函数，如果包含，返回>0的数，否则返回0 
 SELECT LOCATE('陈建生','xx,陈建生');
+
+2.相当于mysql的split,按照什么字符去拆分
+例如:按照空格拆分,获取第2个位置字符bb
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('111 bb', ' ', 2), ' ', -1)
+
+ 

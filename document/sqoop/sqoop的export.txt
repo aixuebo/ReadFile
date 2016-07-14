@@ -23,6 +23,120 @@ b.sqoop时候
 --connection-manager org.apache.sqoop.manager.MySQLManager 或者取消driver
 在import的时候要设置驱动,不用设置--connection-manager,即要使用GenericJdbcManager即可
 
+c.--update-key mobile,userid 
+ 表示按照userid和mobile两个字段进行更新操作,因此这两个字段有要求,必须是唯一索引或者主键才可以执行mysql的duplicate on update语法进行update操作
+ 
+d.mysql的唯一索引建立
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `period_create_date_channel` (`period`,`create_date`,`channel`) 
+注意:唯一索引是不区分大小写的,因此Tengxun和tengxun是认为同一个字符串,因此插入到唯一索引里面会抛异常,执行duplicate on update会进行update操作.
+因此会造成数据不准确的问题。
+修改`channel` varchar(255) DEFAULT NULL, 改成 `channel` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,即可 
+
+e.分别表示当一个null的值出现在string列和非String列的时候,该替换成什么值,用于import和export中
+--null-string <null-string>	The string to be written for a null value for string columns
+--null-non-string <null-string>	The string to be written for a null value for non-string columns
+eg
+--null-string '\\N' 在import的时候,遇见数据库是null的,则生成\N到hive中
+参考
+SqoopOptions的nullNonStringValue
+BaseSqoopTool的NULL_NON_STRING = "null-non-string";
+ClassWriter中的stringifierForType方法
+
+执行逻辑
+import查询数据库,将查询结果ResultSet传入到javaBean中,执行value.readFields(results);方法,从结果集中返回数据,生成对应的value对象,即从rs中获取数据中到value中
+经过该方法后,该对象所有的属性都已经有值了,在readField方法中调用this.create_date = JdbcWritableBridge.readString(1, __dbResults);
+而JdbcWritableBridge.readString方法逻辑是
+  public static Integer readInteger(int colNum, ResultSet r)
+      throws SQLException {
+    int val;
+    val = r.getInt(colNum);
+    if (r.wasNull()) {
+      return null;
+    } else {
+      return Integer.valueOf(val);
+    }
+  }
+因此可以看出来最终结果就是有值或者null。
+
+接下来调用toString方法,将结果写入到hdfs上,即最终hive存储的格式就是在toString方法里面,该方法逻辑是
+以此在对每一个属性进行输出,输出的内容是colName==null?"this.options.getNullStringValue()":create_date,即如果该属性是null,则执行this.options.getNullStringValue()方法获取内容存储到hdfs上,也就是null的默认值被写入了。
+
+
+f.因为hive抛出的结果有\N的时候,如果该字段作为主键或者唯一索引插入到数据库的时候,会产生问题,该字段的数据每次插入都会有一行记录,数据库中查询is null便可以查询出来。
+如果该列是String的,则--null-string aaa被设置,依然不可用,原因是export的时候不会走--null-string参数。
+具体逻辑如下:
+hadoop的mr从输入源中读取一行数据,调用vo对象的parse方法,把一行数据作为参数传递进去。
+即recordImpl.parse(val);//进行对文本解析
+逻辑如下:
+  public void parse(Text __record) throws RecordParser.ParseError {
+    if (null == this.__parser) {
+      this.__parser = new RecordParser(__inputDelimiters);
+    }
+    List<String> __fields = this.__parser.parseRecord(__record);
+    __loadFromFields(__fields);
+  }
+  
+  private void __loadFromFields(List<String> fields) {
+    Iterator<String> __it = fields.listIterator();
+    String __cur_str = null;
+    try {
+    __cur_str = __it.next();
+    if (__cur_str.equals("null")) { this.create_date = null; } else {
+      this.create_date = __cur_str;
+    }
+
+    __cur_str = __it.next();
+    if (__cur_str.equals("null")) { this.end_date = null; } else {
+      this.end_date = __cur_str;
+    }
+
+    __cur_str = __it.next();
+    if (__cur_str.equals("null")) { this.channel = null; } else {
+      this.channel = __cur_str;
+    }
+ 可以看到最终的值是否是null,如是,则将字段的内容写成null,否则写成具体值,
+而什么情况下是null,则走如下逻辑:
+  private void parseNullVal(String javaType, String colName, StringBuilder sb) {
+    if (javaType.equals("String")) {
+      sb.append("    if (__cur_str.equals(\""
+         + this.options.getInNullStringValue() + "\")) { this.");
+      sb.append(colName);
+      sb.append(" = null; } else {\n");
+    } else {
+      sb.append("    if (__cur_str.equals(\""
+         + this.options.getInNullNonStringValue());
+      sb.append("\") || __cur_str.length() == 0) { this.");
+      sb.append(colName);
+      sb.append(" = null; } else {\n");
+    }
+  }
+我们可以看到是getInNullStringValue()与当前的值相同的时候,才会设置为null,因此这部分也使用--null-string参数。
+ 
+然后调用context.write(recordImpl, NullWritable.get());方法,将结果输出
+将结果写到PreparedStatement中即可。
+      JdbcWritableBridge.writeString(create_date, 1 + __off, 12, __dbStmt);
+	  this.create_date = JdbcWritableBridge.readString(1, __dbResults);
+
+    public static void writeLong(Long val, int paramIdx, int sqlType,
+      PreparedStatement s) throws SQLException {
+    if (null == val) {
+      s.setNull(paramIdx, sqlType);
+    } else {
+      s.setLong(paramIdx, val);
+    }
+  }
+ 
+   public static void writeString(String val, int paramIdx, int sqlType,
+      PreparedStatement s) throws SQLException {
+    if (null == val) {
+      s.setNull(paramIdx, sqlType);
+    } else {
+      s.setString(paramIdx, val);
+    }
+  }
+  我们发现如果值是null的属性,则直接在jdbc的时候就设置为null了,因此sql中最终结果就是null
+
 2.demo
 | mobile | CREATE TABLE `mobile` (
   `mobile` varchar(7) DEFAULT NULL,

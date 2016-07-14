@@ -67,6 +67,10 @@ sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --tab
 sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card 
 --columns id,userId,userRealName,userIdNo,bankCard,bankName,isEffective,source,lastUpdateTime
 
+c.导出数据到分区内,sqoop支持一个字段的分区,其实也够了,毕竟按照时间这一个分区就可以搞定导出功能了
+sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 \ 
+--table bank_card --hive-partition-key log_day --hive-partition-value ${d}
+
 5.为什么mysqldump比jdbc快
 马明，mysqldump是比JDBC快很多，原因是mysqldump是锁整个库和表后，直接从数据库引擎查出数据。
 JDBC需要语法解析，建立连接，然后去通过查询引擎去查找数据
