@@ -43,3 +43,11 @@ sum(case when log_day = '20160623' then premium_final else 0 end )-sum(case when
 6.not in或者in的sql转换成
 left join,然后在最后用where条件,将column is null 或者将column is not null来决定是否是not in 还是in。
 其中column is null 表示not in 
+
+7.join on中不允许使用函数,比如 substr(a.open_time,1,10) = b.create_date
+解决方法是将 substr(a.open_time,1,10)写在a表的select里面,单独使用一个别名代替,然后on的时候使用a.别名 = b.create_date
+
+8.有一个时间表,用于与正常表进行join操作。
+on的条件是>= <=都可以,可以解决我们129个字段的时候,没办法全量一次性跑完历史数据的需求
+
+

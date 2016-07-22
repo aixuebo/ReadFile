@@ -1,3 +1,13 @@
+最常用的快捷键
+Alt+F1 常用工具都在这个选项里面
+Alt+F7 查找该方法或该类在哪些地方被调用了
+Alt+回车 自动import导入包
+ctrl+j 可以查找main 然后sout
+alt + insert 可以设置set/get、重写父类等方法
+ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
+
+
+一般常用的快捷键
 1.前后浏览代码位置
 Navigate -- back  和forward
 2.如何将navigate上面很多按钮添加到最上面的工具条中
@@ -6,14 +16,9 @@ view--toolbar
 3.main syso快捷键
 比较常用的快捷键
 Ctrl+Tab 切换一大堆的tab页面,即class类
-Alt+回车 自动import导入包
-ctrl+j 可以查找main 然后sout
-alt + insert 可以设置set/get、重写父类等方法
-ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
 ctrl+N 可以查找class,即navigate--class
 Shift+Shift 即可在一个弹出框中搜索任何东西，包括类、资源、配置项、方法等等。
 ctrl + F12获取该类所有的方法,再次F12,则显示父类的所有方法
-Alt+F7 查找该方法或该类在哪些地方被调用了
 Ctrl+F 在当前窗口中查找任意字符出现位置,再配合F3/Shift+F3前后移动到下一匹配处。
 Ctrl+Shift+F 在全工程中查找任意字符出现位置,再配合F3/Shift+F3前后移动到下一匹配处。
 
