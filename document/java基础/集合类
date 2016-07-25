@@ -21,3 +21,45 @@
     System.out.println(map.floorKey(3));//3
      
     System.out.println(map.lastEntry().getValue());//777
+
+二、添加和取出的方法区别
+add和put、offer是添加一个元素,添加成功就返回boolean
+peek就是获取当前的元素,并不进行next查找
+poll是返回当前元素,但是进行查找下一个元素
+
+
+take 是阻塞的poll,必须拿到一个元素,否则一直阻塞
+E poll(long timeout, TimeUnit unit) 是阻塞一定时间的poll方法,超时后,如果还没有元素.则返回null
+
+int drainTo(Collection<? super E> c) 是将满足的元素添加到参数集合内
+int drainTo(Collection<? super E> c, int maxElements) 是将满足的元素添加到参数集合内,最多满足 maxElements个元素就返回
+
+三、PriorityQueue 优先级对了
+1.是一个无限制的优先级集合,通过动态的扩容实现无限制集合
+  初始化的参数int是预估值,不是限制集合大小的参数
+2.集合的第一个元素就是集合内最小的元素
+3.集合内的元素必须不能是null,也必须都是可比较的元素
+4.进队列和出队列的复杂度都是O(log(n)),因为他们要移动位置,比如offer、add、poll、remove
+  线性方法,一个一个循环操作的是remove(Object)、contains(Object)
+ 常量时间的方法peek、size、element
+
+四、DelayQueue<E extends Delayed>
+参数 Delayed有2个方法,
+compare,用于比较两个Delayed对象,用于元素如何存储到优先队列中
+long getDelay(TimeUnit unit);用于判断元素是否过期,当返回值是<=0的时候才是过期的元素,才可以被take拿出去消费掉
+
+1.一个使用无限制的优先级队列实现的阻塞队列
+2.只有当泛型内的参数过期的时候,才允许被take出来
+3.优先级队列的第一个元素是最早的元素,如果该元素都不过期,说明剩余元素都不过期
+
+例如:
+add和put、offer是添加一个元素都是调用的优先级队列的方法,没什么限制
+peek 就是调用优先队列的方法,返回的元素可能是过期的,也可能是非过期的
+E peekExpired() 该方法是调用优先队列的peek方法,判断是否是过期的元素,过期的元素则返回,不是过期的则返回null
+E poll() 调用优先队列的peek方法,并且校验是否过期,不过期则立刻返回null,过期则调用优先队列的poll方法返回该元素
+E take() 方法阻塞的获取下一个过期的元素,也是调用peek看是否过期,没有过期的元素就睡眠,不断循环,如果有过期的,则调用优先队列的poll方法返回该元素
+int drainTo(Collection<? super E> c)  需要循环所有的优先级队列元素,将满足过期的元素添加到参数中
+int drainTo(Collection<? super E> c, int maxElements) 需要循环所有的优先级队列元素,将满足过期的元素添加到参数中，最多满足参数个
+
+
+
