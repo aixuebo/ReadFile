@@ -23,3 +23,4 @@ rm `find ./ -inum 7864517`
 
 或者find ./ -inum 388678 -exec rm -i {} \;
 
+

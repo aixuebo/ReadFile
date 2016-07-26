@@ -1,0 +1,6 @@
+一、iftop
+1.iftop是类似于top的实时流量监控工具
+2.官方网站：http://www.ex-parrot.com/~pdw/iftop/
+3.iftop可以用来监控网卡的实时流量（可以指定网段）、反向解析IP、显示端口信息等
+4.查看网络状态可以使用netstat、nmap等工具
+  但是若要查看实时的网络流量，监控TCP/IP连接等，则可以使用iftop
