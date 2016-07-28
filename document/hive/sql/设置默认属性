@@ -1,0 +1,27 @@
+一、设置reduce数量
+set mapred.reduce.tasks = 5;
+
+注意:
+1.一定要在-------------之前设置,否则会抛异常
+2.set mapred.reduce.tasks = 5;前面一定不能是-----,否则会说解析语法错误,就直接设置set mapred.reduce.tasks = 5;即可
+
+hive <<EOF
+
+set mapred.reduce.tasks = 5;
+
+-------------
+sql
+
+quit;
+EOF
+
+二、自动map端join优化
+set hive.auto.convert.join = true;
+set hive.mapjoin.smalltable.filesize = 30000000.  30M
+默认是开启join在map端自动优化功能的,但是有时候会因为内存不够,导致出现 java.lang.OutOfMemoryError: GC overhead limit exceeded
+因此有时候需要将其关闭掉,即set hive.auto.convert.join = false;
+
+一般出现的异常输出提示是:Starting to launch local task to process map join;      maximum memory =
+导致重试很多次map端在本地执行任务,都失败,失败次数超过了一定伐值,因此任务fault,没有reduce输出产生。
+  
+

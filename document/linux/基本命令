@@ -5,11 +5,32 @@ chown [-R] 账号名称:用户组名称 文件或目录
 -R : 进行递归( recursive )的持续更改，即连同子目录下的所有文件、目录
 例如:
 chown zjy /home/zjy/ 设置文件所属人
-chown zjy:hdfs /home/zjy/ 设置组
+chown zjy:hdfs /home/zjy/ 设置用户和组
 
 
 chgrp命令来改变文件所在用户组
 chgrp [-R] users install.log 设置install.log的所属组是users
+
+为一个目录设置权限,并且递归操作
+chmod -R 775 /data/encryption/
+
+
+将三个用户添加到hdfs组
+usermod -G hdfs sqoop
+usermod -G hdfs hive
+usermod -G hdfs root
+
+groups root 查看root这个用户都有哪些组,返回该用户对应的组集合
+
+创建hadoop临时目录并且赋权限
+hadoop fs -mkdir -p /user/root/
+hdfs dfs -chmod -R 777 /user/root/
+
+hdfs groups hdfs 查看hdfs这个组下有哪些用户
+hdfs dfs 
+        [-chgrp [-R] GROUP PATH...] 将path的组设置为group
+        [-chmod [-R] <MODE[,MODE]... | OCTALMODE> PATH...] 修改文件的权限
+        [-chown [-R] [OWNER][:[GROUP]] PATH...] 设置该path的所属者和group
 
 二、stat
 stat file可以查看文件的inode、最后访问事件、修改时间等属性信息
@@ -22,5 +43,37 @@ rm `find ./ -inum 7864517`
 表示要删除一些文件,删除的是find通过inode查找的文件结果,7864517是文件inode的号码
 
 或者find ./ -inum 388678 -exec rm -i {} \;
+
+
+三、apt-get
+apt-get 所下载的用于安装的软件包，在 
+/var/cache/apt/archives 中。如果执行过 apt-get clean ，那么原始下载的包就找不到了。 
+
+dpkg -L <package name> 如果包安装成功的话，会列出所有文件的位置。
+
+四、tar
+1.打包
+tar -cvf xx.tar file1 file2
+tar -czvf xx.tar.gz file1 file2
+2.查看tar包内容
+查看全部文件
+tar -tvf 20141016.tar.gz
+查看通配符制定文件
+tar -tzvf 20141016.tar.gz 20141016/log/10.163.167.84/log_service_c*
+3.解压缩-tar.gz  注意最后一个是f命令
+全部解压缩
+tar -xzvf 20141016.tar.gz
+解压缩tar.gz中某一个文件
+tar -xzvf source.tar.gz 20141016/log/10.163.167.84/log_service_coohua_com.2014101615.gz
+解压缩tar.gz中某一类型文件
+tar -xzvf source.tar.gz 20141016/log/10.163.167.84/log_log_coohua_com.*
+4.解压缩-tar
+tar -xvf 命令即可。不需要加z
+5.tar和tar.gz区别
+.tar只是将文件打包，文件的大小没什么变化
+.tar.gz是加入了gzip的压缩命令，会将文件压缩存放，可以有效压缩文件的大小，以便于缩短传输时间或者释放磁盘空间
+6.读取gz文件
+zcat *.gz 读取gz压缩文件
+zcat *.gz >xx.log 读取的gz文件存放到xx.log中,相当于解压缩
 
 

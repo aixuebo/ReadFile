@@ -1,0 +1,149 @@
+汇总
+1.定义ubuntu目录结构
+/aixuebo/是我的目录
+
+
+一、做系统
+1.下载ubunto的桌面iso文件
+2.用软件将iso文件压缩到U盘下
+3.使用F1进入bios
+设置boot优先级是我的U盘,用shift+ 进行调节优先级--保存更改--重新启动--进入U盘创建系统
+---选择是否将电脑上已经存在的系统全部删除掉--如果不删除则说明最终结果是双系统
+---设置用户名和密码mm  zhangpei..
+4.重新做完系统后，在将bios里面的优先级调过来,否则还是会u盘启动
+
+二、查看电脑资源
+1.uname -a 查看操作系统多少位
+cat /proc/cpuinfo 查看cpu
+df -h 查看磁盘
+
+2./etc/profile 是系统的环境变量
+3./etc/group  文件是用户组的配置文件
+格式： 组名：密码保存位置：组ID：组成员
+4./etc/passwd 文件是用户的配置文件
+格式：注册名：口令：用户标识号：组标识号：用户名：用户主目录：命令解释程序 
+5./etc/shadow 用户的密密码区域
+
+  
+三、如何进入命令行终端
+ctrl+alt+f4 进入命令行
+ctrl+alt+f7 退出命令行
+ctrl+alt+T 进入终端
+
+四、如果创建root密码，并且允许使用root登录
+sudo passwd root
+为root用户设置密码，只能ubuntu装系统的时候的用户才允许为root设置密码
+
+默认不允许root登录桌面系统,
+sudo vi /usr/share/lightdm/lightdm.conf.d/50-ubuntu.conf
+插入一行数据
+greeter-show-manual-login=true
+重新启动就可以root登录了
+
+五、设置系统属性
+1.设置屏幕点亮时间
+系统设置--锁屏--设置屏幕关闭时间为never
+2.设置锁屏快捷键
+系统设置--keyword--system--lock --设置快捷键为ctrl+alt+l
+3.设置桌面按钮
+系统设置--appearance--behavior--勾选add show descktop按钮
+4.创建桌面的快捷方式
+a.在目录下创建一个link快捷方式
+b.拖拽到桌面上来
+
+4.设置桌面的快捷方式
+ln -s source /root/Desktop
+但是目前该方式没办法建立,因为sh的不是可执行文件
+
+
+
+六、下载软件
+1.secureCRT
+2.JDK
+3.eclipse·和 idea
+4.git
+sudo apt-get install git
+5.svn
+6.chrome
+7.安装ssh
+sudo apt-get install openssh-server
+8.下载vim命令,因为自带的vi命令不好用
+9.maven
+10.scala
+
+
+七、设置环境变量
+1.java
+使用命令 sudo vi /etc/profile 然后在文件末尾添加如下三行：
+export JAVA_HOME=/usr/lib/jdk1.8.0_45
+export CLASSPATH=.:$JAVA_HOME/lib:$JAVA_HOME/jre/lib:$CLASSPATH
+export PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH
+sudo source /etc/profile 使其生效
+
+2.maven
+M2_HOME=/usr/local/apache-maven-3.2.2
+export MAVEN_OPTS="-Xms256m -Xmx512m"
+export PATH=$M2_HOME/bin:$PATH
+sudo source /etc/profile 使其生效
+
+3.scala
+M2_HOME=/usr/local/apache-maven-3.2.2
+export MAVEN_OPTS="-Xms256m -Xmx512m"
+export PATH=$M2_HOME/bin:$PATH
+
+export SCALA_HOME=/home/test/install/scala-2.11.6
+export PATH=$SCALA_HOME/bin:$PATH
+export CLASSPATH=.:$SCALA_HOME/lib:$CLASSPATH
+sudo source /etc/profile 使其生效
+
+八、小知识
+1.命令行提示符含义
+user@ubuntu:~$ 为命令提示符， @ 之前的部分为当前用户ID， @ 与 : 之间的部分，为您的主机名称， : 与 $ 之间的部分，为当前的路径。
+
+
+
+问题
+ls -F   有这个功能   在文件名和目录名后加标志  可执行文件后添加*   目录加/
+如何去除胶带痕迹
+
+对历史上所有的mysql数据从跑,因为我定时任务重新跑了一遍，可能有问题
+
+
+4.设置桌面的快捷方式
+ln -s source /root/Desktop
+但是目前该方式没办法建立,因为sh的不是可执行文件
+
+
+
+
+该类表示每一个消费者组消费topic-partition到哪个序号了
+该类加载的必须是该topic的leader节点被加载
+
+也就是说获取每一个消费者组消费到哪个序号了，应该请求的是该topic所在的节点
+这个是需要确认一下的
+
+
+消费者怎么选择去哪个节点抓去topic-partition的？是去leader节点还是follow节点？
+生产者怎么选择数据提交到哪个节点，是直接去提交到leader节点吧？
+
+
+parquet
+http://www.infoq.com/cn/articles/in-depth-analysis-of-parquet-column-storage-format
+https://github.com/apache/parquet-mr
+http://www.slideshare.net/julienledem/parquet-hadoop-summit-2013
+https://cwiki.apache.org/confluence/display/Hive/Parquet
+https://parquet.apache.org/downloads/
+https://github.com/Parquet/parquet-mr/releases
+https://github.com/Parquet/parquet-mr/wiki/The-striping-and-assembly-algorithms-from-the-Dremel-paper
+https://blog.twitter.com/2013/dremel-made-simple-with-parquet
+http://www.infoq.com/cn/news/2012/09/yankay-analyzes-dremel
+http://www.oschina.net/question/12_76159
+http://blog.csdn.net/dc_726/article/details/41627613
+http://blog.csdn.net/dc_726/article/details/41777619
+https://segmentfault.com/a/1190000002655105
+以及桌面两个google论文
+
+老杨spark blog
+http://blog.csdn.net/u014393917/article/category/6084851
+
+

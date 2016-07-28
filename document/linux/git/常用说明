@@ -3,3 +3,40 @@ target/ 表示下面所有的target子子孙孙都可以被忽略
 /target 只是忽略根目录下的target
 *.class 忽略所有的class
 .DS_Store
+
+二、gitg命令研究
+在ubuntu上不支持小乌龟,只能用gitg工具
+A.gitg
+1.安装
+sudo apt-get install gitg
+2.启动
+a.gitg 全局位置都可以启动,然后进行一个项目的clone,和设置全局用户名和邮箱属性
+b.由于我们可以通过命令去创建一个clone项目,因此不需要该命令。
+c.该命令仅仅用于选择要提交的代码以及diff查看文件不同即可
+在git管理的项目下,执行gitg命令
+有一个箭头向下的符号,存在三个区域,分别是:
+已经在缓存区的文件,即staged,add后的文件
+在工作区已经修改的文件,即Unstaged
+在工作区刚刚新建的文件,即untracked
+
+可以在三个位置右键鼠标,提交或者恢复数据。
+在右下角有commit命令，可以提交代码到本地仓库
+
+
+B.git-cola
+1.安装
+sudo apt-get install git-cola
+2.启动
+a.在导航--file--prefernces中设置全局用户名和邮箱属性
+b.由于我们可以通过命令去创建一个clone项目,因此不需要该命令。
+c.该命令仅仅用于选择要提交的代码以及diff查看文件不同即可
+在git管理的项目下,执行git-cola命令
+导航目录下--view--将需要的diff status commit都现实出来
+
+在status下进行三个区域文件切换,一旦进入到staged阶段的就是表示为add过了的文件
+三个区域文件分别是:
+已经在缓存区的文件,即staged,add后的文件
+在工作区已经修改的文件,即Unstaged
+在工作区刚刚新建的文件,即untracked
+
+在commit下,输入备注内容,点击commit按钮即可提交代码到本地仓库
