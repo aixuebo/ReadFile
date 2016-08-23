@@ -164,3 +164,6 @@ mysqlµÄmysql-connector-java-5.1.17.jar°æ±¾Ì«µÍÁË,µ¼ÖÂÒÔÏÂµÄÁ½¸ö·½·¨ÔÚDateµÄÊı¾İ¿
           int scale = metadata.getScale(i);//ÊôĞÔµÄĞ¡Êıµã
 ½â¾ö·½·¨ÊÇ:¸ü»»³Émysql-connector-java-5.1.38-bin.jar°ü¼´¿É
 
+5.-m 1 Ê¹ÓÃÒ»¸öÏß³Ì½øĞĞexport²Ù×÷,Òò´Ë¿ÉÒÔ±ÜÃâËÀËøÏÖÏó²úÉú
+
+

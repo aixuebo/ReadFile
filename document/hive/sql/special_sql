@@ -50,4 +50,64 @@ left join,然后在最后用where条件,将column is null 或者将column is not
 8.有一个时间表,用于与正常表进行join操作。
 on的条件是>= <=都可以,可以解决我们129个字段的时候,没办法全量一次性跑完历史数据的需求
 
+7.查询同一表中数据,按照周分组,获取每周的某一天与另外一天的差,即统计周数据
+select
+    b.date as end_date,
+    date_add(b.date,-6) as create_date,
+    sum(if(b.date=a.date,a.value,-a.value)) as value_diff
+from
+(
+select date,value
+from biao1
+where pmod(datediff(date),7)=0
+)a
+join
+(
+select date
+from biao1
+where pmod(datediff(date),7)=0
+)b
+where
+a.date<=b.date and
+a.date>=date_add(b.date,-7)
+group by a.date
 
+条件:该表内存储每一天的存量信息
+结果:获取每周四-上周四的存量差,即每周存量
+a.是每周四的存量信息
+b.是每周四的时间
+c.两个表做full join,仅要挨着的两周的数据,即每一个b.date对应两条数据,分别是本周和上一周的数据,
+因此select中用两个数据做减法即可得到差值,b.date=a.date的时候表示本周,不等的时候表示上一周
+select中date_add(b.date,-6) as create_date,仅仅是用于显示,显示周五的时间,这样看上去时间比较连贯。
+
+举例:
+a.经过过滤后得到每周四的数据
+date	value
+20160818	700
+20160811	500
+20160804	300
+b.经过过滤后仅剩周四数据
+20160818
+20160811
+20160804
+c.a join b 得到笛卡尔乘积
+a.date          a.value   b.date     
+20160818	700	20160818
+20160818	700	20160811
+20160818	700	20160804
+20160811	500	20160818
+20160811	500	20160811
+20160811	500	20160804
+20160804	300	20160818
+20160804	300	20160811
+20160804	300	20160804
+d.进一步过滤,得到
+a.date          a.value   b.date
+20160818	700	20160818
+20160818	700	20160811
+20160811	500	20160811
+20160811	500	20160804
+20160804	300	20160804
+e.因此按照a.date进行group by
+20160818	700	20160811
+20160811	500	20160811

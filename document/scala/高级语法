@@ -1,0 +1,6 @@
+一、messageQueue: BlockingQueue[(RequestOrResponse, (RequestOrResponse) => Unit)]
+表示一个队列BlockingQueue,队列的元素是一个元组(RequestOrResponse, (RequestOrResponse) => Unit)
+作为元素的元组含义:
+1.第一个参数RequestOrResponse表示要发送给服务器的请求内容
+2.第二个参数(RequestOrResponse) => Unit,表示是一个函数,函数的参数是RequestOrResponse,返回值是无
+

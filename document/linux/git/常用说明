@@ -40,3 +40,8 @@ c.该命令仅仅用于选择要提交的代码以及diff查看文件不同即�
 在工作区刚刚新建的文件,即untracked
 
 在commit下,输入备注内容,点击commit按钮即可提交代码到本地仓库
+
+三、设置本机器上的git名字和邮箱
+git config --global user.name "xxxx"
+git config --global user.email "xxxx@qq.com"
+

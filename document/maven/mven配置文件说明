@@ -47,12 +47,31 @@ id表示镜像的名称,同一个仓库的镜像加载顺序是通过id决定的
               </snapshotRepository>
          </distributionManagment>
     </project>
-         
-五、流程
+
+五、代理服务器,可以下载一些需要翻墙才能下载的包
+id：代理的名称（随便设，XYZ也行）
+active：表示该代理是否激活
+protocol：代理协议，这个不用改
+username：当代理需要认证时的用户名
+password：当代理需要认证时的密码
+host：代理的IP地址
+port：代理的端口号
+nonProxyHost：指定不需要使用代理的主机，可不设置。如果有多个，用 | 分隔
+
+注意:如果代理不需要用户认证，username 和 password 两个节点可注释掉
+例子:
+    <proxy>
+      <id>chrome</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>127.0.0.1</host>
+      <port>7070</port>
+    </proxy>
+             
+六、流程
 去maven下载jar包---按照仓库配置的顺序,去仓库查对应的jar包。
 首先查找仓库对应的镜像中去搜,因此镜像要配置一个本地私服的原因.
 如果在第一个仓库中查找不到jar包,则去第二个仓库查找jar
 
-
-六、强制刷新命令
+七、强制刷新命令
 mvn clean install -U

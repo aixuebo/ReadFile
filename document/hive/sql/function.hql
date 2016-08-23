@@ -127,6 +127,16 @@ select strDateFormat(date_add('2016-06-14',-1),'yyyy-MM-dd','yyyyMMdd')
 输入20160613 输出2016-06-14
 select date_add(strDateFormat('20160613','yyyyMMdd','yyyy-MM-dd'),1)
 
+
+select date_add('2016-08-17',1) //2016-08-18 对时间进行累加
+select date_add('2016-08-17',1) //2016-08-16 对时间进行减少
+select datediff('2016-08-17','2016-08-17');//0 获取两个时间之差几天
+select datediff('2016-08-17','2016-08-19');//-2 获取两个时间之差几天
+
+select datediff('2016-08-17','2015-01-09') % 7;//5 获取两个时间之差几天%7,表示距离2015-01-09这天周五来说,今天是周几
+select date_add('2016-08-17',-(datediff('2016-08-17','2015-01-09') % 7)) 返回值是与2016-08-17最近的周五,用于group by操作
+
+
 二、generic
 1.对case column when a then b else c end 形式进行处理
  注意:

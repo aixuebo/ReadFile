@@ -1,0 +1,19 @@
+ 一、-m参数的原理
+1.export原理
+  当设置-m = 3的时候,说明最终有3个进程去导入到mysql中
+  而输入源可能有若干个文件,我们需要进行数据源合并操作
+  a.ExportJobBase--在读取数据输入源的时候调用getInputFormatClass方法,创建ExportInputFormat对象
+  b.ExportInputFormat对象
+   实现了List<InputSplit> getSplits(JobContext job)方法,对数据源进行合并成我们期望的最终数据块
+   该实现类创建了CombineFileInputFormat对象
+  c.CombineFileInputFormat对象对输入源进行合并,按照最大多少字节合并成一个数据块进行合并操作即可。
+  因此当用户输入-m=3的时候,最终就生成了3个数据块进行操作
+  
+2.import原理
+  当设置m=10的时候,是用10个map去抓去数据的,每一个map抓取的sql不一样
+  a.用sql查询最大值和最小值
+  b.用最大值和最小值和m=10去等分成10份
+  c.每一个任务的抓去sql有>=和<=,因此每一个split被拆分成区间sql,去抓去数据
+  问题:
+  当按照字段进行划分区间等分的时候,如果id不是连续的,就会产生有一些split抓去的数据很快,一些抓去的很慢,从而影响了总任务的进程
+  
