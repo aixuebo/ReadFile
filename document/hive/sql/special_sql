@@ -59,7 +59,7 @@ from
 (
 select date,value
 from biao1
-where pmod(datediff(date),7)=0
+where pmod(datediff(date,'2014-08-07'),7)=0
 )a
 join
 (

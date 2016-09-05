@@ -48,6 +48,5 @@ System.out.println(buff.limit());
 6. buffer.putInt(index, value)
    表示在buffer中添加一个int,在buffer的第index个位置添加一个int,即替换
 7.buffer.rewind()//将buffer的position设置到0的位置
-
-8.
+8.flip()//将buffer的limit的值设为position的当前值,position设置到0的位置
 

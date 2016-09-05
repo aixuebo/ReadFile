@@ -1,4 +1,18 @@
-1.时间戳转换函数总是有问题,问题原因是集群有若干个机器时区不统一,重新设置成上海市区即可
+一.时间戳转换函数总是有问题,问题原因是集群有若干个机器时区不统一,重新设置成上海市区即可
 注意:
 当查询某一个分区的数据的时候,时间戳转换函数又是对的,这个当时是很迷惑人的,原因是数据量很少,hive抓去到本地看来进行转换的,
 也就是说没有在集群上运行,而本地的时区是正确的,因此不会出现问题
+二.hive中sum和count在case when的时候,如果else设置为null,情况是不一样的
+count是对null不计数的,因此count中应该是使用null
+而sum对null的情况,最终会返回null,这样就不好了,因此要改成else结果是0
+count(case when invre_amount > 0 and (invre_amount - COALESCE(invre_freq_1st_amount,0) > 0) then 1 else null end) invre_num, 
+sum(case when invre_amount > 0 then invre_freq - COALESCE(invre_freq_1st_freq,0) else 0 end) invre_freq,
+三.mysql和hive仓库都保存数据版本情况
+1.当数据库中存在hive的统计值的时候,应该以数据库为准,将hive的结果跑完后存储到mysql中即可
+这过程中mysql表可能需要100个字段,但是hive的sql可能存在10个,因此采用mysql的update语法就可以完成，很方便。
+但是理论上mysql有了,就不应该在仓库里面继续有,如果非要有的话,需要mysql的数据用sqoop再导入过来。
+2.当mysql表内有几个字段要新增或者曾经是错误的,则一个group by就可以仅统计新增或者异常的字段即可,然后在更新到数据库中。
+然后数据库的数据导入到hive中--然后再按照分区导入到对应的表中
+3.尽量不要mysql存在的数据在hive中使用分区,因为这样会导致每一天执行2的过程很麻烦
+4.针对mysql中不需要存储,仅仓库存储,但是还要仓库显示当时的数据快照情况时候,由于数据有可能会有错误,仓库不支持update字段,因此快照就要按照最后跑程序的时候数据为准了,
+很麻烦,此时应该将快照每天保存到mysql中一份,遇见异常字段的时候,更新该字段即可,其他字段还是快照模式。

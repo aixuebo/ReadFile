@@ -1,0 +1,48 @@
+一、由于增量导入,我们这边使用的是根据时间,这样相当于先下载到hdfs上,然后再merge,最后导入到hive中
+遇见的坑
+1.采用LOAD DATA INPATH 'path' OVERWRITE INTO TABLE `database`.`test_import`
+这个时候path路径做的不是copy,而是剪切,因此移除后,path就没有数据了
+2.由于merge操作是拿最新的数据与老的数据合并,因此path删除后没有老数据了,导致每次都是本次导入的新数据,因此很麻烦,必须把每天把汇总path数据都复制一份,很麻烦那
+3.import导入+merge++load data hive有程序bug
+a.首先导入的目录是产生的临时目录temp1
+b.merge的目录是target或者仓库/表 或者 根目录下/表三个地方获取每天合并后的数据
+c.将a 与 b进行merge 输出到临时目录c,注意此时已经更改target参数到c目录了
+d.将c目录移植到b目录中
+e.这个时候已经导入+merge完成,该进行load hive数据
+但是由于c已经更改target参数到c目录了,因此此时load的数据位置是不对的,是c产生的临时目录,而该目录已经不存在了
+
+解决方法:
+1.使用外部表
+因为外部表指向一个连接,只要该目录有内容就可以,因此不需要再次LOAD DATA INPATH 操作,也就不会有1产生的问题,path数据被剪切的问题解决了
+2.外部表的连接,就是targe最终merge后的地址
+因此import导入到临时目录temp1中,merge是temp1与target进行合并,最终输出temp2临时目录,然后temp2的数据再剪切到target就可以了
+3.由于是外部表,因此不用hive阶段操作
+
+具体demo
+
+drop table database.money_record
+
+CREATE TABLE IF NOT EXISTS database.money_record (
+id int,
+userid                  string,
+amount                  double,
+transdate               string,
+bussinesid              int)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION '/log/statistics/mysql/databases/record';
+
+
+sqoop --options-file /server/app/sqoop/jlc_import_hdfs.txt -m 23 --table xxxx \
+--check-column transDate --incremental lastmodified --last-value 2015-01-01 \
+--merge-key id --target-dir /log/statistics/mysql/databases/record \
+--verbose
+
+
+注意:
+1.hive的表拆分符号用逗号拆分
+2.此时jlc_import_hdfs.txt文件是不能有以下关于hive的命令的
+--hive-database
+xxx
+--hive-import
+--hive-overwrite
+

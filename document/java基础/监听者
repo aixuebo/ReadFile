@@ -1,0 +1,22 @@
+一、监听器demo 以及 概述
+ChannelGroupFutureListener 是一个监听器,
+比如我要委托A做一些事儿,我不需要一直等待这A做完,我可以在A那边设置一个监听器,当A完成后,通知我完成了即可。
+
+1.A类就是ChannelGroupFuture
+2.A类里面有一个方法,是addListener,表示可以向A类添加监听器
+当A类完成后,会循环调用所有像他注册监听的对象,以此对这些对象执行operationComplete方法,参数就是A类
+3.调用者,因为持有A对象,因此在调用者里面,调用A的addListener方法,传入一个ChannelGroupFutureListener的实现类
+为什么ChannelGroupFutureListener的实现类中operationComplete方法的参数要是A呢,
+答案是 因为调用者可能同一个监听器会调用不同的对象,因此参数是A本身,可以方便让调用者知道谁完成了
+
+public interface ChannelGroupFutureListener extends EventListener {
+
+    /**
+     * Invoked when all I/O operations associated with the
+     * {@link ChannelGroupFuture} have been completed.
+     *
+     * @param future  The source {@link ChannelGroupFuture} which called this
+     *                callback.
+     */
+    void operationComplete(ChannelGroupFuture future) throws Exception;
+}
