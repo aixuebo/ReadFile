@@ -1,3 +1,18 @@
+eclipse快捷键
+1、Ctrl+Shift+G 查看方法在什么地方调用过。前提是方法被光标选中以后再进行操作。
+2、Syso+Alt+?
+3、Ctrl+Shift+E 查看所有打开的文件信息
+4、Ctrl+Shift+R 查找jsp和java文件
+5、Ctrl+Shift+T 查找java文件
+6、Ctrl+D删除
+7、Ctrl+T选中方法后，可以查看方法的实现类有哪些
+8、Ctrl+O查找类下方法。
+9、Ctrl+Shift+F 格式化
+     两次Ctrl+O操作可以找到包含子类的方法
+10.Alt+shift+r 替换所有变量名
+
+
+idea快捷键
 最常用的快捷键
 Alt+F1 常用工具都在这个选项里面
 Alt+F7 查找该方法或该类在哪些地方被调用了

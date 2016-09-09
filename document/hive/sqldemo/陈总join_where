@@ -1,0 +1,124 @@
+累计注册人数
+原始sql
+select '{{create_time}}',
+count(case when substr(reg_time,1,10) <= '{{create_time}}'  then 1 else null end),
+count(case when substr(open_time,1,10) <= '{{create_time}}'  then 1 else null end)
+from dim_xxx.dim_user_info
+
+跑历史的话,就得一天一天的跑,比较麻烦,因此有了以下方法去一次性的跑历史数据
+-------------------------
+累计注册人数
+insert overwrite local directory '/server/app/temp/hive'
+row format delimited
+fields terminated by ','
+select create_date,sum(num)
+from
+(
+select day.create_date create_date,u.num num
+from 
+(
+select substr(create_date,1,10) create_date
+from xxx.history_rate  
+group by substr(create_date,1,10)
+) day
+join 
+(
+select substr(reg_time,1,10) create_date ,count(*) num
+from dim_xxx.dim_user_info
+group by substr(reg_time,1,10)
+) u 
+where day.create_date >= u.create_date
+) t
+group by create_date
+order by create_date
+
+---------------------
+累计开户人数
+insert overwrite local directory '/server/app/temp/hive'
+row format delimited
+fields terminated by ','
+select create_date,sum(num)
+from
+(
+select day.create_date create_date,u.num num
+from 
+(
+select substr(create_date,1,10) create_date
+from xxx.history_rate  
+group by substr(create_date,1,10)
+) day
+join 
+(
+select substr(open_time,1,10) create_date ,count(*) num
+from dim_xxx.dim_user_info
+group by substr(open_time,1,10)
+) u 
+where day.create_date >= u.create_date
+) t
+group by create_date
+order by create_date
+---------------------------
+算出累计投资用户数，累计投资金额
+insert overwrite local directory '/server/app/temp/hive'
+row format delimited
+fields terminated by ','
+select create_date,sum(inv),count(distinct(userid))
+from
+(
+select day.create_date create_date,u.userid userid,u.inv inv
+from 
+(
+select substr(create_date,1,10) create_date
+from xxx.history_rate  
+group by substr(create_date,1,10)
+) day
+join 
+(
+select invest.create_date create_date,invest.userid userid,invest.inv inv
+from dim_xxx.dim_user_info x join
+(
+select substr(create_time,1,10) create_date,userid,sum(amount) inv
+from fact_xxx.invest_record
+group by substr(create_time,1,10),userid
+) invest on invest.userid = x.userid
+) u 
+where day.create_date >= u.create_date
+) t
+group by create_date
+order by create_date
+---------
+算出累计投资超百元用户数，累计投资超百元金额
+insert overwrite local directory '/server/app/temp/hive'
+row format delimited
+fields terminated by ','
+select create_date,
+count(distinct( case when inv >100 then userid else null end )),
+sum(case when inv >100 then inv else 0 end)
+from
+(
+select create_date,userid,sum(inv) inv
+from
+(
+select day.create_date create_date,u.userid userid,u.inv inv
+from 
+(
+select substr(create_date,1,10) create_date
+from xxx.history_rate  
+group by substr(create_date,1,10)
+) day
+join 
+(
+select invest.create_date create_date,invest.userid userid,invest.inv inv
+from dim_xxx.dim_user_info x join
+(
+select substr(create_time,1,10) create_date,userid,sum(amount) inv
+from fact_xxx.invest_record
+group by substr(create_time,1,10),userid
+) invest on invest.userid = x.userid
+) u 
+where day.create_date >= u.create_date
+) t
+group by create_date,userid
+) m
+group by create_date
+order by create_date

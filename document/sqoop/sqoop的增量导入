@@ -22,7 +22,7 @@ e.这个时候已经导入+merge完成,该进行load hive数据
 
 drop table database.money_record
 
-CREATE TABLE IF NOT EXISTS database.money_record (
+CREATE EXTERNAL TABLE IF NOT EXISTS database.money_record (
 id int,
 userid                  string,
 amount                  double,
@@ -45,4 +45,10 @@ sqoop --options-file /server/app/sqoop/jlc_import_hdfs.txt -m 23 --table xxxx \
 xxx
 --hive-import
 --hive-overwrite
+3.因为merge操作默认是一个reduce,而又没有参数设置reduce的数量,因此要使用-D命令设置reduce的数量,最好在--之前设置这些环境属性
+import
+-Dmapreduce.job.reduces=22
+--connect
+xxxx
+
 

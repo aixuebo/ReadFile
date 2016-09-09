@@ -111,3 +111,6 @@ a.date          a.value   b.date
 e.因此按照a.date进行group by
 20160818	700	20160811
 20160811	500	20160811
+
+8.group by 按照一周的某一天
+select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))

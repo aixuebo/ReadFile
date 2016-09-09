@@ -1,0 +1,14 @@
+以下三个来源于netty英文版20页左右
+1.外国人习惯用双重否定 表达强语气的肯定,尤其遇见must的时候
+因此
+Selector.select() must not unblock if nothing is selected.
+等同于
+Selector.select() must block if nothing is selected.
+就是必须阻塞,在没有任何事情被选择的时候
+2.and 在阅读英语的时候要特别注意and,
+Unfortunately, this feature was broken in Java until a late Java 6 update and Java 7, and results in a memory leak
+不幸的是,这个特性有问题,直到什么时候没问题的呢,直到更新最新的java6,或者java7
+也就是说java7肯定解决了该问题,java6只有最新的版本才解决了该问题,其他java6版本都存在该问题
+3.take care of  不是小心,而是注意到了什么事情
+In fact, this is why so many people use Netty: to take care of workarounds and other JVM quirks
+事实上,这也是为什么很多人使用netty的原因,因为他们注意到了工作区和jvm的兼容模式

@@ -1,0 +1,46 @@
+一、InputSplit表示一个map要读取的一个数据块
+1.public abstract long getLength()  该数据块长度
+2.public abstract String[] getLocations() 获取该数据块所在node节点集合,该数据块在这些地址本地存在
+3.SplitLocationInfo[] getLocationInfo() 返回该该数据块节点被存储在哪里以及用什么方式存储的
+
+public class SplitLocationInfo {
+  private boolean inMemory;
+  private String location;
+
+二、获取一个文件对应的元数据信息以及该文件对应的数据块集合
+1.获取文件的元数据
+FileStatus stat = fs.getFileStatus(path);
+其中path是一个具体的文件
+2.获取该文件每一个数据块信息集合
+BlockLocation[] locations = fs.getFileBlockLocations(stat, 0,stat.getLen());
+返回的BlockLocation是每一个数据块对应的对象,即该文件有多少个数据块,就返回数组的大小是多少
+3.每一个数据块的对象BlockLocation
+表示该数据块在哪些datanode上存储着,
+如何访问这些数据块,ip:port
+数据块代表该文件的哪部分 offset和lengh
+private String[] hosts; // Datanode hostnames
+private String[] cachedHosts; // Datanode hostnames with a cached replica
+private String[] names; // Datanode IP:xferPort for accessing the block
+private String[] topologyPaths; // Full path name in network topology
+private long offset;  // Offset of the block in the file
+private long length;
+
+三、InputFormat类 
+1.用于拆分数据源,拆分成InputSplit集合
+List<InputSplit> getSplits(JobContext jobContext)
+2.表示一个任务输入源和一个任务执行器
+即一个任务传递一个数据源split后,如何读取该split
+RecordReader<K,V> createRecordReader(InputSplit inputSplit,TaskAttemptContext taskAttemptContext)
+
+四、RecordReader类,如何读取一个split数据
+initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) 初始化操作
+boolean nextKeyValue() 获取下一个key-value,即执行后,下面两个方法返回的key和value就有内容了
+KEYIN getCurrentKey() 
+VALUEIN getCurrentValue()
+float getProgress() 执行进度
+void close() 
+
+五、OutputFormat类
+1.主要方法是写入
+public RecordWriter<K,V> getRecordWriter(TaskAttemptContext taskAttemptContext)
+

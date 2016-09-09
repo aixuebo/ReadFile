@@ -1,0 +1,55 @@
+一、merge只能使用一个字段进行合并,如何使用多个字段
+解决方案,在mapper阶段key用多个字段的值代替即可,因此修改map代码
+在使用sqoop merge时，多个字段用逗号分隔，把每个字段对应的值取出来拼接成新的key。
+
+    protected void processRecord(SqoopRecord r, Context c)
+            throws IOException, InterruptedException {
+        MergeRecord mr = new MergeRecord(r, isNew);
+        Map<String, Object> fieldMap = r.getFieldMap();
+        if (null == fieldMap) {
+            throw new IOException("No field map in record " + r);
+        }
+        Object keyObj = null;
+        if (keyColName.contains(",")) {
+            String connectStr = new String(new byte[]{1});
+            StringBuilder keyFieldsSb = new StringBuilder();
+            for (String str : keyColName.split(",")) {
+                keyFieldsSb.append(connectStr).append(fieldMap.get(str).toString());
+            }
+            keyObj = keyFieldsSb;
+        } else {
+            keyObj = fieldMap.get(keyColName);
+        }
+
+        if (null == keyObj) {
+            throw new IOException("Cannot join values on null key. "
+                    + "Did you specify a key column that exists?");
+        } else {
+            c.write(new Text(keyObj.toString()), mr);
+        }
+    }
+
+　　上面需要注意的一点是，我的拼接符使用了一个byte的String，这样可以避免以下这种情况。 
+　　假设使用“+”当拼接符，如果存在两条记录：
+Field a	Field b
+a+	b
+a	+b
+　　使用字段ａ,b进行merge时，上面两条不一样的记录最终会被程序认为是相同的，由此会产生新的数据不准确问题
+
+二、sqoop import导入数据的时候,如果数据有回车换行就会有问题,因此数据应该过滤回车换行符
+修改org.apache.sqoop.lib.JdbcWritableBridge代码
+  public static String readString(int colNum, ResultSet r) throws SQLException {
+    return convertString(r.getString(colNum));
+  }方法中取消回车换行,调用toTrim即可
+
+  public static String convertString(String value){
+	  return value == null ? null : value.trim();
+  }
+
+三、mysql的包版本过低
+异常sqoop java.sql.SQLException: Streaming result set com.mysql.jdbc.RowDataDynamicis still active
+mysql的mysql-connector-java-5.1.17.jar版本太低了,导致以下的两个方法在Date的数据库类型的时候,会抛异常。
+          int precision = metadata.getPrecision(i);//属性的整数位
+          int scale = metadata.getScale(i);//属性的小数点
+解决方法是:更换成mysql-connector-java-5.1.38-bin.jar包即可
+  
