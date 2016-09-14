@@ -20,7 +20,7 @@ Alt+回车 自动import导入包
 ctrl+j 可以查找main 然后sout
 alt + insert 可以设置set/get、重写父类等方法
 ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
-
+ctrl+i 导入未实现的抽象方法  code--implement method里面
 
 一般常用的快捷键
 1.前后浏览代码位置
