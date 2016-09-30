@@ -113,4 +113,29 @@ e.因此按照a.date进行group by
 20160811	500	20160811
 
 8.group by 按照一周的某一天
-select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))
+select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))   注意2015-01-09 是周五
+
+9.按月统计,需要精确到每一个月的第一个天和最后一天
+a.使用Date工具的month方法生成每个月的数据
+b.将该数据源上传到HDFS上,并且生成hive的对应表
+c.这样使用sql,将业务表的数据按照2016-09格式进行group by,可以得到每一个月的汇总信息
+然后将汇总信息与month表
+进行关联,就可以得到具体每一个月的开始时间和结束时间了
+
+例如
+select redeem.create_time create_time,u.userid userid,u.channel channel,month.month_start month_start,month.month_end month_end,sum(amount) red
+from
+(
+	select userid,substr(create_time,1,7) create_time,sum(amount) amount
+	from fact_jlc.redeem_record
+	where substr(create_time,1,10) <= '2016-08-31'
+	group by substr(create_time,1,7),userid
+) redeem join 
+dim_jlc.dim_user_info u on redeem.userid = u.userid
+join 
+(
+	select month_start,month_end,substr(month_start,1,7) conver_month_start
+	from etl.month
+) month on month.conver_month_start = redeem.create_time
+group by redeem.create_time,u.userid,u.channel,month.month_start,month.month_end
+

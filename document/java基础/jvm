@@ -1,0 +1,49 @@
+一、打印堆栈
+ps -ef | java 或者 jps 找到对应的pid
+jmap -histo:live pid >/tmp/pid.jmap
+jmap -dump:file=/data/dump/jvm_en.hprof pid
+jstack pid >/tmp/pid.dump   
+
+执行命令 可能会出现问题
+Unable to open socket file: target process not responding or HotSpot VM not loaded
+The -F option can be used when the target process is not responding
+原因是root用户没权限,要切换到对应的用户上 比如 su -yarn,然后在执行
+原因分析
+jvm运行时会生成一个目录hsperfdata_\(USER(\)USER是启动java进程的用户)，在linux中默认是/tmp。目录下会有些pid文件，存放jvm进程信息。
+jps、jstack等工具读取/tmp/hsperfdata_$USER下的pid文件获取连接信息。
+XStar:$USER是指当前用户，如果在root下用jstack一个admin用户权限的进程，也会提成这个错误，切换到admin用户下就可以正常工作。
+
+二、各个命令作用
+jps:查看本机的Java中进程信息。
+jstack:打印线程的栈信息,制作线程Dump。
+jmap:打印内存映射,制作堆Dump。
+jstat:性能监控工具。
+jhat:内存分析工具。
+jconsole:简易的可视化控制台。
+jvisualvm:功能强大的控制台。
+查看指定进程的线程信息：top -Hp 17071
+JVM系列五:JVM监测&工具[整理中]:http://www.cnblogs.com/redcreen/archive/2011/05/09/2040977.html
+jstack
+jstack 17071 > /tmp/jstack_dump.txt
+Java命令学习系列（二）——Jstack:http://www.hollischuang.com/archives/110
+jstack dump日志文件详解:http://gudaoqing.blog.51cto.com/7729345/1332829
+Java并发：隐藏的线程死锁:http://www.importnew.com/10661.html
+线程状态:
+    NEW,未启动的。不会出现在Dump中。
+    RUNNABLE,在虚拟机内执行的。
+    BLOCKED,受阻塞并等待监视器锁。
+    WATING,无限期等待另一个线程执行特定操作。
+    TIMED_WATING,有时限的等待另一个线程的特定操作。
+    TERMINATED,已退出的。
+
+dump 文件里，值得关注的线程状态有：
+
+    死锁，Deadlock（重点关注）
+    执行中，Runnable
+    等待资源，Waiting on condition（重点关注）
+    等待获取监视器，Waiting on monitor entry（重点关注）
+    暂停，Suspended
+    对象等待中，Object.wait() 或 TIMED_WAITING
+    阻塞，Blocked（重点关注）
+    停止，Parked
+    

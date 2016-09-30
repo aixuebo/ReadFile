@@ -166,4 +166,18 @@ mysqlµÄmysql-connector-java-5.1.17.jar°æ±¾Ì«µÍÁË,µ¼ÖÂÒÔÏÂµÄÁ½¸ö·½·¨ÔÚDateµÄÊı¾İ¿
 
 5.-m 1 Ê¹ÓÃÒ»¸öÏß³Ì½øĞĞexport²Ù×÷,Òò´Ë¿ÉÒÔ±ÜÃâËÀËøÏÖÏó²úÉú
 
+6.¹ØÓÚhiveÉÏµÄÊı¾İ²ğ·Ö·ûºÅ,Ò»°ãhiveÄ¬ÈÏÊÇ001,Òò´Ë--input-fields-terminated-by '\001'¼´¿É
+¹Ù·½ÎÄµµÈçÏÂ:
+a character (--fields-terminated-by X)
+an escape character (--fields-terminated-by \t). Supported escape characters are:
 
+\b (backspace)
+\n (newline)
+\r (carriage return)
+\t (tab)
+\" (double-quote)
+\' (single-quote)
+\\ (backslash)
+\0 (NUL) - This will insert NUL characters between fields or lines, or will disable enclosing/escaping if used for one of the --enclosed-by, --optionally-enclosed-by, or --escaped-by arguments.
+The octal representation of a UTF-8 character's code point. This should be of the form \0ooo, where ooo is the octal value. For example, --fields-terminated-by \001 would yield the ^A character.
+The hexadecimal representation of a UTF-8 character's code point. This should be of the form \0xhhh, where hhh is the hex value. For example, --fields-terminated-by \0x10 would yield the carriage return character.
