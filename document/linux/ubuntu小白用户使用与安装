@@ -145,16 +145,3 @@ https://segmentfault.com/a/1190000002655105
 
 老杨spark blog
 http://blog.csdn.net/u014393917/article/category/6084851
-
-
-
-下班点执行的
-/server/app/fixJob/fact/topic_channel_version2.sh 20150717 20150723 2
-/server/app/fixJob/fact/topic_channel_version2.sh 20150710 20150716 2
-/server/app/fixJob/fact/topic_channel_version2.sh 20150703 20150709 2
-/server/app/fixJob/fact/topic_channel_version2.sh 20150626 20150702 2
-/server/app/fixJob/fact/topic_channel_version2.sh 20150619 20150625 2
-
-06点执行的
-/server/app/fixJob/fact/topic_channel_version2.sh 20160715 20160721 2
-

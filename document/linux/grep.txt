@@ -24,4 +24,15 @@ grep '\<man\>' 只匹配‘man’，而不是‘Batman’或‘manic’等其他的字符串。
 '^'：指匹配的字符串在行首， 
 '$'：指匹配的字符串在行尾，  
 
+8.grep -lR   "some_code"  path
+grep -R   "some_code"  path
+如果你不需要显示内容，只需要含有某个字符的文件：
+附录：
+grep -R 和 -l 参数
+　　-R, -r, --recursive
+递归地读每一目录下的所有文件。这样做和 -d recurse 选项等价。
+　　-l, --files-with-matches
+禁止通常的输出；作为替代，打印出每个在通常情况下会产生输出的输入文件的名字。对每个文件的扫描在遇到第一个匹配的时候就会停止。
 
+demo
+grep -l sdfsdf /root/upload/metadata/metamap/*

@@ -115,6 +115,11 @@ e.因此按照a.date进行group by
 8.group by 按照一周的某一天
 select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))   注意2015-01-09 是周五
 
+开始时间和结束时间demo
+select group by 的字段作为begin_day
+date_add(group by 的字段,6)作为end_day
+
+
 9.按月统计,需要精确到每一个月的第一个天和最后一天
 a.使用Date工具的month方法生成每个月的数据
 b.将该数据源上传到HDFS上,并且生成hive的对应表
@@ -139,3 +144,68 @@ join
 ) month on month.conver_month_start = redeem.create_time
 group by redeem.create_time,u.userid,u.channel,month.month_start,month.month_end
 
+9.sql查询同一张表,要求连续两天的数据,比如
+table字段 create_date  userid  class等级,即每一个用户在某一天的等级表
+现在想转换成一张新表,包含该用户昨天的等级和今天的等级,即增加一个字段为昨天等级。
+
+实现逻辑
+select
+    to_day.create_date,
+    to_day.userid,
+    to_day.class,
+    if(last_day.class_last is null,1,if(to_day.class<>last_day.class_last,1,0)) as class_index
+from 
+biao as to_day
+left join
+(
+    select
+        date_add(create_date,1) as create_date,
+        userid,
+        class as class_last
+    from biao
+) as last_day
+on to_day.userid=last_day.userid and to_day.create_date=last_day.create_date
+
+简单说明
+比如 
+日期   等级
+5	4
+6   3
+7   4
+8   4
+9   3
+10  2
+那么因此可以说明从6号开始,昨天的等级以此就是 4 3 4 4 3 2,
+因此产生一组新的数据，即
+日期   等级
+6	4
+7   3
+8   4
+9   4
+10  3
+11  2
+这样相当于把正常的时间+1即可,因此可以看到6号的等级是3,下面昨天的6号等级是4,说明6号的昨天是5号,等级就是4
+
+10.该表获得了每个用户在目前等级停留时间
+analysis_temp.rfm_class_3_add该表获得了每个用户在目前等级停留时间
+select
+    a.create_date,
+    a.userid,
+    datediff(a.create_date,max(b.create_date)) as class_staty
+from 
+(select create_date,userid,class from analysis_temp.rfm_class_2) as a
+join
+(select create_date,userid from analysis_temp.rfm_class_2 where class_index=1) as b
+on a.userid=b.userid
+where b.create_date<=a.create_date
+group by a.create_date,a.userid
+
+
+demo  class_flag 1 表示当前等级和昨天等级不同,即发生停留时间0天,  class_flag = 0 表示当前等级和昨天等级相同,即发生停留1天
+date	user	class	yes_class	class_flag
+20160905	1	4	1	1		20160905	1	4	1	1
+20160906	1	3	4	1		20160906	1	3	4	1
+20160907	1	3	3	0		20160910	1	3	4	1
+20160908	1	3	3	0						
+20160909	1	3	3	0						
+20160910	1	3	4	1						

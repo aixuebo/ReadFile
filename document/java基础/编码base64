@@ -1,0 +1,4 @@
+		import sun.misc.BASE64Encoder;
+		byte[] data = null;
+		BASE64Encoder encoder = new BASE64Encoder();
+		return encoder.encode(data);

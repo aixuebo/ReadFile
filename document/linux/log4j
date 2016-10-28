@@ -1,0 +1,4 @@
+一、log4j可以跟踪包路径,设置该包路径下的日志级别
+例如
+log4j.logger.org.apache.zookeeper.server.NIOServerCnxn=WARN,DRFA
+log4j.logger.org.apache.zookeeper.ClientCnxnSocketNIO=WARN,DRFA

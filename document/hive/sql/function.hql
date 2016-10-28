@@ -136,6 +136,8 @@ select datediff('2016-08-17','2016-08-19');//-2 获取两个时间之差几天
 select datediff('2016-08-17','2015-01-09') % 7;//5 获取两个时间之差几天%7,表示距离2015-01-09这天周五来说,今天是周几
 select date_add('2016-08-17',-(datediff('2016-08-17','2015-01-09') % 7)) 返回值是与2016-08-17最近的周五,用于group by操作
 
+25.强制转换 cast as
+cast(actid as String)
 
 二、generic
 1.对case column when a then b else c end 形式进行处理
@@ -143,4 +145,25 @@ select date_add('2016-08-17',-(datediff('2016-08-17','2015-01-09') % 7)) 返回�
  a类型必须是boolean类型的
  b和c必须返回值类型相同
 2.a op b表示a与b进行比较大小,比较,因此一定是两个参数进行比较
-3.
+3.反射的方法执行java的类
+a.org.apache.hadoop.hive.ql.udf.generic.GenericUDFReflect.GenericUDFReflect
+demo:
+select reflect("java.net.URLDecoder", "decode",column) from biao;
+SELECT reflect("java.net.URLDecoder", "decode", "%E6%B2%A1%E4%BB%80%E4%B9%88%E6%83%B3%E8%AF%B4%E7%9A%84%E5%B0%B1%E6%83%B3%E6%94%925%E4%B8%87%E5%9D%97%E9%92%B1");
+
+函数声明,类全路径,方法名称,[所需要的参数数组集合]
+@Description(name = "reflect",
+  value = "_FUNC_(class,method[,arg1[,arg2..]]) calls method with reflection",
+
+b.org.apache.hadoop.hive.ql.udf.generic.GenericUDFReflect.GenericUDFReflect2
+与reflect方法不同的是,reflect方法要求第一个参数一定是一个类,而字段内容是该类的一个参数,
+但是如果要针对某一个字段内容进行操作,则没办法.因此有了reflect2方法,第一个参数可以是字段内容,该字段类型是java基础类型的即可
+ demo:将所有的空格替换成|字符
+select reflect2("aaa		aa", "replaceAll","\\s+","|");
+select reflect2(source, "replaceAll","\\s+","|");
+
+注意:
+1.在脚本中 hive <<EOF 执行的时候尽量不用双引号,要用单引号  即 select reflect2(source, 'replaceAll','\\\\s+','|');
+2.在脚本中 hive <<EOF 执行的时候,要对\进行转义,即\\s+要改成\\\\s+
+
+4.

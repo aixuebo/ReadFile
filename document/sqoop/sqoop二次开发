@@ -49,6 +49,8 @@ a	+b
 三、mysql的包版本过低
 异常sqoop java.sql.SQLException: Streaming result set com.mysql.jdbc.RowDataDynamicis still active
 mysql的mysql-connector-java-5.1.17.jar版本太低了,导致以下的两个方法在Date的数据库类型的时候,会抛异常。
+
+org.apache.sqoop.manager.SqlManager
           int precision = metadata.getPrecision(i);//属性的整数位
           int scale = metadata.getScale(i);//属性的小数点
 解决方法是:更换成mysql-connector-java-5.1.38-bin.jar包即可

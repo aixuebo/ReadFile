@@ -14,7 +14,9 @@ hive这边是这样的,如果设置了一个分区后,该分区已经存在数�
 alter table database.user_info change `last_update_time` open_time STRING;
 
 三、加载数据
-load data local inpath '/home/xxxx' into table summary.cash_baofu partition(log_day='201606');
+load data local inpath '/home/xxxx' into table summary.cash_ba partition(log_day='201606');
 加载数据到一个分区中
 注意不支持覆盖分区功能,只能先移除分区,再重新添加该分区
 
+四、更改表名
+ALTER TABLE table_name RENAME TO new_table_name;
