@@ -1,25 +1,25 @@
-Ò»¡¢JDBCÔÚmysql¶ÁÈ¡´ó±íµÄÊ±ºòÄÚ´æÒç³ö
-Ô­Òò:
-½ñÌìÔÚÖ´ĞĞsqoopµ¼³ö3000ÍòÌõÊı¾İµÄÊ±ºò,³öÏÖÄÚ´æÒç³öÁË,°´µÀÀí²»Ó¦¸Ã,Òò´Ë²é¿´ÁËÒ»ÏÂÔ­Òò
+ä¸€ã€JDBCåœ¨mysqlè¯»å–å¤§è¡¨çš„æ—¶å€™å†…å­˜æº¢å‡º
+åŸå› :
+ä»Šå¤©åœ¨æ‰§è¡Œsqoopå¯¼å‡º3000ä¸‡æ¡æ•°æ®çš„æ—¶å€™,å‡ºç°å†…å­˜æº¢å‡ºäº†,æŒ‰é“ç†ä¸åº”è¯¥,å› æ­¤æŸ¥çœ‹äº†ä¸€ä¸‹åŸå› 
 
-´úÂë½âÎö:
-´úÂë»áÔÚbbbºÍcccÖ®¼äÍ£ÁôÒ»¶¨Ê±¼ä,Ä¬ÈÏÊÇjdbc»á½«²éÑ¯µÄËùÓĞÊı¾İ¶¼×¥È¥µ½ÄÚ´æÖĞ,È»ºó½øĞĞÓÎ±ê´¦Àí,Òò´Ëµ±±íÄÚÊı¾İÁ¿ºÜ´óµÄÊ±ºò,»á³öÏÖÄÚ´æÒç³ö¡£
-jdbc:mysql://host:port/xxxx?useCursorFetch=true\&dontTrackOpenResources=true\&defaultFetchSize=2000\&useCursorFetch=true --driver com.mysql.jdbc.Driver --username odsuser --password odsdata2015 
-Ìí¼ÓuseCursorFetchºÍdefaultFetchSize=2000,Ôò»áÃ¿¸ô2000Ìõ²éÑ¯ºó¾Í»áÖ´ĞĞcccÕâ¶Î´úÂë,Òò´Ë²»»á³öÏÖÄÚ´æÒç³öÏÖÏó
-×¢Òâ:
-1.sqoopÖĞ¹úĞèÒª\&½øĞĞ×ªÒå
-2.¾ßÌå²Î¼ûgithubÉÏreadFile´úÂë¿âcom.maming.common.db
-3.ÉÏÃæ¼ÓµÄÁ½¸ö²ÎÊıÖ»ÊÇ¶ÔmysqlÓĞÒâÒå¡£
-4.SqlserverºÍOracle£º
-·½·¨£º²ÉÓÃ·ÖÒ³²éÑ¯µÄ·½Ê½£¬ÔÚ²»Ê¹ÓÃÁ¬½Ó³ØµÄÇé¿öÏÂ£¬¿É²ÉÓÃÍ¬Ò»¸öConnection¶ÔÏó£¬Ã¿Ö´ĞĞÍêÒ»´Î²Ù×÷¾Í¹Ø±ÕPreparedStatement¶ÔÏóºÍResultSet¶ÔÏó¡£È»ºóÔÚÏÂÒ»´Î²Ù×÷µÄÊ±ºò£¬ÖØĞÂ´ò¿ªPreparedStatement¶ÔÏóºÍResultSet¶ÔÏó¡£
-5.ÄÚ²¿Ô­ÀíÓëÌ½ÌÖ
-²ÉÓÃJavaµÄJDBC²Ù×÷Êı¾İ¿âÊ±£¬Ä¬ÈÏÊı¾İ»º´æµÄ·½Ê½£¬¼´½«´ÓÊı¾İ¿â²éÑ¯µÃµ½µÄÊı¾İÏÈ»º´æµ½±¾µØÄÚ´æÖĞ£¬
-È»ºó´ÓÄÚ´æÖĞ¶ÁÈ¡Êı¾İ£¨ÕâÒ²ÊÇJDBCµÄ½á¹û¼¯Ö§³ÖÉÏÏÂÒÆ¶¯µÄÔ­Òò£¬µ«OracleÌá¹©µÄJDBCÊµÏÖÄ¬ÈÏÊÇ²»Ö§³ÖÕâÖÖÉÏÏÂÒÆ¶¯µÄ£©,
-ËùÒÔÈç¹û´ÓÊı¾İ¿âÖĞµÃµ½µÄÊı¾İ±»¹ı¶àµÄ»º´æÔÚ±¾µØÄÚ´æÖĞ£¬Èç¹û³¬³öÁËÄÚ´æ³ĞÊÜµÄ·¶Î§£¬¾Í»áÔì³ÉÄÚ´æÒç³öµÄÇé¿ö¡£
+ä»£ç è§£æ:
+ä»£ç ä¼šåœ¨bbbå’Œcccä¹‹é—´åœç•™ä¸€å®šæ—¶é—´,é»˜è®¤æ˜¯jdbcä¼šå°†æŸ¥è¯¢çš„æ‰€æœ‰æ•°æ®éƒ½æŠ“å»åˆ°å†…å­˜ä¸­,ç„¶åè¿›è¡Œæ¸¸æ ‡å¤„ç†,å› æ­¤å½“è¡¨å†…æ•°æ®é‡å¾ˆå¤§çš„æ—¶å€™,ä¼šå‡ºç°å†…å­˜æº¢å‡ºã€‚
+jdbc:mysql://host:port/xxxx?useCursorFetch=true\&dontTrackOpenResources=true\&defaultFetchSize=2000\&useCursorFetch=true --driver com.mysql.jdbc.Driver --username odsuser --password odsdata2015
+æ·»åŠ useCursorFetchå’ŒdefaultFetchSize=2000,åˆ™ä¼šæ¯éš”2000æ¡æŸ¥è¯¢åå°±ä¼šæ‰§è¡Œcccè¿™æ®µä»£ç ,å› æ­¤ä¸ä¼šå‡ºç°å†…å­˜æº¢å‡ºç°è±¡
+æ³¨æ„:
+1.sqoopä¸­å›½éœ€è¦\&è¿›è¡Œè½¬ä¹‰
+2.å…·ä½“å‚è§githubä¸ŠreadFileä»£ç åº“com.maming.common.db
+3.ä¸Šé¢åŠ çš„ä¸¤ä¸ªå‚æ•°åªæ˜¯å¯¹mysqlæœ‰æ„ä¹‰ã€‚
+4.Sqlserverå’ŒOracleï¼š
+æ–¹æ³•ï¼šé‡‡ç”¨åˆ†é¡µæŸ¥è¯¢çš„æ–¹å¼ï¼Œåœ¨ä¸ä½¿ç”¨è¿æ¥æ± çš„æƒ…å†µä¸‹ï¼Œå¯é‡‡ç”¨åŒä¸€ä¸ªConnectionå¯¹è±¡ï¼Œæ¯æ‰§è¡Œå®Œä¸€æ¬¡æ“ä½œå°±å…³é—­PreparedStatementå¯¹è±¡å’ŒResultSetå¯¹è±¡ã€‚ç„¶ååœ¨ä¸‹ä¸€æ¬¡æ“ä½œçš„æ—¶å€™ï¼Œé‡æ–°æ‰“å¼€PreparedStatementå¯¹è±¡å’ŒResultSetå¯¹è±¡ã€‚
+5.å†…éƒ¨åŸç†ä¸æ¢è®¨
+é‡‡ç”¨Javaçš„JDBCæ“ä½œæ•°æ®åº“æ—¶ï¼Œé»˜è®¤æ•°æ®ç¼“å­˜çš„æ–¹å¼ï¼Œå³å°†ä»æ•°æ®åº“æŸ¥è¯¢å¾—åˆ°çš„æ•°æ®å…ˆç¼“å­˜åˆ°æœ¬åœ°å†…å­˜ä¸­ï¼Œ
+ç„¶åä»å†…å­˜ä¸­è¯»å–æ•°æ®ï¼ˆè¿™ä¹Ÿæ˜¯JDBCçš„ç»“æœé›†æ”¯æŒä¸Šä¸‹ç§»åŠ¨çš„åŸå› ï¼Œä½†Oracleæä¾›çš„JDBCå®ç°é»˜è®¤æ˜¯ä¸æ”¯æŒè¿™ç§ä¸Šä¸‹ç§»åŠ¨çš„ï¼‰,
+æ‰€ä»¥å¦‚æœä»æ•°æ®åº“ä¸­å¾—åˆ°çš„æ•°æ®è¢«è¿‡å¤šçš„ç¼“å­˜åœ¨æœ¬åœ°å†…å­˜ä¸­ï¼Œå¦‚æœè¶…å‡ºäº†å†…å­˜æ‰¿å—çš„èŒƒå›´ï¼Œå°±ä¼šé€ æˆå†…å­˜æº¢å‡ºçš„æƒ…å†µã€‚
 
-ÏñMysqlµÄ·½·¨Ò»£¬Ê¹ÓÃµÄÊÇURL¼Ó²ÎÊıµÄ·½Ê½£¬ÕâÆäÊµÊÇ²ÉÓÃÁËMysqlµÄÓÎ±ê£¬Êı¾İ¾Í²»»á»º´æÔÚ±¾µØÄÚ´æÖĞ£¬¶øÊÇResultSet¶ÔÏóÖ¸ÏòµÄÊÇÊı¾İ¿âÖĞµÄ¼ÇÂ¼£¬¼´Ê¹ÊÇÉÏÒÚÌõ¼ÇÂ¼£¬Ö»ÒªÍøÂç²»¶Ï£¬Ò²²»»á³öÏÖÒì³£Çé¿ö¡£
+åƒMysqlçš„æ–¹æ³•ä¸€ï¼Œä½¿ç”¨çš„æ˜¯URLåŠ å‚æ•°çš„æ–¹å¼ï¼Œè¿™å…¶å®æ˜¯é‡‡ç”¨äº†Mysqlçš„æ¸¸æ ‡ï¼Œæ•°æ®å°±ä¸ä¼šç¼“å­˜åœ¨æœ¬åœ°å†…å­˜ä¸­ï¼Œè€Œæ˜¯ResultSetå¯¹è±¡æŒ‡å‘çš„æ˜¯æ•°æ®åº“ä¸­çš„è®°å½•ï¼Œå³ä½¿æ˜¯ä¸Šäº¿æ¡è®°å½•ï¼Œåªè¦ç½‘ç»œä¸æ–­ï¼Œä¹Ÿä¸ä¼šå‡ºç°å¼‚å¸¸æƒ…å†µã€‚
 
-ÏñMysqlµÄ·½·¨¶ş£¬ÒÀÈ»²ÉÓÃÁËÊı¾İ»º´æµÄ·½Ê½£¬µ«ÕâÖÖÇé¿öÏÂ»º´æµÄÊı¾İÁ¿²»»áÌ«¶Ô£¬Ö»ÒªPreparedStatement¶ÔÏóºÍResultSet¶ÔÏó¹Ø±ÕÁË£¬»º´æµÄÊı¾İÒ²¾ÍÏûÊ§ÁË£¬¹ÊÒ²²»»á³öÏÖÄÚ´æÒç³öµÄÇé¿ö¡£
+åƒMysqlçš„æ–¹æ³•äºŒï¼Œä¾ç„¶é‡‡ç”¨äº†æ•°æ®ç¼“å­˜çš„æ–¹å¼ï¼Œä½†è¿™ç§æƒ…å†µä¸‹ç¼“å­˜çš„æ•°æ®é‡ä¸ä¼šå¤ªå¯¹ï¼Œåªè¦PreparedStatementå¯¹è±¡å’ŒResultSetå¯¹è±¡å…³é—­äº†ï¼Œç¼“å­˜çš„æ•°æ®ä¹Ÿå°±æ¶ˆå¤±äº†ï¼Œæ•…ä¹Ÿä¸ä¼šå‡ºç°å†…å­˜æº¢å‡ºçš„æƒ…å†µã€‚
 
 
 public void query1(){
@@ -29,16 +29,16 @@ public void query1(){
 			System.out.println("bbb");
 			ResultSet rs = st.executeQuery();
 			System.out.println("cc");
-			
+
 			System.out.println(rs.next());
 			int c = 0;
 			 while (rs.next()) {
 				 c++;
-	                long uid = rs.getLong(1);  
-	                String ufname = rs.getString(2);  
-	                String ulname = rs.getString(3);  
-	                String udate = rs.getString(4);  
-	                System.out.println(uid + "\t" + ufname + "\t" + ulname + "\t" + udate );  
+	                long uid = rs.getLong(1);
+	                String ufname = rs.getString(2);
+	                String ulname = rs.getString(3);
+	                String udate = rs.getString(4);
+	                System.out.println(uid + "\t" + ufname + "\t" + ulname + "\t" + udate );
 	         }
 			 System.out.println(c);
 			 connectPool.close(commonConnection, st, rs);
@@ -46,33 +46,33 @@ public void query1(){
 			ex.printStackTrace();
 		}
 	}
-	
-¶ş¡¢mysqlºÍOracleÖĞnot in×ÓÁ¬½Ó²éÑ¯²»µ½ÖµµÄÎÊÌâ£¨not in ²»ÄÜ²éÑ¯nullÊı¾İ£©
-ÒòÎª½ñÌìÓĞÍ¬ÊÂÎÊÎÒÒ»¸öºÜ¼òµ¥µÄsql,µ«ÊÇÈ´²éÑ¯²»µ½ÄÚÈİ,Õâ¸öºÜÆæ¹Ö¡£
+
+äºŒã€mysqlå’ŒOracleä¸­not inå­è¿æ¥æŸ¥è¯¢ä¸åˆ°å€¼çš„é—®é¢˜ï¼ˆnot in ä¸èƒ½æŸ¥è¯¢nullæ•°æ®ï¼‰
+å› ä¸ºä»Šå¤©æœ‰åŒäº‹é—®æˆ‘ä¸€ä¸ªå¾ˆç®€å•çš„sql,ä½†æ˜¯å´æŸ¥è¯¢ä¸åˆ°å†…å®¹,è¿™ä¸ªå¾ˆå¥‡æ€ªã€‚
 SELECT *
 FROM user_info
 WHERE user_id = '51041d4dfcc34b6fbaa2c85c2f073c6a'
 AND user_id NOT IN (
-	SELECT userid FROM bank_card 
+	SELECT userid FROM bank_card
 )
-ºÜÊÇÆæ¹Ö°¡,Õâsql¾­³£Ê¹ÓÃ,ÔõÃ´»á²éÑ¯³öÎÊÌâÄØ¡£
+å¾ˆæ˜¯å¥‡æ€ªå•Š,è¿™sqlç»å¸¸ä½¿ç”¨,æ€ä¹ˆä¼šæŸ¥è¯¢å‡ºé—®é¢˜å‘¢ã€‚
 
-ÎÊÌâÔ­Òò:
-SELECT userid FROM bank_card ±íÖĞuserid ´æÔÚnullµÄ¼ÇÂ¼,Òò´ËmysqlµÄnot inÊÇ²»Ö§³ÖµÄ
+é—®é¢˜åŸå› :
+SELECT userid FROM bank_card è¡¨ä¸­userid å­˜åœ¨nullçš„è®°å½•,å› æ­¤mysqlçš„not inæ˜¯ä¸æ”¯æŒçš„
 
-ĞŞ¸Ä:
-SELECT userid FROM bank_card Ìí¼ÓWHERE userid IS NOT NULL¼´¿É
+ä¿®æ”¹:
+SELECT userid FROM bank_card æ·»åŠ WHERE userid IS NOT NULLå³å¯
 
-Èı¡¢mysqlµÄÎ¨Ò»Ë÷Òı½¨Á¢
+ä¸‰ã€mysqlçš„å”¯ä¸€ç´¢å¼•å»ºç«‹
   PRIMARY KEY (`id`),
-  UNIQUE KEY `period_create_date_channel` (`period`,`create_date`,`channel`) 
-×¢Òâ:
-1.Î¨Ò»Ë÷ÒıÊÇ²»Çø·Ö´óĞ¡Ğ´µÄ,Òò´ËTengxunºÍtengxunÊÇÈÏÎªÍ¬Ò»¸ö×Ö·û´®,Òò´Ë²åÈëµ½Î¨Ò»Ë÷ÒıÀïÃæ»áÅ×Òì³£,Ö´ĞĞduplicate on update»á½øĞĞupdate²Ù×÷.
-Òò´Ë»áÔì³ÉÊı¾İ²»×¼È·µÄÎÊÌâ¡£
-ĞŞ¸Ä`channel` varchar(255) DEFAULT NULL, ¸Ä³É `channel` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,¼´¿É
-2.Î¨Ò»Ë÷ÒıÖĞÊôĞÔ²»ÔÊĞíÊÇnull
-±ÈÈçÎÒÃÇµÄÊÇÈı¸öÊôĞÔÈ·¶¨µÄÎ¨Ò»Ë÷Òı,µ«ÊÇÈç¹ûcreate_date ÊÇnull
-ÔòVALUES('2016-06-13',NULL,1,3)ÊÇ¿ÉÒÔ²åÈëN´ÎµÄ,Òò´Ë»á²úÉúbug
+  UNIQUE KEY `period_create_date_channel` (`period`,`create_date`,`channel`)
+æ³¨æ„:
+1.å”¯ä¸€ç´¢å¼•æ˜¯ä¸åŒºåˆ†å¤§å°å†™çš„,å› æ­¤Tengxunå’Œtengxunæ˜¯è®¤ä¸ºåŒä¸€ä¸ªå­—ç¬¦ä¸²,å› æ­¤æ’å…¥åˆ°å”¯ä¸€ç´¢å¼•é‡Œé¢ä¼šæŠ›å¼‚å¸¸,æ‰§è¡Œduplicate on updateä¼šè¿›è¡Œupdateæ“ä½œ.
+å› æ­¤ä¼šé€ æˆæ•°æ®ä¸å‡†ç¡®çš„é—®é¢˜ã€‚
+ä¿®æ”¹`channel` varchar(255) DEFAULT NULL, æ”¹æˆ `channel` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,å³å¯
+2.å”¯ä¸€ç´¢å¼•ä¸­å±æ€§ä¸å…è®¸æ˜¯null
+æ¯”å¦‚æˆ‘ä»¬çš„æ˜¯ä¸‰ä¸ªå±æ€§ç¡®å®šçš„å”¯ä¸€ç´¢å¼•,ä½†æ˜¯å¦‚æœcreate_date æ˜¯null
+åˆ™VALUES('2016-06-13',NULL,1,3)æ˜¯å¯ä»¥æ’å…¥Næ¬¡çš„,å› æ­¤ä¼šäº§ç”Ÿbug
 
-ËÄ¡¢ÈçºÎ¶Ôsql´óĞ¡Ğ´Ãô¸Ğ,¼´ÒªÇø·Ö´óĞ¡Ğ´Êı¾İ,¼ÓÈëbinary¹Ø¼ü×Ö¼´¿É
+å››ã€å¦‚ä½•å¯¹sqlå¤§å°å†™æ•æ„Ÿ,å³è¦åŒºåˆ†å¤§å°å†™æ•°æ®,åŠ å…¥binaryå…³é”®å­—å³å¯
 select user_id,channel,create_time,last_update_time from user_info where binary channel like '%mmm%' limit 10;

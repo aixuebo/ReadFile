@@ -10,43 +10,43 @@ org.apache.sqoop.manager.MySQLManager
 --outdir
 /server/app/sqoop/vo
 
-×¢ÒâÊÂÏî:
-1.update-insert·½Ê½export²Ù×÷
+æ³¨æ„äº‹é¡¹:
+1.update-insertæ–¹å¼exportæ“ä½œ
 a.
 Error during export: Mixed update/insert is not supported against the target database yet
-Õâ¸öÒì³£ÎªÊ²Ã´°ÑdriverÈ¥µô¾ÍºÃÊ¹ÁË
-ËµÃ÷ÉèÖÃÁËdriver,Ã»ÓĞÉèÖÃ--connection-manager,Ôò·µ»ØGenericJdbcManager,
-¶øËûÊÇÃ»ÓĞÊµÏÖupdate-insert·½·¨µÄ
+è¿™ä¸ªå¼‚å¸¸ä¸ºä»€ä¹ˆæŠŠdriverå»æ‰å°±å¥½ä½¿äº†
+è¯´æ˜è®¾ç½®äº†driver,æ²¡æœ‰è®¾ç½®--connection-manager,åˆ™è¿”å›GenericJdbcManager,
+è€Œä»–æ˜¯æ²¡æœ‰å®ç°update-insertæ–¹æ³•çš„
 
-b.sqoopÊ±ºò
-½øĞĞexportµÄÊ±ºò,Èç¹ûÒªinsert-update²Ù×÷,ÔòÒªÉèÖÃ
---connection-manager org.apache.sqoop.manager.MySQLManager »òÕßÈ¡Ïûdriver
-ÔÚimportµÄÊ±ºòÒªÉèÖÃÇı¶¯,²»ÓÃÉèÖÃ--connection-manager,¼´ÒªÊ¹ÓÃGenericJdbcManager¼´¿É
+b.sqoopæ—¶å€™
+è¿›è¡Œexportçš„æ—¶å€™,å¦‚æœè¦insert-updateæ“ä½œ,åˆ™è¦è®¾ç½®
+--connection-manager org.apache.sqoop.manager.MySQLManager æˆ–è€…å–æ¶ˆdriver
+åœ¨importçš„æ—¶å€™è¦è®¾ç½®é©±åŠ¨,ä¸ç”¨è®¾ç½®--connection-manager,å³è¦ä½¿ç”¨GenericJdbcManagerå³å¯
 
-c.--update-key mobile,userid 
- ±íÊ¾°´ÕÕuseridºÍmobileÁ½¸ö×Ö¶Î½øĞĞ¸üĞÂ²Ù×÷,Òò´ËÕâÁ½¸ö×Ö¶ÎÓĞÒªÇó,±ØĞëÊÇÎ¨Ò»Ë÷Òı»òÕßÖ÷¼ü²Å¿ÉÒÔÖ´ĞĞmysqlµÄduplicate on updateÓï·¨½øĞĞupdate²Ù×÷
- 
-d.mysqlµÄÎ¨Ò»Ë÷Òı½¨Á¢
+c.--update-key mobile,userid
+ è¡¨ç¤ºæŒ‰ç…§useridå’Œmobileä¸¤ä¸ªå­—æ®µè¿›è¡Œæ›´æ–°æ“ä½œ,å› æ­¤è¿™ä¸¤ä¸ªå­—æ®µæœ‰è¦æ±‚,å¿…é¡»æ˜¯å”¯ä¸€ç´¢å¼•æˆ–è€…ä¸»é”®æ‰å¯ä»¥æ‰§è¡Œmysqlçš„duplicate on updateè¯­æ³•è¿›è¡Œupdateæ“ä½œ
+
+d.mysqlçš„å”¯ä¸€ç´¢å¼•å»ºç«‹
   PRIMARY KEY (`id`),
-  UNIQUE KEY `period_create_date_channel` (`period`,`create_date`,`channel`) 
-×¢Òâ:Î¨Ò»Ë÷ÒıÊÇ²»Çø·Ö´óĞ¡Ğ´µÄ,Òò´ËTengxunºÍtengxunÊÇÈÏÎªÍ¬Ò»¸ö×Ö·û´®,Òò´Ë²åÈëµ½Î¨Ò»Ë÷ÒıÀïÃæ»áÅ×Òì³£,Ö´ĞĞduplicate on update»á½øĞĞupdate²Ù×÷.
-Òò´Ë»áÔì³ÉÊı¾İ²»×¼È·µÄÎÊÌâ¡£
-ĞŞ¸Ä`channel` varchar(255) DEFAULT NULL, ¸Ä³É `channel` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,¼´¿É 
+  UNIQUE KEY `period_create_date_channel` (`period`,`create_date`,`channel`)
+æ³¨æ„:å”¯ä¸€ç´¢å¼•æ˜¯ä¸åŒºåˆ†å¤§å°å†™çš„,å› æ­¤Tengxunå’Œtengxunæ˜¯è®¤ä¸ºåŒä¸€ä¸ªå­—ç¬¦ä¸²,å› æ­¤æ’å…¥åˆ°å”¯ä¸€ç´¢å¼•é‡Œé¢ä¼šæŠ›å¼‚å¸¸,æ‰§è¡Œduplicate on updateä¼šè¿›è¡Œupdateæ“ä½œ.
+å› æ­¤ä¼šé€ æˆæ•°æ®ä¸å‡†ç¡®çš„é—®é¢˜ã€‚
+ä¿®æ”¹`channel` varchar(255) DEFAULT NULL, æ”¹æˆ `channel` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,å³å¯
 
-e.·Ö±ğ±íÊ¾µ±Ò»¸önullµÄÖµ³öÏÖÔÚstringÁĞºÍ·ÇStringÁĞµÄÊ±ºò,¸ÃÌæ»»³ÉÊ²Ã´Öµ,ÓÃÓÚimportºÍexportÖĞ
+e.åˆ†åˆ«è¡¨ç¤ºå½“ä¸€ä¸ªnullçš„å€¼å‡ºç°åœ¨stringåˆ—å’ŒéStringåˆ—çš„æ—¶å€™,è¯¥æ›¿æ¢æˆä»€ä¹ˆå€¼,ç”¨äºimportå’Œexportä¸­
 --null-string <null-string>	The string to be written for a null value for string columns
 --null-non-string <null-string>	The string to be written for a null value for non-string columns
 eg
---null-string '\\N' ÔÚimportµÄÊ±ºò,Óö¼ûÊı¾İ¿âÊÇnullµÄ,ÔòÉú³É\Nµ½hiveÖĞ
-²Î¿¼
-SqoopOptionsµÄnullNonStringValue
-BaseSqoopToolµÄNULL_NON_STRING = "null-non-string";
-ClassWriterÖĞµÄstringifierForType·½·¨
+--null-string '\\N' åœ¨importçš„æ—¶å€™,é‡è§æ•°æ®åº“æ˜¯nullçš„,åˆ™ç”Ÿæˆ\Nåˆ°hiveä¸­
+å‚è€ƒ
+SqoopOptionsçš„nullNonStringValue
+BaseSqoopToolçš„NULL_NON_STRING = "null-non-string";
+ClassWriterä¸­çš„stringifierForTypeæ–¹æ³•
 
-Ö´ĞĞÂß¼­
-import²éÑ¯Êı¾İ¿â,½«²éÑ¯½á¹ûResultSet´«Èëµ½javaBeanÖĞ,Ö´ĞĞvalue.readFields(results);·½·¨,´Ó½á¹û¼¯ÖĞ·µ»ØÊı¾İ,Éú³É¶ÔÓ¦µÄvalue¶ÔÏó,¼´´ÓrsÖĞ»ñÈ¡Êı¾İÖĞµ½valueÖĞ
-¾­¹ı¸Ã·½·¨ºó,¸Ã¶ÔÏóËùÓĞµÄÊôĞÔ¶¼ÒÑ¾­ÓĞÖµÁË,ÔÚreadField·½·¨ÖĞµ÷ÓÃthis.create_date = JdbcWritableBridge.readString(1, __dbResults);
-¶øJdbcWritableBridge.readString·½·¨Âß¼­ÊÇ
+æ‰§è¡Œé€»è¾‘
+importæŸ¥è¯¢æ•°æ®åº“,å°†æŸ¥è¯¢ç»“æœResultSetä¼ å…¥åˆ°javaBeanä¸­,æ‰§è¡Œvalue.readFields(results);æ–¹æ³•,ä»ç»“æœé›†ä¸­è¿”å›æ•°æ®,ç”Ÿæˆå¯¹åº”çš„valueå¯¹è±¡,å³ä»rsä¸­è·å–æ•°æ®ä¸­åˆ°valueä¸­
+ç»è¿‡è¯¥æ–¹æ³•å,è¯¥å¯¹è±¡æ‰€æœ‰çš„å±æ€§éƒ½å·²ç»æœ‰å€¼äº†,åœ¨readFieldæ–¹æ³•ä¸­è°ƒç”¨this.create_date = JdbcWritableBridge.readString(1, __dbResults);
+è€ŒJdbcWritableBridge.readStringæ–¹æ³•é€»è¾‘æ˜¯
   public static Integer readInteger(int colNum, ResultSet r)
       throws SQLException {
     int val;
@@ -57,18 +57,18 @@ import²éÑ¯Êı¾İ¿â,½«²éÑ¯½á¹ûResultSet´«Èëµ½javaBeanÖĞ,Ö´ĞĞvalue.readFields(result
       return Integer.valueOf(val);
     }
   }
-Òò´Ë¿ÉÒÔ¿´³öÀ´×îÖÕ½á¹û¾ÍÊÇÓĞÖµ»òÕßnull¡£
+å› æ­¤å¯ä»¥çœ‹å‡ºæ¥æœ€ç»ˆç»“æœå°±æ˜¯æœ‰å€¼æˆ–è€…nullã€‚
 
-½ÓÏÂÀ´µ÷ÓÃtoString·½·¨,½«½á¹ûĞ´Èëµ½hdfsÉÏ,¼´×îÖÕhive´æ´¢µÄ¸ñÊ½¾ÍÊÇÔÚtoString·½·¨ÀïÃæ,¸Ã·½·¨Âß¼­ÊÇ
-ÒÔ´ËÔÚ¶ÔÃ¿Ò»¸öÊôĞÔ½øĞĞÊä³ö,Êä³öµÄÄÚÈİÊÇcolName==null?"this.options.getNullStringValue()":create_date,¼´Èç¹û¸ÃÊôĞÔÊÇnull,ÔòÖ´ĞĞthis.options.getNullStringValue()·½·¨»ñÈ¡ÄÚÈİ´æ´¢µ½hdfsÉÏ,Ò²¾ÍÊÇnullµÄÄ¬ÈÏÖµ±»Ğ´ÈëÁË¡£
+æ¥ä¸‹æ¥è°ƒç”¨toStringæ–¹æ³•,å°†ç»“æœå†™å…¥åˆ°hdfsä¸Š,å³æœ€ç»ˆhiveå­˜å‚¨çš„æ ¼å¼å°±æ˜¯åœ¨toStringæ–¹æ³•é‡Œé¢,è¯¥æ–¹æ³•é€»è¾‘æ˜¯
+ä»¥æ­¤åœ¨å¯¹æ¯ä¸€ä¸ªå±æ€§è¿›è¡Œè¾“å‡º,è¾“å‡ºçš„å†…å®¹æ˜¯colName==null?"this.options.getNullStringValue()":create_date,å³å¦‚æœè¯¥å±æ€§æ˜¯null,åˆ™æ‰§è¡Œthis.options.getNullStringValue()æ–¹æ³•è·å–å†…å®¹å­˜å‚¨åˆ°hdfsä¸Š,ä¹Ÿå°±æ˜¯nullçš„é»˜è®¤å€¼è¢«å†™å…¥äº†ã€‚
 
 
-f.ÒòÎªhiveÅ×³öµÄ½á¹ûÓĞ\NµÄÊ±ºò,Èç¹û¸Ã×Ö¶Î×÷ÎªÖ÷¼ü»òÕßÎ¨Ò»Ë÷Òı²åÈëµ½Êı¾İ¿âµÄÊ±ºò,»á²úÉúÎÊÌâ,¸Ã×Ö¶ÎµÄÊı¾İÃ¿´Î²åÈë¶¼»áÓĞÒ»ĞĞ¼ÇÂ¼,Êı¾İ¿âÖĞ²éÑ¯is null±ã¿ÉÒÔ²éÑ¯³öÀ´¡£
-Èç¹û¸ÃÁĞÊÇStringµÄ,Ôò--null-string aaa±»ÉèÖÃ,ÒÀÈ»²»¿ÉÓÃ,Ô­ÒòÊÇexportµÄÊ±ºò²»»á×ß--null-string²ÎÊı¡£
-¾ßÌåÂß¼­ÈçÏÂ:
-hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ¥¡£
-¼´recordImpl.parse(val);//½øĞĞ¶ÔÎÄ±¾½âÎö
-Âß¼­ÈçÏÂ:
+f.å› ä¸ºhiveæŠ›å‡ºçš„ç»“æœæœ‰\Nçš„æ—¶å€™,å¦‚æœè¯¥å­—æ®µä½œä¸ºä¸»é”®æˆ–è€…å”¯ä¸€ç´¢å¼•æ’å…¥åˆ°æ•°æ®åº“çš„æ—¶å€™,ä¼šäº§ç”Ÿé—®é¢˜,è¯¥å­—æ®µçš„æ•°æ®æ¯æ¬¡æ’å…¥éƒ½ä¼šæœ‰ä¸€è¡Œè®°å½•,æ•°æ®åº“ä¸­æŸ¥è¯¢is nullä¾¿å¯ä»¥æŸ¥è¯¢å‡ºæ¥ã€‚
+å¦‚æœè¯¥åˆ—æ˜¯Stringçš„,åˆ™--null-string aaaè¢«è®¾ç½®,ä¾ç„¶ä¸å¯ç”¨,åŸå› æ˜¯exportçš„æ—¶å€™ä¸ä¼šèµ°--null-stringå‚æ•°ã€‚
+å…·ä½“é€»è¾‘å¦‚ä¸‹:
+hadoopçš„mrä»è¾“å…¥æºä¸­è¯»å–ä¸€è¡Œæ•°æ®,è°ƒç”¨voå¯¹è±¡çš„parseæ–¹æ³•,æŠŠä¸€è¡Œæ•°æ®ä½œä¸ºå‚æ•°ä¼ é€’è¿›å»ã€‚
+å³recordImpl.parse(val);//è¿›è¡Œå¯¹æ–‡æœ¬è§£æ
+é€»è¾‘å¦‚ä¸‹:
   public void parse(Text __record) throws RecordParser.ParseError {
     if (null == this.__parser) {
       this.__parser = new RecordParser(__inputDelimiters);
@@ -76,7 +76,7 @@ hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ
     List<String> __fields = this.__parser.parseRecord(__record);
     __loadFromFields(__fields);
   }
-  
+
   private void __loadFromFields(List<String> fields) {
     Iterator<String> __it = fields.listIterator();
     String __cur_str = null;
@@ -95,8 +95,8 @@ hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ
     if (__cur_str.equals("null")) { this.channel = null; } else {
       this.channel = __cur_str;
     }
- ¿ÉÒÔ¿´µ½×îÖÕµÄÖµÊÇ·ñÊÇnull,ÈçÊÇ,Ôò½«×Ö¶ÎµÄÄÚÈİĞ´³Énull,·ñÔòĞ´³É¾ßÌåÖµ,
-¶øÊ²Ã´Çé¿öÏÂÊÇnull,Ôò×ßÈçÏÂÂß¼­:
+ å¯ä»¥çœ‹åˆ°æœ€ç»ˆçš„å€¼æ˜¯å¦æ˜¯null,å¦‚æ˜¯,åˆ™å°†å­—æ®µçš„å†…å®¹å†™æˆnull,å¦åˆ™å†™æˆå…·ä½“å€¼,
+è€Œä»€ä¹ˆæƒ…å†µä¸‹æ˜¯null,åˆ™èµ°å¦‚ä¸‹é€»è¾‘:
   private void parseNullVal(String javaType, String colName, StringBuilder sb) {
     if (javaType.equals("String")) {
       sb.append("    if (__cur_str.equals(\""
@@ -111,10 +111,10 @@ hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ
       sb.append(" = null; } else {\n");
     }
   }
-ÎÒÃÇ¿ÉÒÔ¿´µ½ÊÇgetInNullStringValue()Óëµ±Ç°µÄÖµÏàÍ¬µÄÊ±ºò,²Å»áÉèÖÃÎªnull,Òò´ËÕâ²¿·ÖÒ²Ê¹ÓÃ--null-string²ÎÊı¡£
- 
-È»ºóµ÷ÓÃcontext.write(recordImpl, NullWritable.get());·½·¨,½«½á¹ûÊä³ö
-½«½á¹ûĞ´µ½PreparedStatementÖĞ¼´¿É¡£
+æˆ‘ä»¬å¯ä»¥çœ‹åˆ°æ˜¯getInNullStringValue()ä¸å½“å‰çš„å€¼ç›¸åŒçš„æ—¶å€™,æ‰ä¼šè®¾ç½®ä¸ºnull,å› æ­¤è¿™éƒ¨åˆ†ä¹Ÿä½¿ç”¨--null-stringå‚æ•°ã€‚
+
+ç„¶åè°ƒç”¨context.write(recordImpl, NullWritable.get());æ–¹æ³•,å°†ç»“æœè¾“å‡º
+å°†ç»“æœå†™åˆ°PreparedStatementä¸­å³å¯ã€‚
       JdbcWritableBridge.writeString(create_date, 1 + __off, 12, __dbStmt);
 	  this.create_date = JdbcWritableBridge.readString(1, __dbResults);
 
@@ -126,7 +126,7 @@ hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ
       s.setLong(paramIdx, val);
     }
   }
- 
+
    public static void writeString(String val, int paramIdx, int sqlType,
       PreparedStatement s) throws SQLException {
     if (null == val) {
@@ -135,7 +135,7 @@ hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ
       s.setString(paramIdx, val);
     }
   }
-  ÎÒÃÇ·¢ÏÖÈç¹ûÖµÊÇnullµÄÊôĞÔ,ÔòÖ±½ÓÔÚjdbcµÄÊ±ºò¾ÍÉèÖÃÎªnullÁË,Òò´ËsqlÖĞ×îÖÕ½á¹û¾ÍÊÇnull
+  æˆ‘ä»¬å‘ç°å¦‚æœå€¼æ˜¯nullçš„å±æ€§,åˆ™ç›´æ¥åœ¨jdbcçš„æ—¶å€™å°±è®¾ç½®ä¸ºnulläº†,å› æ­¤sqlä¸­æœ€ç»ˆç»“æœå°±æ˜¯null
 
 2.demo
 | mobile | CREATE TABLE `mobile` (
@@ -144,30 +144,30 @@ hadoopµÄmr´ÓÊäÈëÔ´ÖĞ¶ÁÈ¡Ò»ĞĞÊı¾İ,µ÷ÓÃvo¶ÔÏóµÄparse·½·¨,°ÑÒ»ĞĞÊı¾İ×÷Îª²ÎÊı´«µİ½øÈ
   `city` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 |
 
-sqoop  --options-file /path/export_hive_ykw_dw.txt -m 3 
---table mobile --export-dir /path/mobileRegion.txt 
+sqoop  --options-file /path/export_hive_ykw_dw.txt -m 3
+--table mobile --export-dir /path/mobileRegion.txt
 --input-fields-terminated-by '\t' --update-key mobile --update-mode allowinsert
 --columns mobile,area,city
-×¢Òâ:
---columnsµÄ×Ö¶ÎË³ĞòÓë--export-dirÎÄ¼şÄÚµÄË³ĞòÒ»ÖÂ¼´¿É,--columnsÖĞ±ØĞë°üº¬--update-keyÖĞËùÓĞµÄÊôĞÔ,²¢ÇÒ×îºÃ½«--update-keyÖĞ´æÔÚµÄÊôĞÔ·ÅÔÚ--columns×îºó
---input-fields-terminated-by±íÊ¾ÎÄ¼ş--export-dirµÄ·Ö¸ô·û
---update-key mobile ±íÊ¾°´ÕÕmobile×Ö¶Î½øĞĞ²é¿´ÊôÓÚinsert»¹ÊÇupdate²Ù×÷
---update-mode allowinsert/updateonly allowinsert±íÊ¾Ä£Ê½Ê¹ÓÃinser-updateÄ£Ê½½øĞĞ²Ù×÷,updateonly±íÊ¾½ö½ö×ö¸üĞÂ²Ù×÷,²»×öinsert²Ù×÷,Óö¼ûinsertµÄ¾ÍÌø¹ı¼ÇÂ¼¼´¿É
+æ³¨æ„:
+--columnsçš„å­—æ®µé¡ºåºä¸--export-diræ–‡ä»¶å†…çš„é¡ºåºä¸€è‡´å³å¯,--columnsä¸­å¿…é¡»åŒ…å«--update-keyä¸­æ‰€æœ‰çš„å±æ€§,å¹¶ä¸”æœ€å¥½å°†--update-keyä¸­å­˜åœ¨çš„å±æ€§æ”¾åœ¨--columnsæœ€å
+--input-fields-terminated-byè¡¨ç¤ºæ–‡ä»¶--export-dirçš„åˆ†éš”ç¬¦
+--update-key mobile è¡¨ç¤ºæŒ‰ç…§mobileå­—æ®µè¿›è¡ŒæŸ¥çœ‹å±äºinsertè¿˜æ˜¯updateæ“ä½œ
+--update-mode allowinsert/updateonly allowinsertè¡¨ç¤ºæ¨¡å¼ä½¿ç”¨inser-updateæ¨¡å¼è¿›è¡Œæ“ä½œ,updateonlyè¡¨ç¤ºä»…ä»…åšæ›´æ–°æ“ä½œ,ä¸åšinsertæ“ä½œ,é‡è§insertçš„å°±è·³è¿‡è®°å½•å³å¯
 
 3.demo
 sqoop --options-file /path/export_hive_ykw_dw.txt -m 1 --table xxx --export-dir /path/log_day=20160531 \
 --input-fields-terminated-by '\t' --update-key id --update-mode allowinsert --columns userNum,logDate
 
-4.Òì³£sqoop java.sql.SQLException: Streaming result set com.mysql.jdbc.RowDataDynamicis still active
-mysqlµÄmysql-connector-java-5.1.17.jar°æ±¾Ì«µÍÁË,µ¼ÖÂÒÔÏÂµÄÁ½¸ö·½·¨ÔÚDateµÄÊı¾İ¿âÀàĞÍµÄÊ±ºò,»áÅ×Òì³£¡£
-          int precision = metadata.getPrecision(i);//ÊôĞÔµÄÕûÊıÎ»
-          int scale = metadata.getScale(i);//ÊôĞÔµÄĞ¡Êıµã
-½â¾ö·½·¨ÊÇ:¸ü»»³Émysql-connector-java-5.1.38-bin.jar°ü¼´¿É
+4.å¼‚å¸¸sqoop java.sql.SQLException: Streaming result set com.mysql.jdbc.RowDataDynamicis still active
+mysqlçš„mysql-connector-java-5.1.17.jarç‰ˆæœ¬å¤ªä½äº†,å¯¼è‡´ä»¥ä¸‹çš„ä¸¤ä¸ªæ–¹æ³•åœ¨Dateçš„æ•°æ®åº“ç±»å‹çš„æ—¶å€™,ä¼šæŠ›å¼‚å¸¸ã€‚
+          int precision = metadata.getPrecision(i);//å±æ€§çš„æ•´æ•°ä½
+          int scale = metadata.getScale(i);//å±æ€§çš„å°æ•°ç‚¹
+è§£å†³æ–¹æ³•æ˜¯:æ›´æ¢æˆmysql-connector-java-5.1.38-bin.jaråŒ…å³å¯
 
-5.-m 1 Ê¹ÓÃÒ»¸öÏß³Ì½øĞĞexport²Ù×÷,Òò´Ë¿ÉÒÔ±ÜÃâËÀËøÏÖÏó²úÉú
+5.-m 1 ä½¿ç”¨ä¸€ä¸ªçº¿ç¨‹è¿›è¡Œexportæ“ä½œ,å› æ­¤å¯ä»¥é¿å…æ­»é”ç°è±¡äº§ç”Ÿ
 
-6.¹ØÓÚhiveÉÏµÄÊı¾İ²ğ·Ö·ûºÅ,Ò»°ãhiveÄ¬ÈÏÊÇ001,Òò´Ë--input-fields-terminated-by '\001'¼´¿É
-¹Ù·½ÎÄµµÈçÏÂ:
+6.å…³äºhiveä¸Šçš„æ•°æ®æ‹†åˆ†ç¬¦å·,ä¸€èˆ¬hiveé»˜è®¤æ˜¯001,å› æ­¤--input-fields-terminated-by '\001'å³å¯
+å®˜æ–¹æ–‡æ¡£å¦‚ä¸‹:
 a character (--fields-terminated-by X)
 an escape character (--fields-terminated-by \t). Supported escape characters are:
 

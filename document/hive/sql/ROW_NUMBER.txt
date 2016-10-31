@@ -1,57 +1,57 @@
-Èç¹û²éÑ¯ÀúÊ·ÉÏÒ»¸öuser,µÚÒ»¸ö¹ºÂòÊ±¼ä¡¢¹ºÂò½ğ¶î¡¢µÚ¶ş´Î¹ºÂòÊ±¼ä¡¢¹ºÂò½ğ¶î¡¢×îºóÒ»´Î¹ºÂòÊ±¼ä¡¢¹ºÂò½ğ¶î¡¢×Ü¹ºÂò´ÎÊı¡¢×Ü¹ºÂò½ğ¶î
+å¦‚æœæŸ¥è¯¢å†å²ä¸Šä¸€ä¸ªuser,ç¬¬ä¸€ä¸ªè´­ä¹°æ—¶é—´ã€è´­ä¹°é‡‘é¢ã€ç¬¬äºŒæ¬¡è´­ä¹°æ—¶é—´ã€è´­ä¹°é‡‘é¢ã€æœ€åä¸€æ¬¡è´­ä¹°æ—¶é—´ã€è´­ä¹°é‡‘é¢ã€æ€»è´­ä¹°æ¬¡æ•°ã€æ€»è´­ä¹°é‡‘é¢
 
-ÓÅ»¯·½Ê½:
+ä¼˜åŒ–æ–¹å¼:
 1.
 	select userId,investamount,investtime,
-	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn 
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn
 	from invest_record
 	where substr(investtime,1,10) = '2016-05-09'
-Õı³£²éÑ¯sql,µ«ÊÇ¶àÁËÒ»¸örnÁĞ,±íÊ¾¶Ô¸ÃsqlÖĞ,userid½øĞĞ·Ö×é,²¢ÇÒÃ¿×éÖĞ°´ÕÕÊ±¼ä½øĞĞÅÅĞò¡£ÕâÑùÖ®ºó²úÉúµÄĞòºÅ¡£
-ÀıÈç:Í¬Ò»¸öuserid¹ºÂò3´Î,ÄÇÃ´Õâ¸ösql¾Í¶ÔÓ¦ÈıĞĞ,Ã¿Ò»¸örn·Ö±ğ´ú±í1 2 3
+æ­£å¸¸æŸ¥è¯¢sql,ä½†æ˜¯å¤šäº†ä¸€ä¸ªrnåˆ—,è¡¨ç¤ºå¯¹è¯¥sqlä¸­,useridè¿›è¡Œåˆ†ç»„,å¹¶ä¸”æ¯ç»„ä¸­æŒ‰ç…§æ—¶é—´è¿›è¡Œæ’åºã€‚è¿™æ ·ä¹‹åäº§ç”Ÿçš„åºå·ã€‚
+ä¾‹å¦‚:åŒä¸€ä¸ªuseridè´­ä¹°3æ¬¡,é‚£ä¹ˆè¿™ä¸ªsqlå°±å¯¹åº”ä¸‰è¡Œ,æ¯ä¸€ä¸ªrnåˆ†åˆ«ä»£è¡¨1 2 3
 
-2.select * from  ÉÏÃæµÄsql1 where temp.rn = 1 ÕâÑù¾Í¿ÉÒÔ»ñÈ¡Ê×´Î¹ºÂòÊ±¼äºÍ½ğ¶îÁË
+2.select * from  ä¸Šé¢çš„sql1 where temp.rn = 1 è¿™æ ·å°±å¯ä»¥è·å–é¦–æ¬¡è´­ä¹°æ—¶é—´å’Œé‡‘é¢äº†
 
-3.Í¬Àí¿ÉÒÔ»ñÈ¡µÚ¶ş´Î¹ºÂòÊ±¼äºÍ½ğ¶î¡¢×îºóÒ»´Î¹ºÂòÊ±¼äºÍ½ğ¶î
+3.åŒç†å¯ä»¥è·å–ç¬¬äºŒæ¬¡è´­ä¹°æ—¶é—´å’Œé‡‘é¢ã€æœ€åä¸€æ¬¡è´­ä¹°æ—¶é—´å’Œé‡‘é¢
 
-4.½«Æä¶¼×÷Îª×Ó²éÑ¯,½øĞĞjoin,×îÖÕÊä³ö×Ü½á¹û¼´¿É
-	
+4.å°†å…¶éƒ½ä½œä¸ºå­æŸ¥è¯¢,è¿›è¡Œjoin,æœ€ç»ˆè¾“å‡ºæ€»ç»“æœå³å¯
 
-×Üsql:
+
+æ€»sql:
 select first.userId,first.investamount,first.investtime,second.investamount,second.investtime,last.investamount,last.investtime,collect.c,collect.s
-from 
+from
 (
 	select *
-	from 
+	from
 	(
 	select userId,investamount,investtime,
-	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn 
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn
 	from invest_record
 	where substr(investtime,1,10) = '2016-05-09'
 	) temp
 	where temp.rn = 1
-) first left join 
+) first left join
 (
 	select *
-	from 
+	from
 	(
 	select userId,investamount,investtime,
-	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn 
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn
 	from invest_record
 	where substr(investtime,1,10) = '2016-05-09'
 	) temp
 	where temp.rn = 2
-) second on first.userId = second.userId  left join 
+) second on first.userId = second.userId  left join
 (
 	select *
-	from 
+	from
 	(
 	select userId,investamount,investtime,
-	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime desc) AS rn 
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime desc) AS rn
 	from invest_record
 	where substr(investtime,1,10) = '2016-05-09'
 	) temp
 	where temp.rn = 1
-) last on first.userId = last.userId left join 
+) last on first.userId = last.userId left join
 (
 	select userId,COUNT(*) c,SUM(investamount) s
 	from invest_record

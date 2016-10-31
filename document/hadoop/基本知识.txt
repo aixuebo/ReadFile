@@ -1,10 +1,10 @@
-1.²éÕÒyarnµÄapplicationÒ³Ãæ
+1.æŸ¥æ‰¾yarnçš„applicationé¡µé¢
 http://10.1.5.91:8088/cluster
-ÆäÖĞ¶Ë¿ÚÔÚyarn-site.xmlÅäÖÃµÄyarn.resourcemanager.webapp.addressÖĞÖ¸¶¨
-2.²é¿´web°æµÄhdfsÒ³Ãæ
+å…¶ä¸­ç«¯å£åœ¨yarn-site.xmlé…ç½®çš„yarn.resourcemanager.webapp.addressä¸­æŒ‡å®š
+2.æŸ¥çœ‹webç‰ˆçš„hdfsé¡µé¢
 http://10.1.5.91:50070/dfshealth.html#tab-overview
-Ä¬ÈÏ¾ÍÊÇ50070
-3.ÉèÖÃhdfsÉÏµÄÈ¨ÏŞ
-Ã»°ì·¨ÔÚhadoop¼¯ÈºÉÏÅÜsqoop,ÒòÎªÄ¿Â¼µÄÈ¨ÏŞ²»¶Ô
-  su hdfs 
-  hdfs dfs -chown -R root:hdfs /user/root Ö´ĞĞhdfs dfsÃüÁî,Îª¸ÃÄ¿Â¼¸³ÓèÈ¨ÏŞ,userÊÇroot ×éÊÇhdfs,Ä¿Â¼ÊÇ/user/root -R±íÊ¾µİ¹é¸ÃÄ¿Â¼ÏÂËùÓĞÎÄ¼ş¶¼ÊÇÕâ¸öÈ¨ÏŞ
+é»˜è®¤å°±æ˜¯50070
+3.è®¾ç½®hdfsä¸Šçš„æƒé™
+æ²¡åŠæ³•åœ¨hadoopé›†ç¾¤ä¸Šè·‘sqoop,å› ä¸ºç›®å½•çš„æƒé™ä¸å¯¹
+  su hdfs
+  hdfs dfs -chown -R root:hdfs /user/root æ‰§è¡Œhdfs dfså‘½ä»¤,ä¸ºè¯¥ç›®å½•èµ‹äºˆæƒé™,useræ˜¯root ç»„æ˜¯hdfs,ç›®å½•æ˜¯/user/root -Rè¡¨ç¤ºé€’å½’è¯¥ç›®å½•ä¸‹æ‰€æœ‰æ–‡ä»¶éƒ½æ˜¯è¿™ä¸ªæƒé™

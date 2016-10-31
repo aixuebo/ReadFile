@@ -14,30 +14,30 @@ dabaname
 --hive-import
 --hive-overwrite
 
-1.JDBCÔÚmysql¶ÁÈ¡´ó±íµÄÊ±ºòÄÚ´æÒç³ö
-2.Ê¹ÓÃsqoop½«mysqlÊı¾İ¿âµ¼Èëµ½hiveÖĞ
-a.·¢ÏÖpassportÃÜÂëÃ»°ì·¨±£´æÔÚjobÖĞ,Òò´ËĞŞ¸ÄÅäÖÃÎÄ¼şconf/sqoop-site.xml
-<property>   
-	<name>sqoop.metastore.client.record.password</name>   
-	<value>true</value>   
+1.JDBCåœ¨mysqlè¯»å–å¤§è¡¨çš„æ—¶å€™å†…å­˜æº¢å‡º
+2.ä½¿ç”¨sqoopå°†mysqlæ•°æ®åº“å¯¼å…¥åˆ°hiveä¸­
+a.å‘ç°passportå¯†ç æ²¡åŠæ³•ä¿å­˜åœ¨jobä¸­,å› æ­¤ä¿®æ”¹é…ç½®æ–‡ä»¶conf/sqoop-site.xml
+<property>
+	<name>sqoop.metastore.client.record.password</name>
+	<value>true</value>
 	<description>If true, allow saved passwords in the metastore. </description>
 </property>
-b.Ã»°ì·¨ÔÚhadoop¼¯ÈºÉÏÅÜsqoop,ÒòÎªÄ¿Â¼µÄÈ¨ÏŞ²»¶Ô
-  su hdfs 
-  hdfs dfs -chown -R root:hdfs /user/root Ö´ĞĞhdfs dfsÃüÁî,Îª¸ÃÄ¿Â¼¸³ÓèÈ¨ÏŞ,userÊÇroot ×éÊÇhdfs,Ä¿Â¼ÊÇ/user/root -R±íÊ¾µİ¹é¸ÃÄ¿Â¼ÏÂËùÓĞÎÄ¼ş¶¼ÊÇÕâ¸öÈ¨ÏŞ
+b.æ²¡åŠæ³•åœ¨hadoopé›†ç¾¤ä¸Šè·‘sqoop,å› ä¸ºç›®å½•çš„æƒé™ä¸å¯¹
+  su hdfs
+  hdfs dfs -chown -R root:hdfs /user/root æ‰§è¡Œhdfs dfså‘½ä»¤,ä¸ºè¯¥ç›®å½•èµ‹äºˆæƒé™,useræ˜¯root ç»„æ˜¯hdfs,ç›®å½•æ˜¯/user/root -Rè¡¨ç¤ºé€’å½’è¯¥ç›®å½•ä¸‹æ‰€æœ‰æ–‡ä»¶éƒ½æ˜¯è¿™ä¸ªæƒé™
 c.--target-dir /tmp/test/sqoop/sqoop/regular_info
-  ±íÊ¾sqoopÊä³öµ½Ê²Ã´Ä¿Â¼ÉÏÈ¥
+  è¡¨ç¤ºsqoopè¾“å‡ºåˆ°ä»€ä¹ˆç›®å½•ä¸Šå»
 d.create database if not exists jlc location '/tmp/test/sqoop/sqoop';
-  ÏÈÒª´´½¨hiveµÄÊı¾İ¿â
-e.·¢ÏÖuser_infoÖĞstatus µÄbitÀàĞÍ,hive²»Ö§³Ö,Òò´ËÊ¹ÓÃ--columnsÊôĞÔ,Ö»ÒªĞèÒªµÄÁĞ±»µ¼³öµ½hiveÖĞ
-f.--hive-overwrite¶Ôhive´æÔÚµÄ±íÊı¾İ½øĞĞ¸²¸Ç,µ«ÊÇÒÀÈ»·¢ÏÖËµÁÙÊ±Ä¿Â¼´æÔÚ,²»ÔÊĞí¸²¸Ç,Ô­ÒòÊÇÃ»ÓĞ¼ÓÈë²ÎÊı--delete-target-dir
-g.-m 30 ÈÃ¶à¸ömapÈ¥×¥È¥³ÌĞò,Õâ¸öÖµ²»ÊÊºÏ¹ı´ó
-h.--hive-database jlcÖ¸¶¨sqoop×¥È¥ºó´æ´¢ÔÚÄÄ¸öhiveÖĞ
-i.--hive-import ËµÃ÷¸ÃsqoopÊä³öµÄÄÚÈİÊÇÒªµ½hiveÖĞµÄ
-j.--driver com.mysql.jdbc.Driver ÓĞÊ±ºò±¨´í,ĞèÒª¼ÓÈëÕâ¸ö
-k.Ğ´³ÉÅäÖÃÎÄ¼şĞÎÊ½
-sqoop  --options-file /var/sqoop/ljc_import_hive.txt --delete-target-dir -m 10 --table regular_info 
-ÆäÖĞljc_import_hive.txtÄÚÈİ
+  å…ˆè¦åˆ›å»ºhiveçš„æ•°æ®åº“
+e.å‘ç°user_infoä¸­status çš„bitç±»å‹,hiveä¸æ”¯æŒ,å› æ­¤ä½¿ç”¨--columnså±æ€§,åªè¦éœ€è¦çš„åˆ—è¢«å¯¼å‡ºåˆ°hiveä¸­
+f.--hive-overwriteå¯¹hiveå­˜åœ¨çš„è¡¨æ•°æ®è¿›è¡Œè¦†ç›–,ä½†æ˜¯ä¾ç„¶å‘ç°è¯´ä¸´æ—¶ç›®å½•å­˜åœ¨,ä¸å…è®¸è¦†ç›–,åŸå› æ˜¯æ²¡æœ‰åŠ å…¥å‚æ•°--delete-target-dir
+g.-m 30 è®©å¤šä¸ªmapå»æŠ“å»ç¨‹åº,è¿™ä¸ªå€¼ä¸é€‚åˆè¿‡å¤§
+h.--hive-database jlcæŒ‡å®šsqoopæŠ“å»åå­˜å‚¨åœ¨å“ªä¸ªhiveä¸­
+i.--hive-import è¯´æ˜è¯¥sqoopè¾“å‡ºçš„å†…å®¹æ˜¯è¦åˆ°hiveä¸­çš„
+j.--driver com.mysql.jdbc.Driver æœ‰æ—¶å€™æŠ¥é”™,éœ€è¦åŠ å…¥è¿™ä¸ª
+k.å†™æˆé…ç½®æ–‡ä»¶å½¢å¼
+sqoop  --options-file /var/sqoop/ljc_import_hive.txt --delete-target-dir -m 10 --table regular_info
+å…¶ä¸­ljc_import_hive.txtå†…å®¹
 import
 --connect
 jdbc:mysql://host:port/xxxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&useCursorFetch=true
@@ -51,34 +51,34 @@ xxx
 hiveDabaseName
 --hive-import
 --hive-overwrite
-×¢Òâ
-ÒÑ¾­Ã»ÓĞ\&×ªÒåÁË
-Ã¿Ò»¸ö²ÎÊı±ØĞëÕ¼ÓÃÒ»ĞĞ
+æ³¨æ„
+å·²ç»æ²¡æœ‰\&è½¬ä¹‰äº†
+æ¯ä¸€ä¸ªå‚æ•°å¿…é¡»å ç”¨ä¸€è¡Œ
 
 
-4.Ê¹ÓÃsql½øĞĞimport
-a.sqoop --options-file /path/import_hive_test.txt --delete-target-dir -m 23 
---target-dir path/aa 
---split-by id --query "SELECT * FROM bank_card WHERE id = 88023 and \$CONDITIONS"  
+4.ä½¿ç”¨sqlè¿›è¡Œimport
+a.sqoop --options-file /path/import_hive_test.txt --delete-target-dir -m 23
+--target-dir path/aa
+--split-by id --query "SELECT * FROM bank_card WHERE id = 88023 and \$CONDITIONS"
 b.
-sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card 
+sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card
 --where "id = 88023"
 
-sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card 
+sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 --table bank_card
 --columns id,userId,userRealName,userIdNo,bankCard,bankName,isEffective,source,lastUpdateTime
 
-c.µ¼³öÊı¾İµ½·ÖÇøÄÚ,sqoopÖ§³ÖÒ»¸ö×Ö¶ÎµÄ·ÖÇø,ÆäÊµÒ²¹»ÁË,±Ï¾¹°´ÕÕÊ±¼äÕâÒ»¸ö·ÖÇø¾Í¿ÉÒÔ¸ã¶¨µ¼³ö¹¦ÄÜÁË
-sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 \ 
+c.å¯¼å‡ºæ•°æ®åˆ°åˆ†åŒºå†…,sqoopæ”¯æŒä¸€ä¸ªå­—æ®µçš„åˆ†åŒº,å…¶å®ä¹Ÿå¤Ÿäº†,æ¯•ç«ŸæŒ‰ç…§æ—¶é—´è¿™ä¸€ä¸ªåˆ†åŒºå°±å¯ä»¥æå®šå¯¼å‡ºåŠŸèƒ½äº†
+sqoop  --options-file /path/import_hive_test.txt --delete-target-dir -m 23 \
 --table bank_card --hive-partition-key log_day --hive-partition-value ${d}
 
-5.ÎªÊ²Ã´mysqldump±Èjdbc¿ì
-ÂíÃ÷£¬mysqldumpÊÇ±ÈJDBC¿ìºÜ¶à£¬Ô­ÒòÊÇmysqldumpÊÇËøÕû¸ö¿âºÍ±íºó£¬Ö±½Ó´ÓÊı¾İ¿âÒıÇæ²é³öÊı¾İ¡£
-JDBCĞèÒªÓï·¨½âÎö£¬½¨Á¢Á¬½Ó£¬È»ºóÈ¥Í¨¹ı²éÑ¯ÒıÇæÈ¥²éÕÒÊı¾İ
-¡£²éÕÒµÄÊı¾İ²»ÊÇÈ«Á¿µÄ£¬
-ºÍÊı¾İ¿âµÄbufferÓĞ¹Ø£¬´ÓbufferÖĞ¶ÁÍêºó²ÅÄÜ½Ó×ÅÍùÀïĞ´Êı¾İ¡£¶øÇÒ»¹ÃæÁÙÆäËû¿Í»§¶Ë¶ÔÊı¾İ¿âËøµÄÕùÓÃ¡£
+5.ä¸ºä»€ä¹ˆmysqldumpæ¯”jdbcå¿«
+é©¬æ˜ï¼Œmysqldumpæ˜¯æ¯”JDBCå¿«å¾ˆå¤šï¼ŒåŸå› æ˜¯mysqldumpæ˜¯é”æ•´ä¸ªåº“å’Œè¡¨åï¼Œç›´æ¥ä»æ•°æ®åº“å¼•æ“æŸ¥å‡ºæ•°æ®ã€‚
+JDBCéœ€è¦è¯­æ³•è§£æï¼Œå»ºç«‹è¿æ¥ï¼Œç„¶åå»é€šè¿‡æŸ¥è¯¢å¼•æ“å»æŸ¥æ‰¾æ•°æ®
+ã€‚æŸ¥æ‰¾çš„æ•°æ®ä¸æ˜¯å…¨é‡çš„ï¼Œ
+å’Œæ•°æ®åº“çš„bufferæœ‰å…³ï¼Œä»bufferä¸­è¯»å®Œåæ‰èƒ½æ¥ç€å¾€é‡Œå†™æ•°æ®ã€‚è€Œä¸”è¿˜é¢ä¸´å…¶ä»–å®¢æˆ·ç«¯å¯¹æ•°æ®åº“é”çš„äº‰ç”¨ã€‚
 
-6.ĞŞ¸ÄsqoopµÄ´úÂë,ÊÊÓ¦ÒµÎñĞèÇó
-1.ĞŞ¸Äsqoop´úÂë,¶Ô²»¹æ·¶µÄÊı¾İ½øĞĞ´¦Àí
+6.ä¿®æ”¹sqoopçš„ä»£ç ,é€‚åº”ä¸šåŠ¡éœ€æ±‚
+1.ä¿®æ”¹sqoopä»£ç ,å¯¹ä¸è§„èŒƒçš„æ•°æ®è¿›è¡Œå¤„ç†
 org.apache.sqoop.lib.JdbcWritableBridge
   public static String convertString(String value){
 	  return value == null ? null : value.trim();
@@ -86,8 +86,8 @@ org.apache.sqoop.lib.JdbcWritableBridge
   public static String readString(int colNum, ResultSet r) throws SQLException {
     return convertString(r.getString(colNum));
   }
-²âÊÔ
+æµ‹è¯•
 select * from bank_card where id = 88023;
-Ö÷ÒªÊÇ·¢ÏÖ
-a.bank_card±íÊı¾İÓĞºÜ¶àÓ¦¸ÃÓĞÖµµÄ×Ö¶Î±ä³ÉnullÁË
-b.user_info±íÓĞid ºÍuserid ÊÇnullµÄ,Ô­ÒòÒ²ÊÇ»Ø³µÎÊÌâµ¼ÖÂµÄ´®ĞĞ
+ä¸»è¦æ˜¯å‘ç°
+a.bank_cardè¡¨æ•°æ®æœ‰å¾ˆå¤šåº”è¯¥æœ‰å€¼çš„å­—æ®µå˜æˆnulläº†
+b.user_infoè¡¨æœ‰id å’Œuserid æ˜¯nullçš„,åŸå› ä¹Ÿæ˜¯å›è½¦é—®é¢˜å¯¼è‡´çš„ä¸²è¡Œ

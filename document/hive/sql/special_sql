@@ -209,3 +209,5 @@ date	user	class	yes_class	class_flag
 20160908	1	3	3	0						
 20160909	1	3	3	0						
 20160910	1	3	4	1						
+
+11.partition(log_day='substr('2016-10-30',1,7)')不支持UDF函数,因此要么用固定静态值填充,要么动态分区,将UDF定义到select的最后一个字段中解决该问题
