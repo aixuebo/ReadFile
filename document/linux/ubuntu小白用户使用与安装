@@ -65,6 +65,7 @@ ln -s source /root/Desktop
 sudo apt-get install git
 5.svn
 6.chrome
+从chrmme下载的文件默认路径是/home/mm/Downloads
 7.安装ssh
 sudo apt-get install openssh-server
 8.下载vim命令,因为自带的vi命令不好用

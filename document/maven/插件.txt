@@ -1,0 +1,114 @@
+一、 插件
+1.用于jdk5版本进行编译,此时可以识别一些@注解功能
+<build>
+	<plugins>
+		<plugin>
+			<group>org.apache.maven.plugins</group>
+			<artifactId>maven-compiler-plugin</artifactId>
+			<configuration>
+				<source>1.5</source>
+				<target>1.5</target>
+			</configuration>
+		</plugin>
+	</plugins>
+</build>
+
+2.用于生成main方法写入到manifest文件中
+<plugin>
+	<group>org.apache.maven.plugins</group>
+	<artifactId>maven-shade-plugin</artifactId>
+	<version>1.2.1</version>
+	<executions>
+		  <execution>
+		    <phase>package</phase>
+		    <goals>
+		      <goal>shade</goal>
+		    </goals>
+			<configuration>
+				<transformers>
+					 <transformer implementation = "org.apache.maven.plugins.shade.resource.MainifestResourceTransformer">
+						<mainClass>com.xun.pf.sayHello.HelloWorld</mainClass>
+					</transformer>
+				</transformers>
+			 </configuration>
+		  </execution>
+	</executions>
+</plugin>
+
+
+3.scala编译需要的插件
+    <build>
+        <finalName>xxxx</finalName>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>net.alchim31.maven</groupId>
+                    <artifactId>scala-maven-plugin</artifactId>
+                    <version>3.2.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>2.0.2</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <source>1.5</source>
+                    <target>1.5</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>

@@ -75,5 +75,8 @@ tar -xvf 命令即可。不需要加z
 6.读取gz文件
 zcat *.gz 读取gz压缩文件
 zcat *.gz >xx.log 读取的gz文件存放到xx.log中,相当于解压缩
-
-
+7.解压缩zip  将文件夹打压缩成zip
+解压
+unzip mydata.zip -d mydatabak ###注意-d表示将zip文件解压到mydatabak文件夹下,mydatabak文件夹可以不存在
+压缩
+zip -r mydata.zip mydata #压缩mydata目录

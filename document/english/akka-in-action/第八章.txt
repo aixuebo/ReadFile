@@ -1,0 +1,183 @@
+1.
+collaborator 合作者
+immediate 即时
+implications 意义
+One of the immediate implications of Actor based programming is how do we model code that requires collaborators to work together if each unit of work is done in parallel?
+
+2.
+implie 暗示
+notion 概念
+essential 必要
+certain 某些
+prior 先前
+complete/accomplish 完成
+accomplish的词义是“成功地完成每项任务”，尤其指经过一定努力后完成；
+complete主要指“全部完成了，没有剩下”，另外complete也是形容词，意为“完整的，完全的”；
+
+Collaboration implies some notion of process, which, though there can
+be parallel processes, there will also be cases where it's essential that certain steps
+happen after a required prior step has been completed
+
+3.
+classic Enterprise Integration Patterns 经典的企业集成模式
+
+4.
+straightforward直接了当
+sequential 顺序
+This is the default pattern for most message passing systems and is very straightforward,
+but, of course, the classical version is sequential.
+
+5.exposure 曝光
+Most people know it from some exposure to Unix
+
+6.
+license许可 plate盘子
+license plate 牌照
+central 中央
+vehicle 车辆
+end up 结果
+speed 速度
+ Which means that only messages that contain the license plate of a speeding vehicle end up getting to the central processor.
+ 这就意味着仅仅(包含超速车辆牌照)信息 最终结果可以到中央处理
+ 即:分别检查牌照和是否车辆超速
+
+7.partly 部分的
+The two pipes are drawn partly outside the Filter  两个管道被部分的画出来了,画在了filter的外面
+
+8.
+independent 独立
+potentially 潜在的
+Because , 表示因为...因此...
+other than 以外,除了
+Because the filters have the same interface and are independent, nothing has to be changed, other than potentially adding additional pipes.
+因为filter有相同的接口和filter的独立性,因此没有什么北改变的,除了潜在的添加额外的管道
+
+9.
+quite 完全,很
+Are we done here? Not quite.  我们这里已经做完了吗? 不是完全做完了
+crucial  关键
+There is a small requirement which is crucial for implementing the Pipes and Filter pattern
+实现这个模式有一个小的关键的要求
+
+uniformity 均匀性,一致
+violated 违反
+indiscriminately 不分青红皂白地
+prevents阻止 预防
+If we were to use different messages, the interface of the next actor would differ and
+our uniformity requirement would be violated, preventing us from being able to indiscriminately apply filters.
+如果我们使用不同类型的信息,下一个actor的接口将会不同,并且我们一致的需求将会被违反,阻止我们不分青红皂白的使用过滤器
+
+10.
+flexibility 灵活性
+handy 敏捷的 便利的
+influence 影响 势力
+we'll show how this gives us flexibility that comes in handy when we find that the order will have a marked influence on the execution time.
+
+11.
+intensive集中的 加强器
+recognize识别
+keep up保持 继续
+pace 速度
+investigation 调查
+reveal揭露
+approved 经过校验的  核准
+
+    The license filter uses a lot of resources. It has to locate the letters and numbers
+on the plate, which is CPU-intensive. When we put the camera on a busy road, we
+find that the recognize filter can't keep up with pace of new photos arriving. Our
+investigations reveal that 90% of the messages are approved by the License Check
+and 50% of the messages are approved by the speed filter
+license模块花费了许多资源,他要找到字母和数字,这是CPU密集型的,当我们把照相机放在繁忙的道路上的时候,我们发现识别过滤器不能保持新照片到达的速度,我们调查揭露90%信息通过车牌校验被识别,50%的信息通过速度过滤器被识别
+
+12.
+evaluate 评估
+halved 把..减半,均分
+when we switch the order of filters, check license is asked to evaluate 10 licenses per second; reordering halved the load of the check license filter.
+
+13.
+divide 划分
+conquer 征服  战胜
+approach 方法
+scatter 分散
+gather 收集
+amongst 当中
+we will see a pattern that enables a divide and conquer approach,
+which of course, requires concurrency, and Akka again makes it easy. We scatter
+units of work amongst a number of processing Actors and then gather their results
+into a single set, allowing the consumer of the work product to just make a request and get a single response.
+我们将会看到能够分散和征服的方法模式,当然,这要求并发,并且akka再次很容易的实现了他,
+我们先分散工作单元到多个进程中处理,然后收集他们的结果集在单独的集合里面,
+一个产品的工作消费者去提出一个请求,并且得到响应
+
+14.
+inherent 固有的  内在的
+Akka's inherent ability to ... akka的内在的能力是...
+
+15.
+stock 存货 股份 股票
+supplier 供应商
+the shop doesn't have the requested book in stock, so it has to buy the book from a supplier
+商店的库存没有这个请求的书,因此向供应商购买了该书
+
+16.
+criteria 标准
+compete/competition 竞争
+merely 仅仅
+
+the selection criteria could be different in other cases. Selection in the Gather
+component is not always based on the content of the message. It is also possible
+that you only need one solution, in which case, the competition is merely
+determining which is the quickest response.
+选择的标准在其他的情况下可能不同,比如在收集组件中,选择的标准不仅仅基于信息的内容,也可能仅仅需要一个结果,这情况下,这个竞争仅仅决定于最先返回的
+
+17.
+performance性能  注意:perform 执行
+critical 决定性的
+When performance is critical 当性能是决定性的
+
+Another case where the Scatter-Gather Pattern can be used is when the tasks are performing a sub task.
+另一种可以使用分散聚集模式的情况是当任务是执行子任务。
+
+18.
+parallel cooperative processing 并行协作处理
+
+19.
+mock 模拟  嘲弄
+traffic 交通
+recognition 识别
+Aggregator 聚合器
+associate 关联
+respective 各自的
+
+we mock the traffic cameras and image recognition
+tools by just providing the image. Note, the message has an ID, which can be used
+by the Aggregator to associate the messages with their respective flows.
+我们模拟交通摄像机和图像识别工具只是提供图像。 注意，消息有一个ID，可以使用聚合器将消息与其相应的流相关联。
+
+20.
+recipient 接受者
+we will use the recipient list to scatter the tasks 我们使用这个接受者列表去分散任务
+
+21.
+consistent一致
+forever永远
+occurrence发生  事件
+pile 堆
+eventually最终
+catastrophic 灾难的
+fault 故障
+
+  we need to assure that the state is always consistent. So what
+happens when one task fails? When this happens the first message is stored forever
+in the buffer and no one would ever know what happened to this message.
+As occurrences pile up, our buffer size increases and eventually it might consume too
+much memory, which can cause a catastrophic fault.
+我们需要确保状态总是一致的,当一个任务失败的时候发生什么了?第一个信息永远被存储了,没有人会知道,这个信息将会发生什么
+随着事件的堆积,最终消耗太多内存,产生一个灾难的故障
+
+22.
+stipulated 规定的
+presumed 假定
+When the second message isn't received within the stipulated timeout, it is presumed lost.
+
+231最后一段

@@ -1,0 +1,30 @@
+akka需要的jar
+
+<scala-versioin>2.3.0-RC4</scala-versioin>
+<dependency>
+    <groupId>com.typesafe.akka</groupId>
+    <artifactId>akka-actor_2.10</artifactId>
+    <version>${scala-versioin}</version>
+</dependency>
+
+<dependency>
+    <groupId>com.typesafe.akka</groupId>
+    <artifactId>akka-remote_2.10</artifactId>
+    <version>${scala-versioin}</version>
+</dependency>
+
+<dependency>
+    <groupId>com.typesafe.akka</groupId>
+    <artifactId>akka-testkit_2.10</artifactId>
+    <version>${scala-versioin}</version>
+</dependency>
+
+<dependency>
+    <groupId>com.typesafe.akka</groupId>
+    <artifactId>akka-slf4j_2.10</artifactId>
+    <version>${scala-versioin}</version>
+</dependency>
+
+尤其是<artifactId>akka-slf4j_2.10</artifactId>
+否则总是报错 没有akka.event.slf4j.Slf4jLogger类
+

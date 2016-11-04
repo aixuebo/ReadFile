@@ -1,5 +1,8 @@
 一、为分区表增加一个属性列
 ALTER TABLE summary.leave_users ADD COLUMNS (create_date STRING);
+增加一个属性、类型和备注
+ALTER TABLE invites ADD COLUMNS (new_col2 INT COMMENT 'a comment');
+
 
 删除该分区
 ALTER TABLE summary.leave_users DROP IF EXISTS PARTITION (log_day='20160531');
@@ -11,7 +14,7 @@ hive这边是这样的,如果设置了一个分区后,该分区已经存在数�
 
 二、修改一个列
 更改一个列名字和类型
-alter table database.user_info change `last_update_time` open_time STRING;
+alter table database.user_info change `last_update_time` open_time STRING COMMENT '首次赎回金额';
 
 三、加载数据
 load data local inpath '/home/xxxx' into table summary.cash_ba partition(log_day='201606');
@@ -20,3 +23,15 @@ load data local inpath '/home/xxxx' into table summary.cash_ba partition(log_day
 
 四、更改表名
 ALTER TABLE table_name RENAME TO new_table_name;
+
+五、创建表
+CREATE TABLE IF NOT EXISTS fact.premium_record (
+userid STRING,
+max_create_date STRING COMMENT '最高存量时间',
+max_premium DOUBLE COMMENT '最高存量',
+last_create_date STRING COMMENT '最后计息时间',
+last_premium DOUBLE COMMENT '当前存量')
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+
+六、创建数据库
+create database if not exists databaseName location 'path';
