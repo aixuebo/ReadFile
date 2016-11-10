@@ -54,4 +54,38 @@ org.apache.sqoop.manager.SqlManager
           int precision = metadata.getPrecision(i);//属性的整数位
           int scale = metadata.getScale(i);//属性的小数点
 解决方法是:更换成mysql-connector-java-5.1.38-bin.jar包即可
-  
+
+四、对sqoop中-column字段不支持关键字导入进行处理
+因为今天对一个表,字段是desc,属于mysql的关键字,因此有影响,在import的时候追加了 -column id,\`desc\`即可,但是却没办法校验通过,因此修改代码
+修改代码org.apache.sqoop.util.SqlTypeMap
+  public V get(Object col) {
+	if(col instanceof String){
+		String col_temp = (String)col;
+		if(col_temp.startsWith("`") && col_temp.endsWith("`") ){
+			col = col_temp.substring(1,col_temp.length()-1);
+		}
+	}
+表示将`desc` 转换成desc
+
+注意:
+1.创建table的分隔符一定是逗号,
+2.必须是外部表,因为如果直接接入hive的话,关键字在创建hive表结构的时候也会抛异常,因此只能使用外部表
+demo
+
+sqoop --options-file /path_hdfs.txt --delete-target-dir -m 1 --target-dir path --table awd_award --columns id,act_id,name,\`desc\`,stock,category,award_tag,image_url,type,amount,create_time,update_time,version --verbose
+
+CREATE TABLE IF NOT EXISTS databases.awd_award (
+id INT,
+act_id  STRING,
+name  STRING,
+description  STRING,
+stock  INT,
+category STRING,
+award_tag  STRING,
+image_url  STRING,
+type  INT,
+amount  DOUBLE,
+create_time STRING,
+update_time STRING,
+version INT)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';

@@ -1,0 +1,47 @@
+Google ProtocolBuffer 用于序列化与反序列化
+注意该技术不是RCP技术.只是序列化与反序列的功能,属于RPC中的一个环节,序列化与反序列化效率较高,可以集成到其他RCP框架中,
+RPC不仅仅包含序列化与反序列化,还有传输的功能。
+
+如何定义文件
+1.写test.proto文件
+
+类型内容:
+
+option java_package = "com.proto";
+option java_outer_classname = "FirstProtobuf";
+message TestBuf  {
+  required int32 ID = 1;
+  required string Url = 2;
+}
+2.编译 .proto 文件
+用 Protobuf 编译器将该文件编译成目标语言,
+我们将该文件使用java语言进行输出,输出到当前目录下
+D:\protoc-2.4.1-win32>protoc.exe  --java_out=./  test.proto
+
+3.将生成的java文件或者jar包导入到项目需要的地方
+
+4.测试
+import java.io.IOException;
+import com.proto.FirstProtobuf;
+import com.proto.FirstProtobuf.TestBuf;
+
+public class TestProtoBuf {
+
+    public static void main(String[] args) throws IOException {
+        //序列化过程
+        //FirstProtobuf是生成类的名字，即proto文件中的java_outer_classname
+        //testBuf是里面某个序列的名字，即proto文件中的message testBuf
+
+        FirstProtobuf.TestBuf.Builder builder = FirstProtobuf.TestBuf.newBuilder();
+
+        builder.setID( 123 );
+        builder.setUrl("http://www.21cn.com");
+
+        TestBuf info = builder.build();//创建TestBuf对象
+        byte[] buf = info.toByteArray();//将该对象生成字节数组
+
+        TestBuf tb = TestBuf.parseFrom(buf);//字节数组也可以反序列化成对象
+        System.out.println( tb.getID());//打印对象的内容
+        System.out.println( tb.getUrl());
+    }
+}

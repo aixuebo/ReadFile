@@ -1,0 +1,99 @@
+一、git的安装
+sudo apt-get install git
+
+二、git的初始化
+$ git config --global user.name "Your Name"
+$ git config --global user.email "email@example.com"
+
+三、git的仓库建立
+git init 
+git add file 
+git commit -m "message"
+
+四、
+git status 查看git工作区是否有更新
+git diff 文件 查看文件哪里不一样
+git diff 查看目前所有不一样的文件内容
+git log 查看最近提交的信息
+git log --pretty=oneline 更优雅的方式查看最近提交的信息
+git reflog 查看命令历史，以便确定要回到未来的哪个版本。
+
+
+五、
+工作区:就是我们git init的目录
+版本库:就是.git文件夹
+版本库里面内容
+a.stage表示暂存区
+b.Git为我们自动创建的第一个分支master，以及指向master的一个指针叫HEAD
+
+
+六、git管理修改
+a.修改一个文件 
+b.git status;
+c.提示
+Changes not staged for commit: 
+表示有一个文件修改了,但是没有add到暂存区
+d.增加一个文件
+e.git status;
+f.提示信息
+Untracked files: 表示有一个文件新增加的,还没有任何状态,因此也没有到暂存区
+g.进行add方法
+git add xxxx
+h.git status;
+i.提示信息
+Changes to be committed: (use "git reset HEAD <file>..." to unstage)
+表示已经add完成了,下一步要进行commit操作
+因此查看工作区和暂存区的文件区别
+git diff HEAD -- readme.txt命令可以查看工作区和版本库里面最新版本的区别：
+
+七、git数据还原
+在Git中，用HEAD表示当前版本，上一个版本就是HEAD^，上上一个版本就是HEAD^^，当然往上100个版本写100个^比较容易数不过来，所以写成HEAD~100。
+a.将分支上HEAD,即最后一次提交的内容,重新放置到缓存区中
+恢复当前版本 git reset HEAD readme.txt 
+恢复上一个版本 git reset --hard HEAD^
+恢复到某一个版本git reset --hard 3628164
+b.将缓存区的内容,重新覆盖到工作区中
+git checkout -- readme.txt  
+注意--,如果没有--,则就是切换分支了,注意这个区别。
+
+八、设置别名
+demo
+1.git config --global alias.st status 
+表示git st 表示git status
+2.撤销版本库到缓冲区
+git config --global alias.unstage 'reset HEAD'
+git unstage test.py
+
+九、
+git config --global 是对当前用户，即当前电脑使用者都统一都有作用,文件存储在用户宿主目录下.gitconfig文件里
+如果不加--global，那只针对当前的仓库起作用。文件存储在.git/config
+
+十、强制将.gitignore忽略的文件添加到版本库
+git add -f App.class
+
+十一、标签管理
+1.发布一个版本时，我们通常先在版本库中打一个标签（tag），这样，就唯一确定了打标签时刻的版本。
+Git的标签虽然是版本库的快照，但其实它就是指向某个commit的指针（跟分支很像对不对？但是分支可以移动，标签不能移动），
+所以，创建和删除标签都是瞬间完成的。
+2.为什么有commit还需要tag标签
+“请把上周一的那个版本打包发布，commit号是6a5819e...”
+“一串乱七八糟的数字不好找！”
+如果换一个办法：
+“请把上周一的那个版本打包发布，版本号是v1.2”
+“好的，按照tag v1.2查找commit就行！”
+所以，tag就是一个让人容易记住的有意义的名字，它跟某个commit绑在一起。
+
+3.在我们要打标签的分支上,
+git tag 查看所有标签
+git tag v1.0,则创建v1.0的标签,此时标签在最近的commit地方打的
+git tag v0.9 6224937 ,表示如果我已经commit多次了,但是我要在某个commit地方打标签,则输入标签名字以及commit序号即可。
+git tag -a v0.1 -m "version 0.1 released" 3628164 可以给标签写上描述文字,-m就是描述文字,-a就是标签名
+git show <tagname> 查看某一个标签的信息,例如git show v1.0
+git tag -d v0.1 删除一个标签
+git push origin <tagname> 推送某个标签到远程
+git push origin --tags 一次性推送全部尚未推送到远程的本地标签
+如果标签已经推送到远程，要删除远程标签就麻烦一点:
+a.先从本地删除 git tag -d v0.9
+b.再从远程删除 git push origin :refs/tags/v0.9
+
+十二、分支管理到时候再看吧,暂时不做介绍

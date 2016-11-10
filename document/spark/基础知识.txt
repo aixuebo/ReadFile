@@ -1,0 +1,27 @@
+一、启动方式
+1.spark-shell
+执行的是
+设置环境变量 SPARK_SUBMIT_OPTS="$SPARK_SUBMIT_OPTS -Dscala.usejavacp=true"
+spark-submit  --class org.apache.spark.repl.Main --name "Spark shell" "$@"
+2.spark-sql
+执行的是
+spark-submit  --class org.apache.spark.sql.hive.thriftserver.SparkSQLCLIDriver "$@"
+3.spark-submit
+执行的是spark/bin/spark-class org.apache.spark.deploy.SparkSubmit "$@"   ,$@表示脚本后面所有参数
+而spark-class最终是调用java -cp lib依赖的jar  org.apache.spark.launcher.Main org.apache.spark.deploy.SparkSubmit "$@"
+
+二、脚本启动流程
+a.spark-class脚本
+1.执行 path/bin/load-spark-env.sh,导入spark执行时候需要的环境变量信息,包括java hadoop hive等环境变量
+2.设置变量
+RUNNER = java/bin/java
+SPARK_ASSEMBLY_JAR = ${spark}/lib
+最后执行 java -cp  SPARK_ASSEMBLY_JAR org.apache.spark.launcher.Main $@
+
+b.脚本load-spark-env.sh
+1.找到path/conf/spark-env.sh文件
+2.根据path下两个目录,存在哪个,就说明依赖的scala版本是什么
+    ASSEMBLY_DIR2="$FWDIR/assembly/target/scala-2.11"
+    ASSEMBLY_DIR1="$FWDIR/assembly/target/scala-2.10"
+
+c.脚本path/conf/spark-env.sh 该脚本配置了一些key=value的键值对信息

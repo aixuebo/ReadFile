@@ -1,0 +1,57 @@
+如何定义文件
+一、数据类型
+基本类型：
+bool：布尔值，true 或 false，对应 Java 的 boolean
+byte：8 位有符号整数，对应 Java 的 byte
+i16：16 位有符号整数，对应 Java 的 short
+i32：32 位有符号整数，对应 Java 的 int
+i64：64 位有符号整数，对应 Java 的 long
+double：64 位浮点数，对应 Java 的 double
+string：utf-8编码的字符串，对应 Java 的 String
+结构体类型：
+struct：定义公共的对象，类似于 C 语言中的结构体定义，在 Java 中是一个 JavaBean
+容器类型：
+list：对应 Java 的 ArrayList
+set：对应 Java 的 HashSet
+map：对应 Java 的 HashMap
+异常类型：
+exception：对应 Java 的 Exception
+服务类型：
+service：对应服务的类
+
+demo
+1.定义java的命名空间,即包名
+2.定义struct对象数据结构(如果没有使用对象,则可以省略)
+3.定义接口方法service
+4.实现服务端以及客户端调用
+
+例如
+1.在目录G:\test\thrift\demoHello.thrift下创建文件,文件内容如下
+
+namespace java com.micmiu.thrift.demo
+
+service  HelloWorldService {
+  string sayHello(1:string username)
+}
+
+根据这个文件,去生成各种语言的原始文件,比如java,可以生成的结果单独打包成jar包
+
+thrift-0.8.0.exe -r -gen java ./demoHello.thrift
+
+2.实现服务端
+在代码中引入该jar或者该java文件,使用文件名字.Iface即可实现该接口
+public class HelloWorldImpl implements HelloWorldService.Iface {
+
+public HelloWorldImpl() {
+}
+
+@Override
+public String sayHello(String username) throws TException {
+return "Hi," + username + " welcome to my blog www.micmiu.com";
+}
+}
+
+3.在服务端启动服务,设置host和port
+
+4.客户端 引用该jar包,设置服务端的host和port,因此就可以跟本地调用一样,使用jar包定义的HelloWorldService的sayHello方法返回结果集了。
+如果jar包定义了struct对象,客户端也可以new该对象,进行逻辑处理。

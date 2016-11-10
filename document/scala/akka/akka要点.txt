@@ -1,0 +1,35 @@
+1.ActorRef的tell ask forward区别
+tell是发完就走,纯粹的异步发送
+ask是发完等Futur,ask会拦住reply消息直接给onsuccess等，sender不会再得到reply
+forward 用于从一个actor转发消息给另一个actor，原始的sender信息会被保留，在>做路由、负载均衡、备份时非常有用
+
+仔细分析
+! 的源码：
+def !(message: Any)(implicit sender: ActorRef = Actor.noSender): Unit
+
+tell 的源码：
+final def tell(msg: Any, sender: ActorRef): Unit = this.!(msg)(sender)
+
+forward 的源码：
+def forward(message: Any)(implicit context: ActorContext) = tell(message, context.sender())
+
+通过源码，我们可以轻而易举的知道 ：
+!  发送的消息的发送者通过一个隐式转换，把一个ActorRef转换成sender，如果找不到ActorRef的话，那个发送者就是noSender。
+forward 发送消息的发送者是当前消息的上一个发送者。
+即:
+A To B， B To C
+如果通过！的方式发送消息，则C接收到的消息的发送者是B.
+如果通过 forward 的方式发送消息，则C接收到的消息的发送者是A.
+如果希望 ！的方式发送消息的同时携带发送者消息，则可以使用  .!(msg)(sender)
+
+如果希望关掉actor，直接shutdown或者使用父亲actor的stop，在actor内部还可以使用context.stop(self)
+
+
+2.如何创建子ActorRef
+system.actorOf 会创建顶级的actor，将被系统监控, getContext().acrtorOf 会创建子actor
+ActorRef 由actorOf产生，可以是一个网络actor。
+
+3.Props 配置类，用Props.create可以创建一个按指定配置生成的Actor
+Props的推荐实践，创建Actor时，搞一个static的Props.create方法。可以少写不少重复代码。
+
+
