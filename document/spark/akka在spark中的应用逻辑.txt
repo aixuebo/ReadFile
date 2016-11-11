@@ -1,0 +1,119 @@
+
+/**
+ * An RPC environment. [[RpcEndpoint]]s need to register itself with a name to [[RpcEnv]] to
+ * receives messages. Then [[RpcEnv]] will process messages sent from [[RpcEndpointRef]] or remote
+ * nodes, and deliver them to corresponding [[RpcEndpoint]]s. For uncaught exceptions caught by
+ * [[RpcEnv]], [[RpcEnv]] will use [[RpcCallContext.sendFailure]] to send exceptions back to the
+ * sender, or logging them if no such sender or `NotSerializableException`.
+ *
+ * [[RpcEnv]] also provides some methods to retrieve [[RpcEndpointRef]]s given name or uri.
+ * 详细参见AkkaRpcEnv实现类
+ */
+abstract class RpcEnv(conf: SparkConf) {
+
+1.def address: RpcAddress 该服务器监听哪个地址
+2.def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef 向endpoint发送请求,创建endpoint的引用
+3.def endpointRef(endpoint: RpcEndpoint): RpcEndpointRef 查找已经存在的引用
+
+4.def asyncSetupEndpointRefByURI(uri: String): Future[RpcEndpointRef] 通过url,去异步建立一个终端引用
+5.def setupEndpointRefByURI(uri: String): RpcEndpointRef 通过url,在超时时间内去建立一个终端引用
+6.去哪个systemName,哪个节点上找哪个action,返回该action的终端引用
+  def asyncSetupEndpointRef(
+      systemName: String, address: RpcAddress, endpointName: String): Future[RpcEndpointRef] = {
+    asyncSetupEndpointRefByURI(uriOf(systemName, address, endpointName))
+  }
+7.在超时时间内建立终端引用
+  def setupEndpointRef(
+      systemName: String, address: RpcAddress, endpointName: String): RpcEndpointRef = {
+    setupEndpointRefByURI(uriOf(systemName, address, endpointName))
+  }
+
+8.def stop(endpoint: RpcEndpointRef): Unit 停止某一个socket
+9.def shutdown(): Unit 关闭本地服务,即所有的socket都失效
+
+10.def deserialize[T](deserializationAction: () => T): T 暂时不知道序列化有什么用
+
+
+RpcEndpoint代表socket,RpcEndpointRef 表示socket在服务器的引用
+
+创建RpcEnv的配置环境
+
+  /**
+   * 创建一个Actor系统,返回该系统以及系统所在port
+   */
+  private def doCreateActorSystem(
+      name: String,//actorSystem的Name
+      host: String,
+      port: Int,
+      conf: SparkConf,
+      securityManager: SecurityManager): (ActorSystem, Int) = {
+
+    val akkaThreads = conf.getInt("spark.akka.threads", 4)
+    val akkaBatchSize = conf.getInt("spark.akka.batchSize", 15)
+    val akkaTimeoutS = conf.getTimeAsSeconds("spark.akka.timeout",
+      conf.get("spark.network.timeout", "120s"))
+    val akkaFrameSize = maxFrameSizeBytes(conf) //设置传递一个message允许的字节上限,参数单位是M,将其转换成字节
+    val akkaLogLifecycleEvents = conf.getBoolean("spark.akka.logLifecycleEvents", false)
+    val lifecycleEvents = if (akkaLogLifecycleEvents) "on" else "off"
+    if (!akkaLogLifecycleEvents) {
+      // As a workaround for Akka issue #3787, we coerce the "EndpointWriter" log to be silent.
+      // See: https://www.assembla.com/spaces/akka/tickets/3787#/
+      Option(Logger.getLogger("akka.remote.EndpointWriter")).map(l => l.setLevel(Level.FATAL))
+    }
+
+    val logAkkaConfig = if (conf.getBoolean("spark.akka.logAkkaConfig", false)) "on" else "off"
+
+    val akkaHeartBeatPausesS = conf.getTimeAsSeconds("spark.akka.heartbeat.pauses", "6000s")
+    val akkaHeartBeatIntervalS = conf.getTimeAsSeconds("spark.akka.heartbeat.interval", "1000s")
+
+    val secretKey = securityManager.getSecretKey()
+    val isAuthOn = securityManager.isAuthenticationEnabled()
+    if (isAuthOn && secretKey == null) {
+      throw new Exception("Secret key is null with authentication on")
+    }
+    val requireCookie = if (isAuthOn) "on" else "off"
+    val secureCookie = if (isAuthOn) secretKey else ""
+    logDebug(s"In createActorSystem, requireCookie is: $requireCookie")
+
+    val akkaSslConfig = securityManager.akkaSSLOptions.createAkkaConfig
+        .getOrElse(ConfigFactory.empty())
+
+    //conf.getAkkaConf.toMap[String, String],表示以akka.开头的key,就是akka的配置文件信息,因此获取以 akka.开头的key组成的配置信息元组集合
+    val akkaConf = ConfigFactory.parseMap(conf.getAkkaConf.toMap[String, String])
+      .withFallback(akkaSslConfig).withFallback(ConfigFactory.parseString(
+      s"""
+      |akka.daemonic = on
+      |akka.loggers = [""akka.event.slf4j.Slf4jLogger""]
+      |akka.stdout-loglevel = "ERROR"
+      |akka.jvm-exit-on-fatal-error = off
+      |akka.remote.require-cookie = "$requireCookie"
+      |akka.remote.secure-cookie = "$secureCookie"
+      |akka.remote.transport-failure-detector.heartbeat-interval = $akkaHeartBeatIntervalS s
+      |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $akkaHeartBeatPausesS s
+      |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
+      |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
+      |akka.remote.netty.tcp.hostname = "$host"
+      |akka.remote.netty.tcp.port = $port
+      |akka.remote.netty.tcp.tcp-nodelay = on
+      |akka.remote.netty.tcp.connection-timeout = $akkaTimeoutS s
+      |akka.remote.netty.tcp.maximum-frame-size = ${akkaFrameSize}B
+      |akka.remote.netty.tcp.execution-pool-size = $akkaThreads
+      |akka.actor.default-dispatcher.throughput = $akkaBatchSize
+      |akka.log-config-on-start = $logAkkaConfig
+      |akka.remote.log-remote-lifecycle-events = $lifecycleEvents
+      |akka.log-dead-letters = $lifecycleEvents
+      |akka.log-dead-letters-during-shutdown = $lifecycleEvents
+      """.stripMargin))
+
+    val actorSystem = ActorSystem(name, akkaConf)
+    val provider = actorSystem.asInstanceOf[ExtendedActorSystem].provider
+    val boundPort = provider.getDefaultAddress.port.get
+    (actorSystem, boundPort)
+  }
+
+
+----------------
+RpcTimeout 定义超时时间限制对象,里面有一个方法awaitResult[T](awaitable: Awaitable[T]): T ,可以在超时时间内返回一个结果
+RpcTimeoutException 超时异常
+RpcAddress 表示一个hosthe port组成的对象
+RpcEnvConfig 一个RPC配置对象,包含SparkConf,name,host,port
