@@ -1,0 +1,5 @@
+1.The best operation is the least expensive valid one.
+最好的操作就是最少花钱并且有效的一个方式
+least 至少的 最小的
+expensive 昂贵的 花钱的
+valid 有效的

@@ -1,0 +1,42 @@
+mahout
+1.http://apache.fayea.com/mahout/0.12.2/ 下载200多M的文件
+2.解压缩 unzip source -d target
+3.配置环境变量
+创建s文件
+export MAHOUT_HOME=/server/app/mahout/apache-mahout-distribution-0.12.2/apache-mahout-distribution-0.12.2
+export JAVA_HOME=/server/java/jdk1.8.0_60
+export HADOOP_HOME=${HADOOP_HOME:-/usr/hdp/current/hadoop-client}
+export HADOOP_CONF_DIR=${HADOOP_HOME}/conf
+export PATH=$MAHOUT_HOME/bin:$JAVA_HOME/bin:$HADOOP_HOME/bin:$PATH
+export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$HADOOP_HOME:$HADOOP_HOME/lib:$MAHOUT_HOME:$MAHOUT_HOME/lib:$CLASSPATH
+
+source s
+4.执行 bin/mahout 输出一堆算法列表,则说明完成安装
+5.测试在hadoop上能否执行
+找一个text文本的输出,将其转换成SequenceFile文件
+sh ./bin/mahout  seqdirectory --input path --output path
+6.测试canopy算法
+a.创建输入路径和输出路径,
+b.上传输入数据
+input.log文件
+7 7
+8 8
+6 6
+9 9
+2 2
+1 1
+0 0
+2.9 2.9
+c.执行命令
+sh bin/mahout org.apache.mahout.clustering.conversion.InputDriver --input /log/mahout/canopy_test --output /log/mahout/output/canopy_test
+-v org.apache.mahout.math.RandomAccessSparseVector
+其中
+-v org.apache.mahout.math.RandomAccessSparseVector是默认值,
+将text转换成SequenceFileOutputFormat,输出的SequenceFileOutputFormat的key是text类型,值是VectorWritable的维数,value是VectorWritable对象,
+VectorWritable对象来自于一行文本,按照空格进行拆分的集合
+
+
+d.canopy算法要求输入源是SequenceFileOutputFormat类型文件,输入参数key-value分别是Text和VectorWritable
+sh bin/mahout canopy --input /log/mahout/output/canopy_test --output hdfs:/log/mahout/output/canopy_test1
+--distanceMeasure org.apache.mahout.common.distance.EuclideanDistanceMeasure --t1 3 --t2 2 --clustering --overwrite
+

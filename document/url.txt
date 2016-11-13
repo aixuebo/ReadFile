@@ -1,0 +1,8 @@
+数学
+1.各种距离
+http://blog.csdn.net/shiwei408/article/details/7602324
+
+
+
+未完成的
+mahout--mr--common---distance视频录制
