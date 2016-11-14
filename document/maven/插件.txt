@@ -35,8 +35,66 @@
 	</executions>
 </plugin>
 
+3.将依赖的jar包分别打包,源文件也单独打包
+以下代码会生成lib目录,存储依赖的jar包,同时源文件的jar包里面有执行mian类
+    <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.6</version>
+            <configuration>
+                <archive>
+                    <manifest>
+                        <addClasspath>true</addClasspath>
+                        <classpathPrefix>lib/</classpathPrefix>
+                        <mainClass>com.hadoop.temple.main.HadoopMain</mainClass>
+                    </manifest>
+                </archive>
+            </configuration>
+        </plugin>
 
-3.scala编译需要的插件
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>2.10</version>
+            <executions>
+                <execution>
+                    <id>aaa</id>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>copy-dependencies</goal>
+                    </goals>
+                    <configuration>
+                        <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+配合eclipse的pom.xml的dependency Hierarchy标签,右边高亮的jar就是所有应该依赖的jar集合,选中即可
+4.将jar包全部依赖打成一个大jar包,并且也有源代码对应的单独一个jar包
+ <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <archive>
+			            <manifest>
+			              	<mainClass>com.hadoop.temple.main.HadoopMain</mainClass>
+			            </manifest>
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+5.scala编译需要的插件
     <build>
         <finalName>xxxx</finalName>
 

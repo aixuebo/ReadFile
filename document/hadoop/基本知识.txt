@@ -8,3 +8,8 @@ http://10.1.5.91:50070/dfshealth.html#tab-overview
 没办法在hadoop集群上跑sqoop,因为目录的权限不对
   su hdfs
   hdfs dfs -chown -R root:hdfs /user/root 执行hdfs dfs命令,为该目录赋予权限,user是root 组是hdfs,目录是/user/root -R表示递归该目录下所有文件都是这个权限
+4.core-site.xml
+    <property>
+      <name>fs.defaultFS</name>
+      <value>hdfs://namenode01.yinker.com:8020</value>
+    </property>

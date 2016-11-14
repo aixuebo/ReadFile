@@ -37,6 +37,12 @@ VectorWritable对象来自于一行文本,按照空格进行拆分的集合
 
 
 d.canopy算法要求输入源是SequenceFileOutputFormat类型文件,输入参数key-value分别是Text和VectorWritable
-sh bin/mahout canopy --input /log/mahout/output/canopy_test --output hdfs:/log/mahout/output/canopy_test1
---distanceMeasure org.apache.mahout.common.distance.EuclideanDistanceMeasure --t1 3 --t2 2 --clustering --overwrite
+sh bin/mahout canopy --input  hdfs://namenode01.xxx.com:8020/log/mahout/output/canopy_test --output  hdfs://namenode01.xxx.com:8020/log/mahout/output/canopy_test1
+--distanceMeasure org.apache.mahout.common.distance.EuclideanDistanceMeasure --t1 3 --t2 2 --overwrite  --clustering
 
+程序执行也可以
+hadoop jar /server/app/test/job/hadoop_temple.jar org.apache.mahout.clustering.canopy.CanopyDriver -libjars $test $* 1>>$logPath/appout.log 2>>$logPath/apperr.log
+sh mathout.run.sh --input hdfs://namenode01.xxx.com:8020/log/mahout/output/canopy_test --output hdfs://namenode01.xxxx.com:8020/log/mahout/output/canopy_test1 --distanceMeasure org.apache.mahout.common.distance.EuclideanDistanceMeasure --t1 3 --t2 2  --overwrite --clustering
+
+8.查看帮助命令
+ sh bin/mahout canopy --help
