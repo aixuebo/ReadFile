@@ -3,3 +3,50 @@
 least 至少的 最小的
 expensive 昂贵的 花钱的
 valid 有效的
+
+2.
+Preference value is optional (that is, the user simply expresses a
+ * preference for an item, but no degree of preference).
+ * 偏爱度是可选的,
+ * 这个是用户简单的表达对一个物品的偏爱.但是没有偏爱程度
+
+ * The preference value is assumed to be parseable as a {@code double}. The user IDs and item IDs are
+ * read parsed as {@code long}s. The timestamp, if present, is assumed to be parseable as a
+ * {@code long}, though this can be overridden via {@link #readTimestampFromString(String)}.
+ * The preference value may be empty, to indicate "no preference value", but cannot be empty. That is,
+ * this is legal: {@code 123,456,,129050099059}</p>
+ * </p>
+ * 偏好值假设可被解析成double类型,userid和itemid被解析成long类型,时间戳如果存在,则假设被解析long类型
+ * 虽然时间戳可以通过readTimestampFromString函数,将String转换成long。
+ * 偏爱值可以为空,去只是没有偏好值,但位置不能空着
+ 使用以下法律要求格式:{@code 123,456,,129050099059}
+
+preference偏好
+optional 可选择的
+ parseable 可解析
+ legal 法律
+
+3.
+ * This {@link DataModel} decorator class is useful in a situation where you wish to recommend to a user that
+ * doesn't really exist yet in your actual {@link DataModel}. For example maybe you wish to recommend DVDs to
+ * a user who has browsed a few titles on your DVD store site, but, the user is not yet registered.
+ *
+ * 该类是DataModel类的装饰类,在你希望推荐给尚未真实存在的用户情况下很有用
+ * 比如:可能你希望推荐DVD去给在你的DVD站点浏览了的用户.但是这些用户还尚未注册
+
+ recommend 推荐
+ browse 浏览
+ decorator 装饰
+ situation 情况
+
+ 4.
+ Infers the given user's preference value for an item.
+推测给定user对item的偏爱值
+Infer 推测
+
+5.
+Accurately computing running variance
+准确计算运行期的方差
+Accurately  准确
+variance 方差
+

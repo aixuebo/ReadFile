@@ -1,0 +1,31 @@
+1.成明查询注册后30天内投资、赎回情况,以及30-60天投资、赎回情况,等等
+以往查询担心性能问题,要写mr,现在发现这样也还没什么性能问题,因为没有用到笛卡尔积就没问题
+select 	a.userid,
+		to_date(a.reg_time) as reg_day,
+		to_date(a.invest1st_time) as invest1st_day,
+		a.province,
+		a.channnel,
+		sum(case when datediff(b.create_date,a.reg_time)<=30 then b.investamount else 0 end) as month1invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)<=30 then b.redeemamount else 0 end) as month1redeem_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>30 and datediff(b.create_date,a.reg_time)<=60 then b.investamount else 0 end) as month2invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>30 and datediff(b.create_date,a.reg_time)<=60 then b.redeemamount else 0 end) as month2redeem_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>60 and datediff(b.create_date,a.reg_time)<=90 then b.investamount else 0 end) as month3invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>60 and datediff(b.create_date,a.reg_time)<=90 then b.redeemamount else 0 end) as month3redeem_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>90 and datediff(b.create_date,a.reg_time)<=120 then b.investamount else 0 end) as month4invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>90 and datediff(b.create_date,a.reg_time)<=120 then b.redeemamount else 0 end) as month4redeem_amount
+from dim.dim_user_info a
+left join dim.topic_user b on a.userid=b.userid
+where a.channel is not null and a.channel!='null' and a.channel!='' and a.channel!='invitation' and to_date(a.reg_time)>='2016-01-01'
+group by a.userid,to_date(a.reg_time),to_date(a.invest1st_time),a.province,a.channnel
+
+2.字符串聚合
+select t.userid,
+collect_set(case when activity_type = 1 and participation is not null then concat(participation,preference) else null end),
+collect_set(case when activity_type = 2 and participation is not null then concat(participation,preference) else null end),
+collect_set(case when activity_type = 3 and participation is not null then concat(participation,preference) else null end)
+from biao
+group by t.userid
+可以得到00009c2cb69144aa84dfedd55bbfc200        []      ["CC"]  []数据,因此在对字符串进行聚合的时候,应该用这个。
+
+并且collect_set(case when activity_type = 1 and participation is not null then concat(participation,preference) else null end)[0],如果内容不存在,也会返回null,不会有异常
+当然第二种方式用max(case when activity_type = 1 and participation is not null then concat(participation,preference) end)也是可以的
