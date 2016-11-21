@@ -48,3 +48,7 @@ github desktop
 git config --global user.name "xxxx"
 git config --global user.email "xxxx@qq.com"
 
+
+四、常用命令
+git remote add origin path
+

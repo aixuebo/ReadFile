@@ -16,6 +16,8 @@ git diff 文件 查看文件哪里不一样
 git diff 查看目前所有不一样的文件内容
 git log 查看最近提交的信息
 git log --pretty=oneline 更优雅的方式查看最近提交的信息
+git log --name-status b649c9c47f4b366fcac66b61348dcd1cb94f113f 查看某一个版本提交的内容
+git log --name-status -2 查看最近2次的提交内容
 git reflog 查看命令历史，以便确定要回到未来的哪个版本。
 
 

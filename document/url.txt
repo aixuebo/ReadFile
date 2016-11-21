@@ -17,5 +17,5 @@ vectordump
 
 https://www.baidu.com/s?wd=%E6%96%B9%E5%B7%AE%E5%85%AC%E5%BC%8F&rsv_spt=1&rsv_iqid=0x8450d8e80000d0d1&issp=1&f=3&rsv_bp=0&rsv_idx=2&ie=utf-8&tn=baiduhome_pg&rsv_enter=1&rsv_sug3=9&rsv_sug1=6&rsv_sug7=100&rsv_sug2=0&prefixsug=fangcha&rsp=0&inputT=3024&rsv_sug4=3025
 https://zhidao.baidu.com/question/688221660902304484.html
-http://www.johndcook.com/blog/2008/09/26/comparing-three-methods-of-computing-standard-deviation/
-http://www.johndcook.com/blog/standard_deviation/
+
+git log --name-status b649c9c47f4b366fcac66b61348dcd1cb94f113f 查看某一个版本提交的内容

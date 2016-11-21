@@ -50,3 +50,17 @@ Accurately computing running variance
 Accurately  准确
 variance 方差
 
+6.
+intersection number of overlapping non-zero values
+交集数量--重叠的非0值数量
+intersection交集
+overlapping 重叠
+
+
+7.
+n neighborhood size; capped at the number of users in the data model
+n邻居大小,上限是模型中user的数量
+
+neighborhood邻居
+cap 帽子 盖子
+
