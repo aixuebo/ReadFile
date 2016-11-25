@@ -1,0 +1,29 @@
+
+一、编写sh sqoop_tool.sh脚本 
+#!/bin/bash
+d=`date -d "-1 day" +%Y%m%d`
+
+echo "${d}"
+
+result=1
+while [[ ${result} -ne 0 ]];do
+sqoop $* 2>>/server/logs/sqoop/sqoop_tool_out.log 1>>/server/logs/sqoop/sqoop_tool_error.log
+result=$?
+echo $* " result:" ${result}
+sleep 5
+done
+
+二、调用
+sh path/sqoop_tool.sh --options-file /server/app/sqoop/import_hive.txt --delete-target-dir -m 23 --table user_info
+
+三、脚本描述
+用于不间断的执行一个命令,直到成功为止,防止因为网络原因导致的异常,没办法执行成功
+
+比如 连接不到mysql了,尤其mysql经常出现的那个异常:
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+com.mysql.jdbc.exceptions.jdbc4.CommunicationsException: Communications link failure
+
+四、原理
+因为sqoop的程序main入口下有一个大的try catch,因此只要被catch住的都返回1,因此都可以被拦截住。
+如果调用的程序出现异常也返回值是0,这种方式就不好用了
+

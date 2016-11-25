@@ -21,3 +21,5 @@ google搜索关键字:hadoop hdfs exceeded: limit=255
 3.为hive设置后缀,在into的时候可以知道是哪个sql的输出,当重新跑数据的时候,只需要删除这部分输出内容即可,不需要全部数据重跑了
 set hive.output.file.extension=.c1;
 
+4.因为null产生数据倾斜时候,对null的数据进行随机分配到不同桶中
+select *  from log a  left outer join users b  on case when a.user_id is null then concat(‘hive’,rand() ) else a.user_id end = b.user_id;

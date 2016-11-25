@@ -10,3 +10,8 @@ SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('111 bb', ' ', 2), ' ', -1)
 SELECT DATE_ADD('20160620', INTERVAL 2 DAY) 对一天进行加减操作
 select date_format('2008-08-08 22:23:01', '%Y%m%d%H%i%s');
 select date_format('2008-08-08 22:23:01', '%Y%m%d%H');
+
+
+4.本地执行sql命令
+printf "DELETE FROM SQL;INSERT INTO xxxx " | mysql -hhost -P3306 -uname -ppassword database
+printf "select sql1;sql2" | mysql -hhost -P3306 -uname -ppassword database >aaa.txt

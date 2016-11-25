@@ -1,19 +1,23 @@
 数学
 1.各种距离
-http://blog.csdn.net/shiwei408/article/details/7602324
+http://yuguangchuan.github.io/2015/11/17/Distance-measurements/
+http://www.cnblogs.com/heaad/archive/2011/03/08/1977733.html
+http://www.tuicool.com/articles/U3iEBn
+算法阮一峰
+http://www.ruanyifeng.com/blog/algorithm/
 
+mhout
 http://www.ibm.com/developerworks/cn/web/1103_zhaoct_recommstudy3/
 http://www.ibm.com/developerworks/cn/web/1103_zhaoct_recommstudy2/
+
 http://www.cnblogs.com/shipengzhi/articles/2540514.html
 http://www.cnblogs.com/biyeymyhjob/archive/2012/07/20/2599544.html
+
 
 未完成的
 mahout--mr--common---distance视频录制
 
-
 vectordump
-
-
 
 https://www.baidu.com/s?wd=%E6%96%B9%E5%B7%AE%E5%85%AC%E5%BC%8F&rsv_spt=1&rsv_iqid=0x8450d8e80000d0d1&issp=1&f=3&rsv_bp=0&rsv_idx=2&ie=utf-8&tn=baiduhome_pg&rsv_enter=1&rsv_sug3=9&rsv_sug1=6&rsv_sug7=100&rsv_sug2=0&prefixsug=fangcha&rsp=0&inputT=3024&rsv_sug4=3025
 https://zhidao.baidu.com/question/688221660902304484.html

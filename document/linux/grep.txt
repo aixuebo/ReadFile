@@ -36,3 +36,6 @@ grep -R 和 -l 参数
 
 demo
 grep -l sdfsdf /root/upload/metadata/metamap/*
+
+9.查看源代码
+find . -name '*.java' | xargs grep --color 'main(' | awk '{print $1}' | uniq | grep -v test
