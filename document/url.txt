@@ -13,6 +13,13 @@ http://www.ibm.com/developerworks/cn/web/1103_zhaoct_recommstudy2/
 http://www.cnblogs.com/shipengzhi/articles/2540514.html
 http://www.cnblogs.com/biyeymyhjob/archive/2012/07/20/2599544.html
 
+kylin
+http://kylin.apache.org/docs15/
+http://kylin.apache.org/blog/2016/02/18/new-aggregation-group/
+http://m.blog.csdn.net/article/details?id=52207897
+http://blog.csdn.net/yu616568/article/details/48103415
+http://kylin.apache.org/docs15/tutorial/create_cube.html
+
 
 未完成的
 mahout--mr--common---distance视频录制

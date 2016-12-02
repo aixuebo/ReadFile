@@ -1,0 +1,5 @@
+1.essentially 基本上
+contiguous 连续的
+The basic unit of horizontal scalability in HBase is called a Region. Regions are a subset of the table’s data and they are essentially a contiguous, sorted range of rows that are stored together.
+在hbase中这个水平扩展的基础是Region.Regions是table的数据的一个子集,他们基本上是连续的存储一个row区间的数据
+

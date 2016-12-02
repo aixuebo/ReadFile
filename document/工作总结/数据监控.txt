@@ -8,3 +8,36 @@ b.提供web页面一个功能,点击后,查询sql表中所有的监控sql,执行
 1.每一个ETL必须有一个字段被监控,防止该ETL数据未跑成功
 2.关键性指标的数据要监控同比和环比数据是否比例适当
 3.全部的数据要监控是否是0,如果是0是不正确的。
+
+
+
+第二部分
+一.用比例监控
+1.计算每一天和上周当天同比数据,查看在70%-130%之间算正常.
+sql
+inner_table内部查询查看今天和上周今天的汇总数据
+outter_table表可以知道每一个要计算的两天的属性值
+select 进行比例运算
+SELECT reg_num_today*100/reg_num_history AS reg_num
+FROM
+(
+	SELECT 
+	SUM(CASE WHEN create_date = DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -1 DAY) THEN reg_num ELSE 0 END) reg_num_today,
+	SUM(CASE WHEN create_date = DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -8 DAY) THEN reg_num ELSE 0 END) reg_num_history
+	FROM
+	(
+		SELECT create_date,SUM(reg_num) AS reg_num
+		FROM 表 
+		WHERE period = 1 AND create_date IN 
+		(
+		DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -1 DAY),
+		DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -8 DAY)
+		) 
+		GROUP BY create_date
+	) inner_table
+) outter_table
+
+
+2.有一个系统,用于录入该sql,以及每一个字段的合理区间阀值。
+3.定期执行该sql,得到每一个比例,然后与系统录入的每一个比例需要的对比,超出阀值的要发邮件提示
+

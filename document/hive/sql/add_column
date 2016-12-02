@@ -35,3 +35,6 @@ ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
 
 六、创建数据库
 create database if not exists databaseName location 'path';
+
+七、自动修复分区
+msck repair table dabatabase.table;

@@ -23,3 +23,9 @@ set hive.output.file.extension=.c1;
 
 4.因为null产生数据倾斜时候,对null的数据进行随机分配到不同桶中
 select *  from log a  left outer join users b  on case when a.user_id is null then concat(‘hive’,rand() ) else a.user_id end = b.user_id;
+或者将其在select子查询中先映射成非null的值
+case when ad.bankcard is null or strTrim(ad.bankcard) = '' then concat(ceil(rand()*10000000000000000),'h') else ad.bankcard end bank_card
+然后在进行join操作
+
+
+检查是否数据倾斜,就看结果文件是否大小不同就可以

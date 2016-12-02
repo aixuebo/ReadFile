@@ -80,3 +80,15 @@ zcat *.gz >xx.log 读取的gz文件存放到xx.log中,相当于解压缩
 unzip mydata.zip -d mydatabak ###注意-d表示将zip文件解压到mydatabak文件夹下,mydatabak文件夹可以不存在
 压缩
 zip -r mydata.zip mydata #压缩mydata目录
+8.war包
+创建war包
+jar -cvfM0 game.war ./
+-c   创建war包
+-v   显示过程信息
+-f
+-M
+-0   这个是阿拉伯数字，只打包不压缩的意思
+
+解压game.war
+jar -xvf game.war
+解压到当前目录

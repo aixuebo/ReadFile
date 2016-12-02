@@ -25,3 +25,11 @@ set hive.mapjoin.smalltable.filesize = 30000000.  30M
 导致重试很多次map端在本地执行任务,都失败,失败次数超过了一定伐值,因此任务fault,没有reduce输出产生。
   
 
+三、设置引擎是tez
+set hive.execution.engine=tez;
+
+
+四、设置hive的执行名字
+set mapred.job.name='topic_order-detail-1-${create_time}';
+五、设置hive的输出文件后缀
+set hive.output.file.extension=.c1;

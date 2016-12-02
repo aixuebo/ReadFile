@@ -1,0 +1,38 @@
+渠道质量  判断渠道质量的好坏
+1.查询每一个user 注册时间 注册渠道  注册一个月内投资和赎回金额  注册2个月内  注册3个月内 注册4个月内的投资赎回金额情况
+select u.userid userid,to_date(u.reg_time) reg_time,u.channel channel,
+sum(case when datediff(to_date(i.create_time),to_date(u.reg_time)) <= 30 then i.amount else 0 end) month1invest_amount,
+sum(case when datediff(to_date(r.create_time),to_date(u.reg_time)) <= 30 then r.amount else 0 end) month1redeem_amount,
+sum(case when datediff(to_date(i.create_time),to_date(u.reg_time)) <= 60 then i.amount else 0 end) month2invest_amount,
+sum(case when datediff(to_date(r.create_time),to_date(u.reg_time)) <= 60 then r.amount else 0 end) month2redeem_amount,
+sum(case when datediff(to_date(i.create_time),to_date(u.reg_time)) <= 90 then i.amount else 0 end) month3invest_amount,
+sum(case when datediff(to_date(r.create_time),to_date(u.reg_time)) <= 90 then r.amount else 0 end) month3redeem_amount,
+sum(case when datediff(to_date(i.create_time),to_date(u.reg_time)) <= 120 then i.amount else 0 end) month4invest_amount,
+sum(case when datediff(to_date(r.create_time),to_date(u.reg_time)) <= 120 then r.amount else 0 end) month4redeem_amount
+from
+(
+	select *
+	from dim.dim_user_info
+	where strTrim(channel)!='' and strTrim(channel) != 'invitation' and to_date(reg_time)>='2016-01-01'
+)u
+left join fact.invest_record i on u.userid=i.userid
+left join fact.redeem_record r on u.userid=r.userid
+group by u.userid,to_date(u.reg_time),u.channel
+
+2.根据表1的数据.按照渠道分组
+计算每一个渠道一共多少人注册,以及当前时间距离注册时间大于1-4个月以上的人数,以及看这渠道用户注册一个月内的存量和真正投资额，可以看到渠道质量
+select channel,count(*),
+sum(case when datediff('{{create_time}}',to_date(reg_time)) > 30 then 1 else 0 end) month1_num,
+sum(case when datediff('{{create_time}}',to_date(reg_time)) > 60 then 1 else 0 end) month2_num,
+sum(case when datediff('{{create_time}}',to_date(reg_time)) > 90 then 1 else 0 end) month3_num,
+sum(case when datediff('{{create_time}}',to_date(reg_time)) > 120 then 1 else 0 end) month4_num,
+sum(case when month1invest_amount - month1redeem_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 30 then 1 else 0 end) month1remain_num,
+sum(case when month1invest_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 30 then 1 else 0 end) month1effec_invest_num,
+sum(case when month2invest_amount - month2redeem_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 60 then 1 else 0 end) month2remain_num,
+sum(case when month2invest_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 60 then 1 else 0 end) month2effec_invest_num,
+sum(case when month3invest_amount - month3redeem_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 90 then 1 else 0 end) month3remain_num,
+sum(case when month3invest_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 90 then 1 else 0 end) month3effec_invest_num,
+sum(case when month4invest_amount - month4redeem_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 120 then 1 else 0 end) month4remain_num,
+sum(case when month4invest_amount >= 100 and datediff('{{create_time}}',to_date(reg_time)) > 120 then 1 else 0 end) month4effec_invest_num
+from biao1
+group by channel

@@ -1,21 +1,29 @@
+一、两种模式
+grep [OPTIONS] PATTERN file1,file2
+标准输入  | grep [OPTIONS] PATTERN
+a.可以在匹配模式后面 添加多个文件,即从这些文件中查找匹配
+b.PATTERN 是正则表达式
+
+
 1.搜索指定关键词,但是不知道他在哪个文件中
 grep -w "easou" click_data.20140716.*
 搜索包含"sasou的文件名"
 
-2.grep -A5 -w 8088 *
+2.获取前后行
+a.grep -A5 -w 8088 *
 A表示append,即找到符合的行后,追加5行都显示
-
-3. grep -B5 -w 8088 *
+b. grep -B5 -w 8088 *
 B表示Before,即找到符合的行后,前5行显示
+c.cat /etc/passwd | grep -C 3 root 表示前后个获取3行
 
-4.grep -n 8088 *
+3.grep -n 8088 *
 -n表示显示在文件中的行号
 
-5.-i 忽略大小写
+4.-i 忽略大小写
 
-6.-r 是递归查找 -R 查找所有文件包含子目录
+5.-r 是递归查找 -R 查找所有文件包含子目录
 
-7.例子
+6.例子
 \< 和 \> 分别标注单词的开始与结尾。
 例如：
 grep man * 会匹配 ‘Batman’、‘manic’、‘man’等，
@@ -24,7 +32,7 @@ grep '\<man\>' 只匹配‘man’，而不是‘Batman’或‘manic’等其他
 '^'：指匹配的字符串在行首，
 '$'：指匹配的字符串在行尾，
 
-8.grep -lR   "some_code"  path
+7.grep -lR   "some_code"  path
 grep -R   "some_code"  path
 如果你不需要显示内容，只需要含有某个字符的文件：
 附录：
@@ -37,5 +45,11 @@ grep -R 和 -l 参数
 demo
 grep -l sdfsdf /root/upload/metadata/metamap/*
 
-9.查看源代码
+8.查看源代码
 find . -name '*.java' | xargs grep --color 'main(' | awk '{print $1}' | uniq | grep -v test
+
+9.选项-a将二进制文件当成文本文件处理
+grep -a online /usr/bin/ls
+
+10.-v 表示取反
+
