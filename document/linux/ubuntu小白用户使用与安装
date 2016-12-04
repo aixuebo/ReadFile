@@ -1,4 +1,4 @@
-汇总
+﻿汇总
 1.定义ubuntu目录结构
 /aixuebo/是我的目录
 
@@ -68,9 +68,19 @@ sudo apt-get install git
 从chrmme下载的文件默认路径是/home/mm/Downloads
 7.安装ssh
 sudo apt-get install openssh-server
+sudo ps -e |grep ssh 查看是否开启ssh服务了
+sudo service ssh start 开启ssh服务
+
 8.下载vim命令,因为自带的vi命令不好用
 9.maven
 10.scala
+11.sudo apt-get install lrzsz  安装rz sz命令
+如果是虚拟机,则可以在本机windows上使用secureCRT登录该服务器,然后使用rz或者sz将下载的安装文件上传到服务器上
+12.sudo apt-get install curl 
+curl -O(大写) url下载jdk和hadoop的tar包
+13.其他命令
+sudo apt-get install zip
+
 
 
 七、设置环境变量

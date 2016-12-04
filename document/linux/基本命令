@@ -1,4 +1,4 @@
-一、更改文件的所有者和所属组
+﻿一、更改文件的所有者和所属组
 chown命令来改变文件所有者及用户组
 chown [-R] 账号名称 文件或目录
 chown [-R] 账号名称:用户组名称 文件或目录
@@ -75,6 +75,10 @@ tar -xvf 命令即可。不需要加z
 6.读取gz文件
 zcat *.gz 读取gz压缩文件
 zcat *.gz >xx.log 读取的gz文件存放到xx.log中,相当于解压缩
+解压gz 并且保留源文件
+gunzip –c filename.gz > filename
+压缩成gz
+gzip –c filename > filename.gz
 7.解压缩zip  将文件夹打压缩成zip
 解压
 unzip mydata.zip -d mydatabak ###注意-d表示将zip文件解压到mydatabak文件夹下,mydatabak文件夹可以不存在
@@ -92,3 +96,20 @@ jar -cvfM0 game.war ./
 解压game.war
 jar -xvf game.war
 解压到当前目录
+
+五、scp
+scp [可选参数] file_source file_target 
+从 本地 复制到 远程
+a.复制文件
+scp 本地文件 user@远程ip:/target路径
+注意:target路径可以是文件夹，也可以是文件,如果是文件,则相当于最后文件到远程服务器后名字被改了
+b.复制目录
+scp -r local_folder remote_username@remote_ip:remote_folder 
+c.从远程 复制到本地----是a和b的逆过程
+scp user@远程ip:/source路径 本地target路径
+
+注意
+1.scp需要密码登录,比较麻烦,最好用ssh配置无密码登录方式
+2.如果远程服务器防火墙有特殊限制，scp便要走特殊端口，具体用什么端口视情况而定，命令格式如下
+scp -p 4588 remote@www.abc.com:/usr/local/sin.sh /home/administrator
+3.scp使用的user要有远程服务器相关文件的权限
