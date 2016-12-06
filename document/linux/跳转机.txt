@@ -1,2 +1,15 @@
 ﻿跳转机
-ssh -lzjy 10.0.1.61 密码
+ssh -lusername 101.0.1.61 密码
+
+sudo apt-get install sshpass 用于ssh需要密码登录的时候,使用该命令可以设置ssh的密码
+sshpass -p [密码] ssh [user]@[host]
+
+
+
+expect命令不能用sh xxx.sh执行,要用./expect.sh 执行
+#!/usr/bin/expect
+spawn ssh -lzjy 10.0.1.82
+expect "*password:"
+send "zjy\r"
+expect "*#"
+expect eof ;

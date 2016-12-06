@@ -65,6 +65,8 @@ demo
 2.撤销版本库到缓冲区
 git config --global alias.unstage 'reset HEAD'
 git unstage test.py
+3.查看设置的全部配置信息
+git config --global -l
 
 九、
 git config --global 是对当前用户，即当前电脑使用者都统一都有作用,文件存储在用户宿主目录下.gitconfig文件里

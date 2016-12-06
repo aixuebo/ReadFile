@@ -80,6 +80,7 @@ sudo service ssh start 开启ssh服务
 curl -O(大写) url下载jdk和hadoop的tar包
 13.其他命令
 sudo apt-get install zip
+sudo apt-get install flashplugin-installer
 
 
 
