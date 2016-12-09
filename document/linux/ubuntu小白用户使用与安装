@@ -113,6 +113,22 @@ sudo source /etc/profile 使其生效
 user@ubuntu:~$ 为命令提示符， @ 之前的部分为当前用户ID， @ 与 : 之间的部分，为您的主机名称， : 与 $ 之间的部分，为当前的路径。
 
 
+九、远程桌面
+1.设置
+remote desktop和remote share去设置
+2.sudo apt-get install xrdp
+sudo apt-get install vnc4server
+安装xfce4
+输入"sudo apt-get install xubuntu-desktop"-->回车-->输入root用户的密码-->回车-->输入"y"-->回车-->输入"echo "xfce4-session" >~/.xsession"-->回车-->输入"sudo service xrdp restart"-->回车,安装完成。
+
+3.遇到花屏如何解决
+ubuntu 13.10以后的版本xrdp不支持gnome和unity了，你下载个xfce4就可以了。
+命令：sudo apt-get install xfce4
+echo "xfce4-session" >~/.xsession
+sudo service xrdp restart
+
+4.远程桌面使用Alt+tab或者windows+tab切换正在打开的窗口
+
 
 问题
 ls -F   有这个功能   在文件名和目录名后加标志  可执行文件后添加*   目录加/

@@ -1,0 +1,73 @@
+用户邀请评价
+【背景】：
+更好地评价用户邀请行为，实施对用户邀请的数量和质量进行量化。
+【思路逻辑】：
+用户的邀请关系类似于族谱关系，有清晰的层级结构，通过以下两个方面对用户的邀请进行评价：
+①邀请用户数量（两级关系，即含邀请的邀请）；
+②邀请用户的质量（一级关系，即直接的邀请）。
+*邀请用户：受邀请后的注册用户。
+1、邀请数量。
+邀请数量评价=一级邀请用户数+0.8*二级邀请用户数
+【例】：用户A直接邀请2个人B、C，B直接邀请用户2人，C直接邀请用户3人。
+则
+用户A的邀请数量评价=2+0.8*（2+3）=6
+
+2、邀请质量。
+邀请质量评价=一级邀请用户近30日存量总和 / 30
+*可能存在部分用户受邀后注册时间不满30日，照常计算即可。
+*此指标每日更新。
+【例】：用户A直接邀请2个人B、C。注册时间分别为2016-6-20和2016-12-1。
+则
+2016-12-6日对用户A的邀请质量评价=（2016-11-6至2016-12-5日用户B的每日存量和 + 2016-11-6至2016-12-5日用户C的每日存量和）/30
+2016-12-7日对用户A的邀请质量评价=（2016-11-7至2016-12-6日用户B的每日存量和 + 2016-11-7至2016-12-6日用户C的每日存量和）/30
+
+
+sql:
+获取
+每一个用户--邀请谁--1 即第一级别邀请
+每一个用户--邀请谁--又邀请谁--2 即第二级别邀请
+dim_user_invite_chain 表
+select strTrim(invite_user_id) invite_user_id,userid,1
+from dim_user_info
+where channel = '邀请' and strTrim(邀请人不为空)!=''
+union all
+select temp1.invite_user_id,temp2.userid,2
+from
+(
+select strTrim(invite_user_id) invite_user_id,userid
+from dim_user_info
+where channel = '邀请' and strTrim(邀请人不为空)!=''
+) temp1 join
+(
+select strTrim(invite_user_id) invite_user_id,userid
+from dim_user_info
+where channel = '邀请' and strTrim(邀请人不为空)!=''
+) temp2 on temp1.userid = temp2.invite_user_id
+
+
+2.计算每一个用户  邀请数量  邀请质量
+user_invite_evaluation表
+select '{{create_time}}',invite_user_id,max(COALESCE(c_quantity,0)),sum(premium)/30
+from
+(
+----用户 邀请了谁 计算邀请多少人  计算邀请的人30天的存量
+select c.invite_user_id invite_user_id,c.userid userid,max(c_quantity.level1 + c_quantity.level2 * 0.8) c_quantity,sum(COALESCE(premium.premium_final,0)) premium
+from dim_user_invite_chain c
+join
+(
+---获取每一个用户第一层邀请多少人  和 第二层邀请多少人
+select invite_user_id,
+sum(case when level_num = 1 then 1 else 0 end) level1,
+sum(case when level_num = 2 then 1 else 0 end) level2
+from dim_user_invite_chain
+group by invite_user_id
+) c_quantity on c.invite_user_id = c_quantity.invite_user_id
+left join
+(
+select userid,存量
+from 存量表
+where log_day 一个月内的存量
+) premium on premium.userid = c.userid and c.level_num = 1
+group by c.invite_user_id,c.userid
+) t
+group by invite_user_id

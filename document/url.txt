@@ -20,6 +20,15 @@ http://m.blog.csdn.net/article/details?id=52207897
 http://blog.csdn.net/yu616568/article/details/48103415
 http://kylin.apache.org/docs15/tutorial/create_cube.html
 
+hbase
+http://www.cnblogs.com/davidwang456/p/4795608.html
+http://www.aboutyun.com/blog-29-1719.html
+https://blog.cloudera.com/blog/2013/04/how-scaling-really-works-in-apache-hbase/
+http://zh.hortonworks.com/blog/apache-hbase-region-splitting-and-merging/
+http://www.wtoutiao.com/p/493fwk4.html
+
+EMA （指数平均数指标）
+
 
 未完成的
 mahout--mr--common---distance视频录制
