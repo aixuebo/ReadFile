@@ -137,6 +137,10 @@ sudo service xrdp restart
 
 4.远程桌面使用Alt+tab或者windows+tab切换正在打开的窗口
 
+5.shell中复制+粘贴的快捷键
+ctrl+shift+c/v即可
+或者选中,然后按鼠标滚轮键
+
 
 问题
 ls -F   有这个功能   在文件名和目录名后加标志  可执行文件后添加*   目录加/
