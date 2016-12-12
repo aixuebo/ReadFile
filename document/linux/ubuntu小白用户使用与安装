@@ -83,6 +83,14 @@ sudo apt-get install zip
 sudo apt-get install flashplugin-installer
 
 
+ubuntu 16.04 使用的是ibus输入系统，没有预装中文输入法，你要自己安装一下。
+以中文拼音输入法为例：
+1、sudo apt install ibus-pinyin
+2、sudo apt install ibus-libpinyin
+3、注销重新登录 或则 重启计算机
+4、进入输入设置，这时候点增加输入法应该就能找到拼音输入法了，点击增加
+
+
 
 七、设置环境变量
 1.java
