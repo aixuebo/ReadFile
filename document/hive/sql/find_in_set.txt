@@ -34,7 +34,7 @@ useridno,
 iseffective,
 lastupdatetime,
 ROW_NUMBER() OVER (PARTITION BY userid order by find_in_set(iseffective,'1') desc,lastupdatetime asc) as rn
-from jlc.bank_card
+from bank_card
 ) a where a.rn = 1
 
 因为find_in_set(iseffective,'1') 表示对iseffective的值要是在后面的字符串的话,选择出在第几个位置,如果不再.则直接返回0,因此就可以解决该问题

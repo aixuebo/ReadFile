@@ -31,7 +31,7 @@ b. 注意该表用full join ,因此对于关联的主键要用COALESCE(money.use
 4.设置动态分区
 a.set hive.exec.dynamic.partition.mode=nostrick;
 ----------------------------------------
-b.insert overwrite table dim_jlc.topic_user_partition partition(log_day)
+b.insert overwrite table dim.topic_user_partition partition(log_day)
 c.select的最后几个字段的值就是分区的值
 
 注意:动态分区不要过多,否则会引起问题,因此有时候太多分区的话,要分批进行,比如我这边时间跨度是1年半,我就按照季度执行一次即可。
@@ -142,11 +142,11 @@ select redeem.create_time create_time,u.userid userid,u.channel channel,month.mo
 from
 (
 	select userid,substr(create_time,1,7) create_time,sum(amount) amount
-	from fact_jlc.redeem_record
+	from fact.redeem_record
 	where substr(create_time,1,10) <= '2016-08-31'
 	group by substr(create_time,1,7),userid
 ) redeem join 
-dim_jlc.dim_user_info u on redeem.userid = u.userid
+dim.dim_user_info u on redeem.userid = u.userid
 join 
 (
 	select month_start,month_end,substr(month_start,1,7) conver_month_start

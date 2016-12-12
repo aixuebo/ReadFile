@@ -32,7 +32,7 @@ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
 LOCATION '/log/statistics/mysql/databases/record';
 
 
-sqoop --options-file /server/app/sqoop/jlc_import_hdfs.txt -m 23 --table xxxx \
+sqoop --options-file /server/app/sqoop/import_hdfs.txt -m 23 --table xxxx \
 --check-column transDate --incremental lastmodified --last-value 2015-01-01 \
 --merge-key id --target-dir /log/statistics/mysql/databases/record \
 --verbose
@@ -40,7 +40,7 @@ sqoop --options-file /server/app/sqoop/jlc_import_hdfs.txt -m 23 --table xxxx \
 
 注意:
 1.hive的表拆分符号用逗号拆分
-2.此时jlc_import_hdfs.txt文件是不能有以下关于hive的命令的
+2.此时import_hdfs.txt文件是不能有以下关于hive的命令的
 --hive-database
 xxx
 --hive-import
