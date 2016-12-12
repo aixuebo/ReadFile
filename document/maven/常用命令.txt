@@ -1,0 +1,4 @@
+1.跳过单元测试
+ mvn install -Dmaven.test.skip=true
+2.如果在maven编译过程中,有一些模块编译失败了,会导致下面的模块都没办法编译,那么如何跳过失败的模块,继续下面的编译呢
+mvn -compile -Dmaven.test.skip=true -fail-never

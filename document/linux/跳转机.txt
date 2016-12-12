@@ -13,3 +13,6 @@ expect "*password:"
 send "zjy\r"
 expect "*#"
 expect eof ;
+
+
+telnet ip port 判断该ip的port端口是否开启,对外访问

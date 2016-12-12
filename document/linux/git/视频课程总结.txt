@@ -57,6 +57,8 @@ a.将分支上HEAD,即最后一次提交的内容,重新放置到缓存区中
 b.将缓存区的内容,重新覆盖到工作区中
 git checkout -- readme.txt  
 注意--,如果没有--,则就是切换分支了,注意这个区别。
+git checkout HEAD readme.txt
+从版本库中还原数据  
 
 八、设置别名
 demo
