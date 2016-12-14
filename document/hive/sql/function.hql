@@ -54,6 +54,8 @@ on day_login.uid=day_regusers.uid where day_login.dt='20130101' and day_regusers
  2.如果是binary参数,则返回字节数组的个数
 15.regexp_replace('100-200', '(\\d+)', 'num') 返回值num-num,将所有的整数替换成num字符串
  将全部符合正则表达式的地方都替换成指定值
+ select regexp_replace('iOS|AppStore|1.0|F222A316-8545-46F4-9FFC-E33799D310B3|iPhone Simulator|no|no|wifi', '\\s+','|') 将空格都替换成|
+注意,在脚本中 hive <<EOF 执行的时候,要对\进行转义,即\\s+要改成\\\\s+
 16.rlike(string,regexp) 校验string是否匹配正则表达式
    regexp(string,regexp) 校验string是否匹配正则表达式
 17.regexp_extract(string,regexp,index) 返回匹配正则表达式的第index个group,默认index可以省略,默认为1

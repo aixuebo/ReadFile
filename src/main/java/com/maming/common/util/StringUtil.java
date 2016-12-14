@@ -2,6 +2,7 @@ package com.maming.common.util;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -189,10 +190,15 @@ public class StringUtil {
         }
     }
 
+    public static String formatMessage(String pattern,Object... arr){
+    	return MessageFormat.format(pattern, arr);
+    }
+    
     public static void main(String[] args) {
         int[] a = new int[]{5, 6, 7};
         String xx = StringUtil.setIntegerArrToString(a);
         System.out.println(xx);
+        System.out.println(formatMessage("/log/statistics/mysql/jlc/{0}/{0}/{1}/part*","aaa","bbb"));
     }
 }
 

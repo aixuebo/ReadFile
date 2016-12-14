@@ -1,12 +1,10 @@
 package com.maming.common.util;
 
-/**
- * User: wangxin
- * Date: 14-6-2
- * Time: 下午4:47
- */
+
 public class Constants {
 
+	public static String ENCODE = "GBK";
+	
     public static final char SEPARATOR_CHAR = '\t';
     public static final String SEPARATOR_STRING = "\t";
     public static String NOW_YMD;

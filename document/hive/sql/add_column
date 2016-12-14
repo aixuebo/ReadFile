@@ -38,3 +38,4 @@ create database if not exists databaseName location 'path';
 
 七、自动修复分区
 msck repair table dabatabase.table;
+没有的分区可以一下子加载到hive中,但是不能修改分区,即一个数据库表增加一个字段后,该分区还是要先删除,然后在重新跑才能有数据
