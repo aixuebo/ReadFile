@@ -25,3 +25,8 @@ b.脚本load-spark-env.sh
     ASSEMBLY_DIR1="$FWDIR/assembly/target/scala-2.10"
 
 c.脚本path/conf/spark-env.sh 该脚本配置了一些key=value的键值对信息
+
+
+二、代码流程
+launcher启动类---core---deploy--SparkSubmit以及SparkSubmitArguments处理参数---然后交给class处理
+----然后启动SparkConf--SparkContext去产生RDD,当发生action的时候,执行SparkContext的runJob方法---执行DAGScheduler的runJob方法

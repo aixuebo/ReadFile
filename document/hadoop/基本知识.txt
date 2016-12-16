@@ -13,3 +13,5 @@ http://10.1.5.91:50070/dfshealth.html#tab-overview
       <name>fs.defaultFS</name>
       <value>hdfs://path:8020</value>
     </property>
+5.yarn去kill一个应用
+yarn application  -kill ApplicationID

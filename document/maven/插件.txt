@@ -70,6 +70,19 @@
             </executions>
         </plugin>
 配合eclipse的pom.xml的dependency Hierarchy标签,右边高亮的jar就是所有应该依赖的jar集合,选中即可
+
+可以生成的jar包不带有主函数信息
+取消代码
+            <configuration>
+                <archive>
+                    <manifest>
+                        <addClasspath>true</addClasspath>
+                        <classpathPrefix>lib/</classpathPrefix>
+                        <mainClass>com.hadoop.temple.main.HadoopMain</mainClass>
+                    </manifest>
+                </archive>
+            </configuration>
+
 4.将jar包全部依赖打成一个大jar包,并且也有源代码对应的单独一个jar包
  <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
