@@ -1,5 +1,6 @@
 package com.maming.common.util;
 
+import java.util.List;
 import java.util.Map;
 
 import net.sf.json.JSONArray;
@@ -35,6 +36,15 @@ public class JsonUtil {
 	public static JSONArray strToJsonArray(String jsonStr) {
 		try {
 			return JSONArray.fromObject(jsonStr);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			return null;
+		}
+	}
+	
+	public static <E> JSONArray listToJsonArray(List<Map<E, E>> list) {
+		try {
+			return JSONArray.fromObject(list);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			return null;

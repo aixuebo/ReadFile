@@ -113,7 +113,8 @@ e.因此按照a.date进行group by
 20160811	500	20160811
 
 8.group by 按照一周的某一天
-select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))   注意2015-01-09 是周五
+hive的 select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))   注意2015-01-09 是周五
+mysql的SELECT DATE_ADD('2016-12-13', INTERVAL -MOD(DATEDIFF('2016-12-13', '2015-01-08'),7) DAY);
 
 开始时间和结束时间demo
 select group by 的字段作为begin_day

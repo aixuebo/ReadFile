@@ -1,0 +1,13 @@
+一、java -cp 存储classpath集合
+demo
+java -cp /server/app/hdfs_web/lib/disruptor-3.3.0.jar:/server/app/hdfs_web/lib/jboss-annotations-api_1.2_spec-1.0.0.Final.jar:/server/app/hdfs_web/lib/xnio-nio-3.3.0.Final.jar com.maming.hdfs.core.Server
+
+如何生成classpath
+statisticsPath=/server/app/hdfs_web/lib
+export LIB_PATH=$statisticsPath/*.jar
+test=`echo $LIB_PATH | sed -e 's/ /,/g'`
+export CLASSPATH=`echo $LIB_PATH | sed -e 's/ /:/g'`
+echo ${CLASSPATH}
+
+千万注意：在linux上，这个命令" java -cp .:some.jar My " 中参数cp后面的类路径分隔符为冒号":"而不是分号";",而在windows上则是分号，这个务必注意，否则不会出正确结果的
+
