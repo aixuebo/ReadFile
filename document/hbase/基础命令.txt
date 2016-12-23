@@ -1,0 +1,5 @@
+一、linux终端如何执行hbase shell的命令
+hbase shell <<EOF
+list
+quit;
+EOF

@@ -27,6 +27,25 @@ b.脚本load-spark-env.sh
 c.脚本path/conf/spark-env.sh 该脚本配置了一些key=value的键值对信息
 
 
-二、代码流程
+三、代码流程
 launcher启动类---core---deploy--SparkSubmit以及SparkSubmitArguments处理参数---然后交给class处理
 ----然后启动SparkConf--SparkContext去产生RDD,当发生action的时候,执行SparkContext的runJob方法---执行DAGScheduler的runJob方法
+dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, resultHandler, localProperties.get)
+--提交该job去进行调度
+DAGScheduler.submitJob 产生事件
+---产生一个submitJob事件
+DAGScheduler  def onReceive(event: DAGSchedulerEvent): 接受事件
+---如何处理该事件
+DAGScheduler.handleJobSubmitted 方法
+---为该job创建stage阶段集合对象
+ResultStage finalStage = newResultStage(finalRDD, partitions.length, jobId, callSite)
+---提交一个阶段
+submitStage
+
+
+四、application、job、stage、task关系
+application是yarn上的,一个传统意义上的job,就是一个最大范围的任务
+job是每一个action发生都会产生一个job,有多少个action,就有多少个job
+stage 一个job里面由于partition之间来回传递,因此会被分成若干个阶段,最明显的是shuffer产生,就会产生一个阶段,即在一个action中可能产生若干个shuffer,那么就会有若干个阶段
+task 每一个阶段都会执行若干个partition任务,每一个partition都是作为一个task来进行的,每一个task的工作内容是相同的
+

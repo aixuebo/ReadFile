@@ -5,4 +5,5 @@ beside 在旁边
 Space reserved for extra data in an Akka message besides serialized task or task result.
 除了序列化任务或任务结果之外，还为Akka消息中的额外数据保留的空间
 
-2.
+2.Indirect 间接   direct 直接
+

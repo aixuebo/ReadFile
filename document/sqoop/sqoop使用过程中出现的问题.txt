@@ -91,3 +91,6 @@ select * from bank_card where id = 88023;
 主要是发现
 a.bank_card表数据有很多应该有值的字段变成null了
 b.user_info表有id 和userid 是null的,原因也是回车问题导致的串行
+
+5.支持分区
+--hive-partition-key log_create_date --hive-partition-value 2016-11-11 --hive-table new_table_name

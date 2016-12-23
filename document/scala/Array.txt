@@ -1,0 +1,7 @@
+一、ArrayBuffer 创建动态的数组
+import scala.collection.mutable.ArrayBuffer
+val b = ArrayBuffer[Int]()
+b += (1, 2, 3,6,8,5,10)
+var durations = b.toArray
+java.util.Arrays.sort(durations)
+val medianDuration = durations(scala.math.min((0.5 * 3).round.toInt, durations.size - 1)) //获取中位数 durations[2] = 3

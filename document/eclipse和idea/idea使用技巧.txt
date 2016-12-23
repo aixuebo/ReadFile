@@ -73,3 +73,14 @@ setting---maven--runner--vm options 设置-Dmaven.multiModuleProjectDirectory=$M
 1.Setting->build->Compiler->Java Compiler--手动设置1.x
 2.project structure--project--project language level--选择一种级别
 3.project structure--modules--sources--language level--选择一种级别
+
+
+
+7.thinkpad fn切换
+Esc+Fn
+
+8.ubutun 系统快捷键 与idea冲突.则取消系统快捷键即可
+setting--keyboard--shortname--取消使用back space+空格
+
+
+

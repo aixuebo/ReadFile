@@ -53,4 +53,7 @@ import
 --connect
 xxxx
 
+二、sqoop的增量更新,比如设置--incremental lastmodified --check-column created --last-value '2012-02-01 11:0:00' 
+则表示本次更新要更新created字段比2012-02-01 11:0:00大的所有数据,因此更新到什么时候了,其实是不知道的,只能记录最后更新后的内容,下次继续使用.
+因此非常不友好,应该是提供区间,每次只是查询两个区间的内容,然后做merge操作,因此sqoop的增量其实意义不是很大
 

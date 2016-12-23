@@ -15,3 +15,9 @@ http://10.1.5.91:50070/dfshealth.html#tab-overview
     </property>
 5.yarn去kill一个应用
 yarn application  -kill ApplicationID
+6.rebalance平衡时候执行mr导致速度慢,主要原因是平衡的时候速度慢,尚未平衡完
+public static final String  DFS_DATANODE_BALANCE_BANDWIDTHPERSEC_KEY = "dfs.datanode.balance.bandwidthPerSec";
+public static final long    DFS_DATANODE_BALANCE_BANDWIDTHPERSEC_DEFAULT = 1024*1024;
+hadoop balancer [-threshold] -setBalancerBandwidth <bandwidth in bytes per second>]
+-threshold 表示平衡参数,达到差距-threshold内的就算平衡了,比如该参数设置为10
+-setBalancerBandwidth 设置传输的带宽,正常是5M/s,是不影响集群使用,可以尝试设置高点,加速平衡
