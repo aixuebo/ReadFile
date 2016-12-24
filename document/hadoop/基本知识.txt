@@ -1,4 +1,4 @@
-1.查找yarn的application页面
+﻿1.查找yarn的application页面
 http://10.1.5.91:8088/cluster
 其中端口在yarn-site.xml配置的yarn.resourcemanager.webapp.address中指定
 2.查看web版的hdfs页面
@@ -21,3 +21,4 @@ public static final long    DFS_DATANODE_BALANCE_BANDWIDTHPERSEC_DEFAULT = 1024*
 hadoop balancer [-threshold] -setBalancerBandwidth <bandwidth in bytes per second>]
 -threshold 表示平衡参数,达到差距-threshold内的就算平衡了,比如该参数设置为10
 -setBalancerBandwidth 设置传输的带宽,正常是5M/s,是不影响集群使用,可以尝试设置高点,加速平衡
+7.hadoop集群每一台机器都要关闭防火墙,否则运行速度太慢
