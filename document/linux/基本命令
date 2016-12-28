@@ -95,7 +95,8 @@ jar -cvfM0 game.war ./
 解压game.war 或者jar
 jar -xvf game.war
 解压到当前目录
-
+9.deb包安装 双击即可
+删除 sudo  dpkg  -i  package.deb
 
 五、scp
 scp [可选参数] file_source file_target 

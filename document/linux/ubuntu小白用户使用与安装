@@ -154,6 +154,13 @@ ln -s source /root/Desktop
 但是目前该方式没办法建立,因为sh的不是可执行文件
 
 
+5.更新数据源
+a.sudo vi /etc/apt/sources.list
+b.deb http://ftp.ctex.org/mirrors/CRAN/bin/linux/ubuntu maverick/ 添加到最后一行,保存
+c.sudo apt-get update
+d.dpkg -l | grep rstudio查看一个已经安装的软件
+e.sudo apt-get --purge remove apache2 删除一个软件
+
 
 
 该类表示每一个消费者组消费topic-partition到哪个序号了

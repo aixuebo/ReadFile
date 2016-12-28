@@ -1,0 +1,30 @@
+Ubuntu 11.04 下安装R
+1.下载R包
+解压缩
+2.运行./configure 报错,缺少其他包
+3.sudo apt-get install r-base-dev //安装R时所要用的一些基本包
+运行./configure会报错:
+configure: error: No F77 compiler found
+R语言需要fortran compiler，装个gfortran吧。
+sudo apt-get install gfortran
+又出错：
+configure: error: —with-readline=yes (default) and headers/libs are not available
+装吧：
+$ sudo apt-get install libreadline6-dev
+还出错：
+configure: error: —with-x=yes (default) and X11 headers/libs are not available
+接着装吧：
+sudo apt-get install libxt-dev
+还出错
+sudo apt-get install libcurl4-openssl-dev
+4.
+安装完成后，再运行./configure成功
+make
+make install
+搞定
+
+安装完R以后， 我又加了几个packages, 也就是启动R后
+> install.packages('gdata')
+但安装完的包全部位于 /home/neten/R/x86_64-pc-linux-gnu-library/2.12 目录下，
+我想改变用户根目录下R文件夹的位置， google一番后， 发现变量在这里设置的：
+/etc/R/Renviron

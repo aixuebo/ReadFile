@@ -1,0 +1,17 @@
+一、安装包
+1.install.packages('package name')
+2.选择镜像--china
+3.如果你这个R包在R中心没有,则要执行命令,
+R CMD INSTALL javareconf 或者 R CMD javareconf
+4.查看R的包都下载在本地哪里
+在R的shell窗口中,输入.libPaths() 可以查看R的包都下载到哪里了
+5.如何更改包的目录
+.libPaths('/new path/')
+6.安装到指定目录,而不是默认目录
+install.packages('your package', lib = '/yourlibrary/')
+7.如何程序中使用包
+library("your package")
+library("your package", lib.loc="/yourlibrary/") 该方法是使用指定非默认目录的包
+
+二、退出shell
+q()

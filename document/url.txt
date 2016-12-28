@@ -39,3 +39,11 @@ https://www.baidu.com/s?wd=%E6%96%B9%E5%B7%AE%E5%85%AC%E5%BC%8F&rsv_spt=1&rsv_iq
 https://zhidao.baidu.com/question/688221660902304484.html
 
 git log --name-status b649c9c47f4b366fcac66b61348dcd1cb94f113f 查看某一个版本提交的内容
+
+
+
+spark
+http://jerryshao.me/architecture/2014/01/04/spark-shuffle-detail-investigation/
+p值
+https://www.zhihu.com/question/21195469
+http://www.360doc.com/content/15/0704/22/22175932_482657194.shtml

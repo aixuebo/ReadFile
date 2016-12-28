@@ -1,0 +1,45 @@
+一、
+1.编写脚本,以R结尾,权限是777
+library(SparkR)
+sc <- sparkR.init(appName = "Rtest",master="yarn-client",sparkEnvir=list(spark.executor.memory="1g",spark.cores.max="10"))
+lines <- textFile(sc, "hdfs://masternode:8020/log/statistics/etl/rfm_standard_class/aaa.txt")
+# 按分隔符拆分每一行为多个元素，这里返回一个序列
+words<-flatMap(lines,function(line) {strsplit(line,",")[[1]]})
+# 使用 lapply 来定义对应每一个RDD元素的运算，这里返回一个（K，V)对
+wordCount <-lapply(words, function(word) { list(word, 1L) })
+# 对（K，V）对进行聚合计算
+counts<-reduceByKey(wordCount,"+",2L)
+# 以数组的形式，返回数据集的所有元素
+output <- collect(counts)
+# 按格式输出结果
+for (wordcount in output) {
+cat(wordcount[[1]], ": ", wordcount[[2]], "\n")
+}
+
+或者
+library(SparkR)
+sc <- sparkR.init(appName = "Rtest",master="yarn",sparkEnvir=list(spark.executor.memory="1g",spark.cores.max="10"))
+lines <- SparkR ::: textFile(sc, "hdfs://masternode:8020/log/statistics/etl/rfm_standard_class/aaa.txt")
+# 按分隔符拆分每一行为多个元素，这里返回一个序列
+words<-SparkR ::: flatMap(lines,function(line) {strsplit(line,",")[[1]]})
+# 使用 lapply 来定义对应每一个RDD元素的运算，这里返回一个（K，V)对
+wordCount <-SparkR ::: lapply(words, function(word) { list(word, 1L) })
+# 对（K，V）对进行聚合计算
+counts<-SparkR ::: reduceByKey(wordCount,"+",2L)
+# 以数组的形式，返回数据集的所有元素
+output <- SparkR ::: collect(counts)
+# 按格式输出结果
+for (wordcount in output) {
+cat(wordcount[[1]], ": ", wordcount[[2]], "\n")
+}
+
+或者简单版本
+library(SparkR)
+sc <- sparkR.init(appName = "Rtest",master='yarn-client',sparkEnvir=list(spark.executor.memory="1g",spark.cores.max="10"))
+lines <- SparkR ::: textFile(sc, "hdfs://masternode:8020/log/statistics/etl/rfm_standard_class/aaa.txt")
+output <- SparkR ::: collect(lines)
+for (wordcount in output) {cat(wordcount[[1]], "\n") }
+
+2.执行该脚本spark-submit xxx.R
+3.yarn上已经可以看到该信息了
+
