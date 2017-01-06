@@ -4,3 +4,90 @@
 1.第一个参数RequestOrResponse表示要发送给服务器的请求内容
 2.第二个参数(RequestOrResponse) => Unit,表示是一个函数,函数的参数是RequestOrResponse,返回值是无
 
+二、函数的调用
+ //删除广播数据块
+  private def dropOldBroadcastBlocks(cleanupTime: Long): Unit = {
+    logInfo(s"Dropping broadcast blocks older than $cleanupTime")
+    dropOldBlocks(cleanupTime, _.isBroadcast) //因为调用了dropOldBlocks方法,而该方法的参数是已知的,因此第二个参数的_就代表BlockId,返回值是boolean类型的,因此_.isBroadcast就是返回值是boolean类型的
+  }
+
+  //删除老的数据块
+  private def dropOldBlocks(cleanupTime: Long, shouldDrop: (BlockId => Boolean)): Unit = {
+    val iterator = blockInfo.getEntrySet.iterator //循环本地的数据块
+    while (iterator.hasNext) {
+      val entry = iterator.next()
+      val (id, info, time) = (entry.getKey, entry.getValue.value, entry.getValue.timestamp) //key，value，以及时间戳
+      if (time < cleanupTime && shouldDrop(id)) {//时间time比cleanupTime小,说明在cleanupTime之前就已经存在该value了,因此是要被删除的
+        info.synchronized {
+          val level = info.level
+          if (level.useMemory) { memoryStore.remove(id) }
+          if (level.useDisk) { diskStore.remove(id) }
+          if (level.useOffHeap) { externalBlockStore.remove(id) }
+          iterator.remove()
+          logInfo(s"Dropped block $id")
+        }
+        val status = getCurrentBlockStatus(id, info)
+        reportBlockStatus(id, info, status)
+      }
+    }
+  }
+三、dropFromMemory参数是Either对象,而第二个方法需要的是一个函数,因此要改成() => data
+并且Either支持case
+
+      data() match {
+            case Left(elements) =>
+              diskStore.putArray(blockId, elements, level, returnValues = false)
+            case Right(bytes) =>
+              diskStore.putBytes(blockId, bytes, level)
+          }
+          
+          
+
+  //释放该数据块ID与之对应的数据内容,返回数据块的状态
+  def dropFromMemory(
+      blockId: BlockId,
+      data: Either[Array[Any], ByteBuffer]): Option[BlockStatus] = {
+    dropFromMemory(blockId, () => data)
+  }
+
+  /**
+   * Drop a block from memory, possibly putting it on disk if applicable. Called when the memory
+   * store reaches its limit and needs to free up space.
+   *
+   * If `data` is not put on disk, it won't be created.
+   *
+   * Return the block status if the given block has been updated, else None.
+   */
+  def dropFromMemory(
+      blockId: BlockId,
+      data: () => Either[Array[Any], ByteBuffer]): Option[BlockStatus] = {
+
+      data() match {
+            case Left(elements) =>
+              diskStore.putArray(blockId, elements, level, returnValues = false)
+            case Right(bytes) =>
+              diskStore.putBytes(blockId, bytes, level)
+          }
+  }
+  
+  四、updateBlockInfo 是UpdateBlockInfo对象的别名
+    case _updateBlockInfo @ UpdateBlockInfo(
+      blockManagerId, blockId, storageLevel, deserializedSize, size, externalBlockStoreSize) =>
+      context.reply(updateBlockInfo(
+        blockManagerId, blockId, storageLevel, deserializedSize, size, externalBlockStoreSize))
+
+      //发送事件
+      listenerBus.post(SparkListenerBlockUpdated(BlockUpdatedInfo(_updateBlockInfo))) 
+注意BlockUpdatedInfo 方法的参数是
+private[spark] object BlockUpdatedInfo {
+
+  private[spark] def apply(updateBlockInfo: UpdateBlockInfo): BlockUpdatedInfo = {
+    BlockUpdatedInfo(
+      updateBlockInfo.blockManagerId,
+      updateBlockInfo.blockId,
+      updateBlockInfo.storageLevel,
+      updateBlockInfo.memSize,
+      updateBlockInfo.diskSize,
+      updateBlockInfo.externalBlockStoreSize)
+  }
+}
