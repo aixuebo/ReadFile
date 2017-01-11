@@ -82,5 +82,8 @@ Esc+Fn
 8.ubutun 系统快捷键 与idea冲突.则取消系统快捷键即可
 setting--keyboard--shortname--取消使用back space+空格
 
+9.IDEA如何忽略项目中其他类的错误
+1.setting--搜索 "Java Compiler"---找到最上面的"User compiler"--将javac改成Eclipse---然后将下面的"Proceed on errors"勾选上
+2.在运行的main上,点开config配置,将"Before launch"设置中make改成"Make，no error check"
 
 
