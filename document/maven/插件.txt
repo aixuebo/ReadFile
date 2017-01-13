@@ -64,6 +64,8 @@
                         <goal>copy-dependencies</goal>
                     </goals>
                     <configuration>
+                        <excludeScope>provided</excludeScope> <!--选择刨除哪个scope范围的不进行copy-->
+                        <includeScope>compile</includeScope><!--runtime,compile,test,provided,system 选择打包哪些scope-->
                         <outputDirectory>${project.build.directory}/lib</outputDirectory>
                     </configuration>
                 </execution>

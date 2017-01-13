@@ -73,7 +73,8 @@ setting---maven--runner--vm options 设置-Dmaven.multiModuleProjectDirectory=$M
 1.Setting->build->Compiler->Java Compiler--手动设置1.x
 2.project structure--project--project language level--选择一种级别
 3.project structure--modules--sources--language level--选择一种级别
-
+4.project structure--global lib--添加scala的lib目录
+5.project structure--modules--设置scala版本
 
 
 7.thinkpad fn切换
@@ -85,5 +86,7 @@ setting--keyboard--shortname--取消使用back space+空格
 9.IDEA如何忽略项目中其他类的错误
 1.setting--搜索 "Java Compiler"---找到最上面的"User compiler"--将javac改成Eclipse---然后将下面的"Proceed on errors"勾选上
 2.在运行的main上,点开config配置,将"Before launch"设置中make改成"Make，no error check"
+
+10.scala2.10版本要跟jdk7匹配,跟jdp8匹配有问题
 
 

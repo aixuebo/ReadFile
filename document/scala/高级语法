@@ -91,3 +91,13 @@ private[spark] object BlockUpdatedInfo {
       updateBlockInfo.externalBlockStoreSize)
   }
 }
+
+五、flatMap和map区别
+val d = List("host1","host2","host3")
+val iterators = (0 to 2).map( x =>
+d.iterator.flatMap(p => {Some( (p, 1) )} )
+)
+var it:Iterator[(String, Int)] = iterators.reduceLeft((x, y) => x ++ y)
+it.foreach(print(_))
+
+可以将flatMap换成map,测试是不通过的,原因就是iterators产生的是Some<String,Int>的迭代器

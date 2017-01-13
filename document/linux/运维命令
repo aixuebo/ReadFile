@@ -4,3 +4,82 @@
 3.iftop可以用来监控网卡的实时流量（可以指定网段）、反向解析IP、显示端口信息等
 4.查看网络状态可以使用netstat、nmap等工具
   但是若要查看实时的网络流量，监控TCP/IP连接等，则可以使用iftop
+
+二、编写host文件 ip和主机名映射
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+192.168.1.72  namenode01.xxxx.com
+192.168.1.82  datanode01.xxxx.com
+
+三、/etc/hostname 存储mm-ThinkPad-E455 ,即本机的名字
+
+四、uname -a 查看操作系统相关配置,比如什么操作系统,多少位
+
+五、cpu和磁盘查看
+cat /proc/cpuinfo 查看cpu
+df -h 查看磁盘
+du -sh * 查看磁盘
+
+六、网络
+1.ifconfig可以查看ip等信息,也可以设置ip,设置完就生效,但是不能永久,下次重新启动机器,就失效了
+ifconfig命令看到的都是此时正在生效的网络接口,失效的是看不到的
+
+2.要想永久生效,则要该配置文件,centos下是这个文件:
+/etc/sysconfig/network-scripts/ifcfg-eth0
+/etc/sysconfig/network-scripts/ifcfg-lo
+
+其中ifcfg-eth0 表示第一个以太网 网络接口  lo表示本地回环接口
+
+3.需要手动启动永久生效
+a.执行service network restart命令，重启网络服务（推荐）
+b.重启计算机
+
+4.详细配置信息
+TYPE=Ethernet
+DEVICE=eth0
+BOOTPROTO=none
+ONBOOT=yes
+IPADDR=10.0.1.27
+NETMASK=255.255.255.0
+GATEWAY=10.0.1.1
+BROADCAST=10.10.1.255
+HWADDR=00:0C:29:13:5D:74
+PEERDNS=yes
+DNS1=10.0.1.41
+USERCTL=no
+NM_CONTROLLED=no
+IPV6INIT=yes
+IPV6ADDR=FD55:faaf:e1ab:1B0D:10:14:24:106/64
+1. 配置参数说明
+注：这些参数值不区分大小写，不区分单引号和双引号，甚至可以不用引号。
+TYPE：配置文件接口类型。在/etc/sysconfig/network-scripts/目录有多种网络配置文件，有Ethernet 、IPsec等类型，网络接口类型为Ethernet。
+DEVICE：网络接口名称
+BOOTPROTO：系统启动地址协议
+none：不使用启动地址协议
+bootp：BOOTP协议
+dhcp：DHCP动态地址协议
+static：静态地址协议
+ONBOOT：系统启动时是否激活
+yes：系统启动时激活该网络接口
+no：系统启动时不激活该网络接口
+IPADDR：IP地址
+NETMASK：子网掩码
+GATEWAY：网关地址
+BROADCAST：广播地址
+HWADDR/MACADDR：MAC地址。只需设置其中一个，同时设置时不能相互冲突。
+PEERDNS：是否指定DNS。如果使用DHCP协议，默认为yes。
+yes：如果DNS设置，修改/etc/resolv.conf中的DNS
+no：不修改/etc/resolv.conf中的DNS
+DNS{1, 2}：DNS地址。当PEERDNS为yes时会被写入/etc/resolv.conf中。
+NM_CONTROLLED：是否由Network Manager控制该网络接口。修改保存后立即生效，无需重启。被其坑过几次，建议一般设为no。
+yes：由Network Manager控制
+no：不由Network Manager控制
+USERCTL：用户权限控制
+yes：非root用户允许控制该网络接口
+no：非root用户不运行控制该网络接口
+IPV6INIT：是否执行IPv6
+yes：支持IPv6
+no：不支持IPv6
+IPV6ADDR：IPv6地址/前缀长度
+
+

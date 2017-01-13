@@ -64,3 +64,10 @@ n邻居大小,上限是模型中user的数量
 neighborhood邻居
 cap 帽子 盖子
 
+8.rotate 旋转 循环
+infinitely 无限地
+这个类能够让你保持循环和无限的旋转这个RDD的每一个partition
+this class just keeps iterating and rotating infinitely over the partitions of the RDD
+  // next() returns the next preferred machine that a partition is replicated on
+  // the rotator first goes through the first replica copy of each partition, then second, third
+  // the iterators return type is a tuple: (replicaString, partition)

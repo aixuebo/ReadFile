@@ -1,0 +1,51 @@
+一、读书笔记
+ssh-keygen -t rsa/dsa -b 2048 -f mykey –N xxxx -C "username"
+1.-t 表示实现哪个算法
+2.-b 默认是1024,表示使用多少个作为key
+3.-f 为ssh文件命名,默认是id_dsa,输入的参数要全路径,例如 /home/mm/.ssh/yyyy
+4.–N 输入密码,如果忽略该参数,则ssh会有提示,让你键入密码
+Enter passphrase: [nothing is echoed] 键入密码
+Enter the same passphrase again: [nothing is echoed] 重新确定密码
+5.–C 登录的用户名
+如果忽略该参数,则会使用默认是的本地电脑的host和username组成的 username@host
+
+为存在的key更改密码
+-p命令
+ssh-keygen -t dsa -p -f mykey -P secretword -N newword
+表示为ssh文件为mykey的ssh更改密码
+-P(大写P) 表示老密码
+-N 表示新密码
+-p(小写p) 表示这个命令是更改密码的命苦
+如果忽略 ssh-keygen -t dsa -p
+则会提示我们选择一个文件,然后输入老密码
+Enter file in which the key is (/home/barrett/.ssh/id_rsa): mykey 文件名字
+Enter old passphrase: [nothing is echoed] 老密码
+Key has comment 'my favorite key' 用户名
+Enter new passphrase (empty for no passphrase): [nothing is echoed] 新密码
+Enter the same passphrase again: 新密码
+Your identification has been saved with the new passphrase.
+
+注意 更改完密码后,只是私钥有变化,公钥没有变化
+
+二、ssh无密码登录
+比如master node1 node2三个节点
+1.都要在三个节点上执行ssh,创建默认用户
+即三个节点都要执行以下命令:
+ssh-keygen -t rsa
+因此在~/.ssh/目录下就有了公钥和私钥了
+2.要将公钥给其他节点,比如将master的给node1和node2,因此master就可以ssh node1 就可以登录进来了
+但是公钥名字都一样,如果复制到其他节点上显然会覆盖其他节点,改变其他节点的公钥内容,因此不能这么做。
+将公钥改名字成authorized_keys
+master上执行cat id_rsa.pub >> authorized_keys
+3.将master的文件给node1和node2
+scp authorized_keys root@node1:root/.ssh/
+scp authorized_keys root@node2:root/.ssh/
+并且将文件的权限更改chmod 644 authorized_keys
+4.这样就可以无密码master登录node1和node2了
+由于第一次登录需要输入node1和node2的密码,因此第一次要输入,后续就不用输入了
+ssh node1
+
+注意:
+以上配置是让master登录node1和node2,但是node1和node2不能相互登录,node1也不能登录master
+如果都让他们三个互相登录,因此将node1和node2的公钥 在master节点添加,在master节点vi authorized_keys,然后将node1和node2的公钥复制进来,然后再将authorized_keys文件重新上传到node1和node2节点上即可实现三个节点互相登录的功能
+

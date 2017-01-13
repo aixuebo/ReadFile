@@ -53,14 +53,46 @@ def distinct(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T]
 a.通过map转换成MapPartitionsRDD[(key,null)]元组RDD,该RDD通过隐式转换成PairRDDFunctions对象,该对象持有该RDD
 一定需要shuffle,按照key相同的分配到同一个组里面,然后对相同的key对应的value在执行合并函数
 5.mapPartitions
+a.
 def mapPartitions[U: ClassTag](f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] {
 相当于Map操作,他是一个变种,map输入函数是应用于RDD中每个元素，而mapPartitions的输入函数是应用于每个分区，也就是把每个分区中的内容作为整体来处理的。
+
+b.def mapPartitionsWithIndex[U: ClassTag](
+        f: (Int, Iterator[T]) => Iterator[U], //f参数int表示第几个partition,iter表示该partition的数据源的迭代器,返回新的迭代器
+        preservesPartitioning: Boolean = false): RDD[U]
+也是mapPartitions的升级版本,就是参数不仅仅是需要partition的内容的迭代器,还需要知道这个任务是第几个任务,即map的ID
+
+6.  def repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T] 调用 coalesce(numPartitions, shuffle = true)
+  就是简单的将父RDD的多个partition合并成一个partition的过程,虽然有网络获取数据的内容,但是不涉及真正意义上的shuffle操作,即不涉及key相同的都要在一个节点上存在步骤
+7.def coalesce(numPartitions: Int, shuffle: Boolean = false)(implicit ord: Ordering[T] = null) : RDD[T]
+参数shuffle = true表示要进行一次shuffe操作去重新设置partition
+   如果shuffle = false 表示不会进行shuffle,只是一对多的,将多个父RDD的partition合并成一个,虽然有网络IO,但是不涉及key相同的都要在一个节点上存在步骤
+参数numPartitions 表示最终需要的partition数量
+该函数是将父RDD的partition数量重新调整,一般用于RDD的partition较多又较小的时候,重新规划
+
+注意:
+shuffle true的时候,让每一个原始的RDD的每一个partition产生一个新的key,key的内容就是自增长的ID,,让shuffle根据id作为key的时候更均匀的分布在多个节点上,依然不用保证key相同的都在同一个节点上
+
+8.def union(other: RDD[T]): RDD[T] 或者 def ++(other: RDD[T]): RDD[T]
+将两个RDD进行合并，不去重
+9.def intersection(other: RDD[T]): RDD[T]
+函数返回两个RDD的交集，并且去重。
+将两个集合的key转换成<key,null>这样K-V结构的就可以调用的PairRDDFunctions里面<K,V>结构的cogroup逻辑,这样得到的同一个key的两个结果集都存在的,则就是需要的交集
+
+
+
 
 
 Actions
 1.reduce(f: (T, T) => T): T
 调用集合的reduceLeft方法,这个是scala的方法,意思是循环迭代集合,每两个相邻的对象执行一下f方法,结果在与下一个对象运算
+2.def subtract(other: RDD[T]): RDD[T]
+返回在RDD中出现，并且不在otherRDD中出现的元素，不去重
+将x变成(x,null) 这样K-V结构的就可以调用的PairRDDFunctions里面<K,V>结构的subtract逻辑
+
+
+
 
 
 ------------------------------------------------------------------------------------

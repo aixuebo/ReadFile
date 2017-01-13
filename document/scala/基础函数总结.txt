@@ -1,0 +1,18 @@
+一、map和flatmap区别
+首先map是映射,将集合里面的元素每一个都进行map函数转换,转换成新的元素
+flatmap也是同map一样功能,只是返回值不同,flatmap返回值是一个迭代器或者Some包装的元素,因此最终输出的时候会只是输出元素,即迭代器循环,或者去除Some这一层包装
+
+比如
+1.map函数
+你想要改变集合的每一个元素,使用map方法,每一个元素作用于一个function函数,产生一个新的集合
+例如
+val names = List("Peter", "Paul", "Mary")
+names.map(_.toUpperCase) // List("PETER", "PAUL", "MARY")
+
+2.flatMap函数
+如果function函数产生的不是一个单独的value,而是一个集合,你想要结果是连接所有的集合的内容,应该使用flatMap
+例如:
+def ulcase(s: String) = Vector(s.toUpperCase(), s.toLowerCase()) 产生一个集合,包含大小写的
+names.map(ulcase) 产生的结果是List(Vector("PETER", "peter"), Vector("PAUL", "paul"), Vector("MARY", "mary"))
+names.flatMap(ulcase) 产生的结果是List("PETER", "peter", "PAUL", "paul", "MARY", "mary"),原因就是flatMap针对一个元素产生的是Vector迭代器,最终会将迭代器内容打印出来作为返回值,因此就没有了Vector了
+3.如果flatMap函数返回一个Option对象,则这个最后的结果只有Some(v),没有null的

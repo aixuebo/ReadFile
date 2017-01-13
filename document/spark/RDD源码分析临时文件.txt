@@ -252,62 +252,6 @@ abstract class RDD[T: ClassTag](
   private[spark] def withScope[U](body: => U): U = RDDOperationScope.withScope[U](sc)(body)
 
   // Transformations (return a new RDD)
-  /**
-   * Return a new RDD that has exactly numPartitions partitions.
-   *
-   * Can increase or decrease the level of parallelism in this RDD. Internally, this uses
-   * a shuffle to redistribute data.
-   *
-   * If you are decreasing the number of partitions in this RDD, consider using `coalesce`,
-   * which can avoid performing a shuffle.
-   */
-  def repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T] = withScope {
-    coalesce(numPartitions, shuffle = true)
-  }
-
-  /**
-   * Return a new RDD that is reduced into `numPartitions` partitions.
-   *
-   * This results in a narrow dependency, e.g. if you go from 1000 partitions
-   * to 100 partitions, there will not be a shuffle, instead each of the 100
-   * new partitions will claim 10 of the current partitions.
-   *
-   * However, if you're doing a drastic coalesce, e.g. to numPartitions = 1,
-   * this may result in your computation taking place on fewer nodes than
-   * you like (e.g. one node in the case of numPartitions = 1). To avoid this,
-   * you can pass shuffle = true. This will add a shuffle step, but means the
-   * current upstream partitions will be executed in parallel (per whatever
-   * the current partitioning is).
-   *
-   * Note: With shuffle = true, you can actually coalesce to a larger number
-   * of partitions. This is useful if you have a small number of partitions,
-   * say 100, potentially with a few partitions being abnormally large. Calling
-   * coalesce(1000, shuffle = true) will result in 1000 partitions with the
-   * data distributed using a hash partitioner.
-   */
-  def coalesce(numPartitions: Int, shuffle: Boolean = false)(implicit ord: Ordering[T] = null)
-      : RDD[T] = withScope {
-    if (shuffle) {
-      /** Distributes elements evenly across output partitions, starting from a random partition. */
-      val distributePartition = (index: Int, items: Iterator[T]) => {
-        var position = (new Random(index)).nextInt(numPartitions)
-        items.map { t =>
-          // Note that the hash code of the key will just be the key itself. The HashPartitioner
-          // will mod it with the number of total partitions.
-          position = position + 1
-          (position, t)
-        }
-      } : Iterator[(Int, T)]
-
-      // include a shuffle step so that our upstream tasks are still distributed
-      new CoalescedRDD(
-        new ShuffledRDD[Int, T, T](mapPartitionsWithIndex(distributePartition),
-        new HashPartitioner(numPartitions)),
-        numPartitions).values
-    } else {
-      new CoalescedRDD(this, numPartitions)
-    }
-  }
 
   /**
    * Return a sampled subset of this RDD.
@@ -419,27 +363,6 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
-   * Return the union of this RDD and another one. Any identical elements will appear multiple
-   * times (use `.distinct()` to eliminate them).
-   * 将两个RDD进行合并，不去重
-   */
-  def union(other: RDD[T]): RDD[T] = withScope {
-    if (partitioner.isDefined && other.partitioner == partitioner) {
-      new PartitionerAwareUnionRDD(sc, Array(this, other))
-    } else {
-      new UnionRDD(sc, Array(this, other))
-    }
-  }
-
-  /**
-   * Return the union of this RDD and another one. Any identical elements will appear multiple
-   * times (use `.distinct()` to eliminate them).
-   */
-  def ++(other: RDD[T]): RDD[T] = withScope {
-    this.union(other)
-  }
-
-  /**
    * Return this RDD sorted by the given key function.
    */
   def sortBy[K](
@@ -450,47 +373,6 @@ abstract class RDD[T: ClassTag](
     this.keyBy[K](f)
         .sortByKey(ascending, numPartitions)
         .values
-  }
-
-  /**
-   * Return the intersection of this RDD and another one. The output will not contain any duplicate
-   * elements, even if the input RDDs did.
-   *
-   * Note that this method performs a shuffle internally.
-   * 函数返回两个RDD的交集，并且去重。
-   */
-  def intersection(other: RDD[T]): RDD[T] = withScope {
-    this.map(v => (v, null)).cogroup(other.map(v => (v, null)))  //相同key--产生两个迭代器
-        .filter { case (_, (leftGroup, rightGroup)) => leftGroup.nonEmpty && rightGroup.nonEmpty } //过滤,_表示相同的key,如果两个集合都存在元素,则说明该key两个有交集,因此保留
-        .keys //返回所有有交集的key
-  }
-
-  /**
-   * Return the intersection of this RDD and another one. The output will not contain any duplicate
-   * elements, even if the input RDDs did.
-   *
-   * Note that this method performs a shuffle internally.
-   *
-   * @param partitioner Partitioner to use for the resulting RDD
-   */
-  def intersection(
-      other: RDD[T],
-      partitioner: Partitioner)(implicit ord: Ordering[T] = null): RDD[T] = withScope {
-    this.map(v => (v, null)).cogroup(other.map(v => (v, null)), partitioner)
-        .filter { case (_, (leftGroup, rightGroup)) => leftGroup.nonEmpty && rightGroup.nonEmpty }
-        .keys
-  }
-
-  /**
-   * Return the intersection of this RDD and another one. The output will not contain any duplicate
-   * elements, even if the input RDDs did.  Performs a hash partition across the cluster
-   *
-   * Note that this method performs a shuffle internally.
-   *
-   * @param numPartitions How many partitions to use in the resulting RDD
-   */
-  def intersection(other: RDD[T], numPartitions: Int): RDD[T] = withScope {
-    intersection(other, new HashPartitioner(numPartitions))
   }
 
   /**
@@ -608,43 +490,6 @@ abstract class RDD[T: ClassTag](
       if (printPipeContext ne null) sc.clean(printPipeContext) else null,
       if (printRDDElement ne null) sc.clean(printRDDElement) else null,
       separateWorkingDir)
-  }
-
-  /**
-   * Return a new RDD by applying a function to each partition of this RDD.
-   *
-   * `preservesPartitioning` indicates whether the input function preserves the partitioner, which
-   * should be `false` unless this is a pair RDD and the input function doesn't modify the keys.
-   * 相当于Map操作
-   * 参数f是传递每一个RDD上的实体T,转换成实体U
-   *
-   * mapPartitions是map的一个变种。map的输入函数是应用于RDD中每个元素，而mapPartitions的输入函数是应用于每个分区，也就是把每个分区中的内容作为整体来处理的。
-   */
-  def mapPartitions[U: ClassTag](
-      f: Iterator[T] => Iterator[U],
-      preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    val cleanedF = sc.clean(f)
-    new MapPartitionsRDD(
-      this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
-      preservesPartitioning)
-  }
-
-  /**
-   * Return a new RDD by applying a function to each partition of this RDD, while tracking the index
-   * of the original partition.
-   *
-   * `preservesPartitioning` indicates whether the input function preserves the partitioner, which
-   * should be `false` unless this is a pair RDD and the input function doesn't modify the keys.
-   */
-  def mapPartitionsWithIndex[U: ClassTag](
-      f: (Int, Iterator[T]) => Iterator[U], //f参数int表示第几个partition,iter表示该partition的数据源的迭代器,返回新的迭代器
-      preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    val cleanedF = sc.clean(f)
-    new MapPartitionsRDD(
-      this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-      preservesPartitioning)
   }
 
   /**
@@ -894,48 +739,6 @@ res0: Array[(Int, String)] = Array((1,A), (2,B), (3,C), (4,D), (5,E))
   def collect[U: ClassTag](f: PartialFunction[T, U]): RDD[U] = withScope {
     val cleanF = sc.clean(f)
     filter(cleanF.isDefinedAt).map(cleanF)
-  }
-
-  /**
-   * Return an RDD with the elements from `this` that are not in `other`.
-   *
-   * Uses `this` partitioner/partition size, because even if `other` is huge, the resulting
-   * RDD will be &lt;= us.
-   * 返回在RDD中出现，并且不在otherRDD中出现的元素，不去重
-   */
-  def subtract(other: RDD[T]): RDD[T] = withScope {
-    subtract(other, partitioner.getOrElse(new HashPartitioner(partitions.length)))
-  }
-
-  /**
-   * Return an RDD with the elements from `this` that are not in `other`.
-   */
-  def subtract(other: RDD[T], numPartitions: Int): RDD[T] = withScope {
-    subtract(other, new HashPartitioner(numPartitions))
-  }
-
-  /**
-   * Return an RDD with the elements from `this` that are not in `other`.
-   * 返回在RDD中出现，并且不在otherRDD中出现的元素，不去重
-   */
-  def subtract(
-      other: RDD[T],
-      p: Partitioner)(implicit ord: Ordering[T] = null): RDD[T] = withScope {
-    if (partitioner == Some(p)) {
-      // Our partitioner knows how to handle T (which, since we have a partitioner, is
-      // really (K, V)) so make a new Partitioner that will de-tuple our fake tuples
-      val p2 = new Partitioner() {
-        override def numPartitions: Int = p.numPartitions
-        override def getPartition(k: Any): Int = p.getPartition(k.asInstanceOf[(Any, _)]._1)
-      }
-      // Unfortunately, since we're making a new p2, we'll get ShuffleDependencies
-      // anyway, and when calling .keys, will not have a partitioner set, even though
-      // the SubtractedRDD will, thanks to p2's de-tupled partitioning, already be
-      // partitioned by the right/real keys (e.g. p).
-      this.map(x => (x, null)).subtractByKey(other.map((_, null)), p2).keys
-    } else {
-      this.map(x => (x, null)).subtractByKey(other.map((_, null)), p).keys
-    }
   }
 
   /**
