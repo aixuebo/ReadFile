@@ -20,7 +20,54 @@ cat /proc/cpuinfo 查看cpu
 df -h 查看磁盘
 du -sh * 查看磁盘
 
+查看电脑资源
+1.uname -a 查看操作系统多少位
+cat /proc/cpuinfo 查看cpu
+df -h 查看磁盘
+
+2./etc/profile 是系统的环境变量
+3./etc/group  文件是用户组的配置文件
+格式： 组名：密码保存位置：组ID：组成员集合
+创建组 groupadd groupName
+删除组 groupdel groupName
+4./etc/passwd 文件是用户的配置文件
+格式：注册名：口令：用户标识号：组标识号：用户名：用户主目录：命令解释程序
+添加用户  useradd userName 此时会产生一个userName的组
+添加用户并且追加到一个组里面, useradd -G group userName 此时不会产生userName的组
+删除用户 userdel -rf linuxde //删除用户linuxde，其家目录及文件一并删除
+修改用户的组 usermod -a -G 用户组 用户名
+
+5./etc/shadow 用户的密密码区域
+
+6.分配权限
+chown -R user1:group1 /usr/hadoop/
+
+7.默认配置文件
+~/.bashrc存放环境变量
+source ~/.bashrc 然后让配置文件生效
+
+/etc/profile和/etc/bashrc是全局的配置文件,每一个宿主目录下的配置可以覆盖全局配置文件的内容
+
+demo
+export JAVA_HOME=/mm/dev/jdk1.8.0_101
+###exprot JAVA_HOME=/mm/dev/jdk1.7.0_79
+export CLASSPATH=.:$JAVA_HOME/lib:$JAVA_HOME/jre/lib:$CLASSPATH
+
+export M2_HOME=/mm/dev/apache-maven-3.3.9
+export MAVEN_OPTS="-Xms256m -Xmx512m"
+
+export SCALA_HOME=/mm/dev/scala-2.10.6
+export CLASSPATH=$SCALA_HOME/bin:$SCALA_HOME/lib/dt.jar:$SCALA_HOME/lib/tools.jar:$CLASSPATH
+
+export HADOOP_HOME=/mm/dev/hadoop-2.7.3
+
+export PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$M2_HOME/bin:$SCALA_HOME/bin:$SCALA_HOME/jre/bin:$HADOOP_HOME/bin:$PATH
+
 六、网络
+重要:
+1.下载对应网络文件
+curl -O(大写) url下载jdk和hadoop的tar包
+
 1.ifconfig可以查看ip等信息,也可以设置ip,设置完就生效,但是不能永久,下次重新启动机器,就失效了
 ifconfig命令看到的都是此时正在生效的网络接口,失效的是看不到的
 

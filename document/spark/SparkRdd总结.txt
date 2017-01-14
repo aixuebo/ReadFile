@@ -79,6 +79,38 @@ shuffle true的时候,让每一个原始的RDD的每一个partition产生一个�
 9.def intersection(other: RDD[T]): RDD[T]
 函数返回两个RDD的交集，并且去重。
 将两个集合的key转换成<key,null>这样K-V结构的就可以调用的PairRDDFunctions里面<K,V>结构的cogroup逻辑,这样得到的同一个key的两个结果集都存在的,则就是需要的交集
+10.def cartesian[U: ClassTag](other: RDD[U]): RDD[(T, U)]
+对两个RDD进行笛卡尔计算,返回RDD[(T, U)],这个函数对内存消耗较大,使用时候需要谨慎
+即两个RDD每一条记录都相互笛卡尔运算
+11.def groupBy[K](f: T => K)(implicit kt: ClassTag[K]): RDD[(K, Iterable[T])]
+将RDD中的T元素通过函数转换成另外对象,然后组成<K,T>的元组,从而使用PairRDDFunctions的groupBy,将数据按照K进行分组
+12.def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)]
+将两个RDD每一个元素拿出来,作为元组
+比如
+scala> var rdd1 = sc.makeRDD(1 to 5,2)
+rdd1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at makeRDD at :21
+
+scala> var rdd2 = sc.makeRDD(Seq("A","B","C","D","E"),2)
+rdd2: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[2] at makeRDD at :21
+
+scala> rdd1.zip(rdd2).collect
+res0: Array[(Int, String)] = Array((1,A), (2,B), (3,C), (4,D), (5,E))
+
+13.def keyBy[K](f: T => K): RDD[(K, T)]
+将元素T通过函数转换成K,组装成K,T的元组
+
+14.def sortBy[K](
+         f: (T) => K,
+         ascending: Boolean = true,
+         numPartitions: Int = this.partitions.length)
+         (implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T]
+按照函数f对元素进行排序,返回的RDD还是原来的RDD,只是进行了一次按照f函数来排序的过程
+该函数会产生一个shuffle操作
+将RDD[T]转换成RDD[K,T],然后因为K是有排序功能的,因此shuffle按照K排序,排序后获取所有排序后的Vlaue集合
+
+
+
+
 
 
 

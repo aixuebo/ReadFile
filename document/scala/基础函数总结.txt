@@ -16,3 +16,6 @@ def ulcase(s: String) = Vector(s.toUpperCase(), s.toLowerCase()) 产生一个集
 names.map(ulcase) 产生的结果是List(Vector("PETER", "peter"), Vector("PAUL", "paul"), Vector("MARY", "mary"))
 names.flatMap(ulcase) 产生的结果是List("PETER", "peter", "PAUL", "paul", "MARY", "mary"),原因就是flatMap针对一个元素产生的是Vector迭代器,最终会将迭代器内容打印出来作为返回值,因此就没有了Vector了
 3.如果flatMap函数返回一个Option对象,则这个最后的结果只有Some(v),没有null的
+
+5.val d = List("host1","host2","host3")
+d.getClass返回d的真实类型
