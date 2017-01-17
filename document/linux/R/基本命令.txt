@@ -15,3 +15,15 @@ library("your package", lib.loc="/yourlibrary/") 该方法是使用指定非默�
 
 二、退出shell
 q()
+
+三、执行R脚本
+Rscript yyy.R
+R -f yyy.R
+
+脚本内容
+#!/usr/bin/env Rscript
+sayHello <- function(){
+        print("aaa")
+}
+sayHello()
+

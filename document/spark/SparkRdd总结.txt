@@ -106,13 +106,35 @@ res0: Array[(Int, String)] = Array((1,A), (2,B), (3,C), (4,D), (5,E))
          (implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T]
 按照函数f对元素进行排序,返回的RDD还是原来的RDD,只是进行了一次按照f函数来排序的过程
 该函数会产生一个shuffle操作
-将RDD[T]转换成RDD[K,T],然后因为K是有排序功能的,因此shuffle按照K排序,排序后获取所有排序后的Vlaue集合
+将RDD[T]转换成RDD[K,T],然后因为K是有排序功能的,因此shuffle按照K排序,排序后获取所有排序后的value集合
+注意实现逻辑:
+该RDD的partition,采用抽样的方式,根据抽样的key的排列顺序,划分了key的partition区间,从而保证了key会分配到对应的排序好的partition中,即最终的每一个partition都是有顺序的,
+shuffle又设置Key的排序方式,shuffle又保证了每一个partition内部又有顺序,因此最终就是按照key排号顺序的,不需要map-reduce中最终一个reduce进行排序方案了
 
+15.def glom(): RDD[Array[T]]
+每一个分区内所有元素都进入到一个数组中
+函数是将RDD中每一个分区中类型为T的元素转换成Array[T]，这样每一个分区就只有一个数组元素。
+实现逻辑:
+因为每一个partition进入函数的时候都是一个迭代器,因此将迭代器转换成数组Array[T]即可
 
+16.def pipe(
+         command: Seq[String],
+         env: Map[String, String] = Map(),
+         printPipeContext: (String => Unit) => Unit = null,
+         printRDDElement: (T, String => Unit) => Unit = null,
+         separateWorkingDir: Boolean = false): RDD[String]
+类似与hadoop的streaming方式,让非java和scala的用户也可以使用集群并行的运算数据
+只要服务器上的语言可以支持从标准输入读取数据--运算--输出字符串到标准输出 这种模式,都可以参与到并行计算里面来
+参数说明:
+a.参数提供运行命令(脚本以及参数),脚本内容中包含从标准输入中不断循环读取数据即可
+b.运行环境变量
+c.printPipeContext 提供一个函数,可以在每一个executor运行该脚本前向输出内打印一些信息
+d.printRDDElement 提供一个函数将原始的RDD元素转换成一种String类型,然后标准输入处理转换后的数据
+例如:
+例如:groupBy之后的数据作为数据流传入到pipe中,格式是record:(String, Seq[String])的,但是很不容易让后续脚本操作,最好脚本操作的都是String类型的,
+   因此代替方案是,将属于一个key的集合转换成String类型,然后在将String类型调用f函数进行输出到输入流中
 
-
-
-
+具体demo详细查看PipedRDD的备注以及回家后的视频
 
 
 

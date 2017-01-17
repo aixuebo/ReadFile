@@ -1,0 +1,154 @@
+一、安装JDK
+配置环境信息在source ~/.bashrc中 或者 /etc/profile
+二、创建hadoop的user和group  并且设置密码
+# adduser hadoop
+# passwd hadoop
+
+在hadoop目录下创建ssh,并且设置authorized_keys文件以及权限
+# su - hadoop
+$ ssh-keygen -t rsa
+$ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+$ chmod 0600 ~/.ssh/authorized_keys
+
+多节点ssh无密码登录
+
+三、设置网络
+1.sudo vim /etc/hostname 设置master和ip映射
+192.168.203.182 master
+
+
+2.设置固定ip dns 子网掩码等
+/etc/sysconfig/network-scripts/ifcfg-eth0
+设置参见运维命令
+执行service network restart命令，重启网络服务
+
+3.关闭防火墙
+ubuntu:
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -F
+
+四、下载hadoop,并且解压缩
+tar xzf hadoop-2.7.1.tar.gz
+hadoop目录要设置权限为hadoop用户 hadoop组权限
+
+五、设置配置文件
+1.core.site
+        <property>
+                <name>hadoop.tmp.dir</name>
+                <value>/tmp/hadoop/tmp</value>
+        </property>
+        <property>
+                <name>fs.default.name</name>
+                <value>hdfs://192.168.203.182:9000</value>
+        </property>
+2.hdfs-site.xml
+        <property>
+                <name>dfs.replication</name>
+                <value>2</value>
+        </property>
+        <property>
+                <name>dfs.name.dir</name>
+                <value>/tmp/hadoop/hdfs/name</value>
+        </property>
+        <property>
+                <name>dfs.data.dir</name>
+                <value>/tmp/hadoop/hdfs/data</value>
+        </property>
+        <property>
+                <name>dfs.webhdfs.enabled</name>
+                <value>true</value>
+        </property>
+3.hadoop-env.sh
+后面追加
+export JAVA_HOME=/aixuebo/dev/jdk1.8.0_101
+source hadoop-env.sh
+4.mapred-site.xml
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+    <property>
+        <name>mapreduce.jobhistory.address</name>
+        <value>hdfs://192.168.203.182:10020</value>
+    </property>
+    <property>
+        <name>mapreduce.jobhistory.webapp.address</name>
+        <value>hdfs://192.168.203.182:19888</value>
+    </property>
+5.yarn-site.xml
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>master</value>
+    </property>
+        <property>
+                <name>yarn.nodemanager.aux-services</name>
+                <value>mapreduce_shuffle</value>
+        </property>
+    <property>
+            <name>hadoop.http.staticuser.user</name>
+            <value>hadoop</value>
+    </property>
+6.slave
+192.168.203.198
+192.168.203.199
+
+六、设置对应目录
+/tmp/hadoop/tmp
+/tmp/hadoop/hdfs/name
+/tmp/hadoop/hdfs/data
+
+并且/tmp/hadoop目录的权限是用户hadoop  组hadoop
+
+七、启动集群
+1.hadoop namenode -format 或者 hdfs namenode -format
+2./aixuebo/dev/hadoop-2.7.3/sbin 下执行 ./start-all.sh 启动集群
+jps结果
+31440 NameNode
+581 Jps
+31784 SecondaryNameNode
+31563 DataNode
+32076 NodeManager
+31951 ResourceManager
+3.启动job history
+sbin/mr-jobhistory-daemon.sh start historyserver
+jps结果增加了一个 32441 JobHistoryServer
+
+八、检查结果
+1.http://192.168.203.182:50070/dfshealth.html#tab-overview 查看hdfs信息
+2.http://192.168.203.182:8088/cluster 查看yarn信息
+3.http://192.168.203.182:19888/jobhistory/job/job_1484637263980_0002/ 查看yarn上具体的app任务详细信息
+4.启动一个应用demo
+hadoop jar /aixuebo/dev/hadoop-2.7.3/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.3.jar wordcount /logs/yarn-daemon.sh /logs4/yarn-daemon.sh
+查看结果hadoop fs -cat /logs4/yarn-daemon.sh/* | more
+
+
+
+问题:
+1.为什么要关闭防火墙
+2.为什么要启动和关闭的时候要输入好多次用户密码
+因为启动hadoop的前,要在/home/hadoop/.ssh下建立ssh密钥 authorized_keys文件,并且是644权限,我没有加ssh密钥,因此出现该问题的
+3.如果查看启动过程中出现的问题
+查看/aixuebo/dev/hadoop-2.7.3/logs下相关服务日志
+a.比如jps时候发现yarn没有启动,查看yarn对应的日志发现找不到master,因此设置/etc/hosts后,yarn就可以启动了
+原因是在yarn_site.xml中配置了以下内容,需要到了master
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>master</value>
+    </property>
+b.报错java.lang.IllegalArgumentException: The ServiceName: mapreduce.shuffle set in yarn.nodemanager.aux-services is invalid.The valid service name should only
+在yarn中配置
+<property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+</property>  即可
+c.org.apache.hadoop.yarn.server.webproxy.WebAppProxyServlet: dr.who is accessing unchecked http://master:19888/jobhistory/job/job_1484636063380_0001 which is the app master GUI of application_1484636063380_0001 owned by hadoop
+  即访问yarn上一个执行完的任务的详细信息,看不到内容,页面无法打开
+  <property>
+          <name>hadoop.http.staticuser.user</name>
+          <value>hadoop</value>
+  </property>
+4.history服务后.仍然看不到app的详细信息页面
+因为默认的页面是有问题的,但是暂时不知道怎么设置,正确的路径是:http://192.168.203.182:19888/jobhistory/job/job_1484637263980_0002/
+

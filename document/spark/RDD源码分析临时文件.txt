@@ -288,63 +288,6 @@ abstract class RDD[T: ClassTag](
     Utils.randomizeInPlace(samples, rand).take(num)
   }
 
-
-  /**
-   * Return an RDD created by coalescing all elements within each partition into an array.
-   * 每一个分区内所有元素都进入到一个数组中
-   * 函数是将RDD中每一个分区中类型为T的元素转换成Array[T]，这样每一个分区就只有一个数组元素。
-   */
-  def glom(): RDD[Array[T]] = withScope {
-    new MapPartitionsRDD[Array[T], T](this, (context, pid, iter) => Iterator(iter.toArray)) //每一个partition内元素转换成数组iter.toArray
-  }
-
-  /**
-   * Return an RDD created by piping elements to a forked external process.
-   */
-  def pipe(command: String): RDD[String] = withScope {
-    new PipedRDD(this, command)
-  }
-
-  /**
-   * Return an RDD created by piping elements to a forked external process.
-   */
-  def pipe(command: String, env: Map[String, String]): RDD[String] = withScope {
-    new PipedRDD(this, command, env)
-  }
-
-  /**
-   * Return an RDD created by piping elements to a forked external process.
-   * The print behavior can be customized by providing two functions.
-   *
-   * @param command command to run in forked process.要运行的命令
-   * @param env environment variables to set.设置额外的环境变量信息
-   * @param printPipeContext Before piping elements, this function is called as an opportunity
-   *                         to pipe context data. Print line function (like out.println) will be
-   *                         passed as printPipeContext's parameter.在管道元素之前,这个函数有一次机会去管道上下文信息
-   * @param printRDDElement Use this function to customize how to pipe elements. This function
-   *                        will be called with each RDD element as the 1st parameter, and the
-   *                        print line function (like out.println()) as the 2nd parameter.
-   *                        An example of pipe the RDD data of groupBy() in a streaming way,
-   *                        instead of constructing a huge String to concat all the elements:
-   *                        def printRDDElement(record:(String, Seq[String]), f:String=>Unit) =
-   *                          for (e <- record._2){f(e)}
-   *                          使用这个函数去自定义如何管道元素,这个函数被调用的时候,第一个参数是每一个RDD元素,第二个元素是可以打印该RDD元素
-   *                          例如 循环每一个record.2这个集合,每一个元素进入f函数中作为参数,输出是无输出
-   * @param separateWorkingDir Use separate working directories for each task.每一个任务是否使用单独的工作目录,即是否要进行软连接copy
-   * @return the result RDD
-   */
-  def pipe(
-      command: Seq[String],
-      env: Map[String, String] = Map(),
-      printPipeContext: (String => Unit) => Unit = null,
-      printRDDElement: (T, String => Unit) => Unit = null,
-      separateWorkingDir: Boolean = false): RDD[String] = withScope {
-    new PipedRDD(this, command, env,
-      if (printPipeContext ne null) sc.clean(printPipeContext) else null,
-      if (printRDDElement ne null) sc.clean(printRDDElement) else null,
-      separateWorkingDir)
-  }
-
   // Actions (launch a job to return a value to the user program)
   //以下是Action行为的方法,用于真正去分布式处理
 
