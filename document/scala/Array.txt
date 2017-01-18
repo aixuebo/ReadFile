@@ -5,3 +5,13 @@ b += (1, 2, 3,6,8,5,10)
 var durations = b.toArray
 java.util.Arrays.sort(durations)
 val medianDuration = durations(scala.math.min((0.5 * 3).round.toInt, durations.size - 1)) //获取中位数 durations[2] = 3
+
+二、Array创建
+val weights = Array[Double](0.3,0.2,0.4)
+val sum = weights.sum
+val normalizedCumWeights = weights.map(_ / sum).scanLeft(0.0d)(_ + _)
+
+val numbers = Array(1, 2, 3, 4) //声明一个数组对象
+val first = weights(0) // 读取第一个元素
+weights(2) = 100.0 // 替换第3个元素为100
+val biggerNumbers = weights.map(_ * 2) // 所有元素乘2

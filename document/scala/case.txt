@@ -1,0 +1,8 @@
+ 一、case里面接入if条件判断
+  def matchTest(x:Any):Any = x match{
+    case 1=>"one"
+    case "two"=>2
+    case y:String=>"scala.String"
+    case y:Int if(y%5==0) =>"5 times Int"
+    case _=>"many"
+  }

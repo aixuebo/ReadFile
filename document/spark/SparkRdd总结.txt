@@ -37,6 +37,13 @@ a.使用InputFormat的getSplits方法切分path路径,返回Split数组
 
 ------------------------------------------------------------------------------------
 
+测试基本功能的数据
+val data = List("hi","hello","how","are","you","hi","hello","how","are","you")
+val dataRDD = sc.makeRDD(data,3)
+val pipeRDD = dataRDD.zipWithUniqueId()
+pipeRDD.collect()
+
+
 RDD的基本功能
 一、Transformations
 1.map
@@ -136,17 +143,115 @@ d.printRDDElement 提供一个函数将原始的RDD元素转换成一种String�
 
 具体demo详细查看PipedRDD的备注以及回家后的视频
 
+17.def randomSplit(
+  weights: Array[Double],
+  seed: Long = Utils.random.nextLong): Array[RDD[T]]
+   根据权重,数组weights长度是多少,则就对RDD循环抽样多少次,返回RDD数组,每一个数组内容就是抽样的结果RDD
+   常用于从原始数据中抽出多少比例的训练集合和测试集合
+18.def takeSample(
+         withReplacement: Boolean,
+         num: Int,
+         seed: Long = Utils.random.nextLong): Array[T]
+抽样获取num个元素
+19.def sample(
+         withReplacement: Boolean,
+         fraction: Double,
+         seed: Long = Utils.random.nextLong): RDD[T]
+抽样获取元素
 
 
 Actions
-1.reduce(f: (T, T) => T): T
-调用集合的reduceLeft方法,这个是scala的方法,意思是循环迭代集合,每两个相邻的对象执行一下f方法,结果在与下一个对象运算
-2.def subtract(other: RDD[T]): RDD[T]
+1.def collect(): Array[T] 和 def toArray(): Array[T]
+返回所有运行的结果集,收集每一个partition的结果,每一个partiton的结果都是数组,然后组装成一个大的数组
+
+2.def collect[U: ClassTag](f: PartialFunction[T, U]): RDD[U]
+偏函数作为参数,可以将每一个元素转换成U,不符合参数T的元素可以自动忽略掉
+
+def collectPartitions(): Array[Array[T]]
+返回每一个partition的迭代器集合,即如果RDD有5个partition,则返回数组是5个,其中每一个元素又是一个迭代器,因此是数组套数组
+
+3.def toLocalIterator: Iterator[T]
+将全部的数据返回到本地,返回的结果是元素的迭代器
+
+4.def foreach(f: T => Unit): Unit
+每一个partition的一行内容,即T,被调用函数f进行处理,可以在f函数中进行打印信息操作
+
+5.def foreachPartition(f: Iterator[T] => Unit): Unit
+每一个partition的所有内容,即Iterator[T],被调用函数f进行处理,可以在f函数中进行打印信息操作
+
+6.def reduce(f: (T, T) => T): T
+将每一个partition的数据,进行运算,返回一个T对象,然后每一个partition的结果T再参与运算.最终返回一个T
+即RDD所有的元素进行f运算,返回一个值
+
+def treeReduce(f: (T, T) => T, depth: Int = 2): T
+会调用treeAggregate方法,参见treeAggregate方法
+
+7.def aggregate[U: ClassTag](zeroValue: U)(seqOp: (U, T) => U, combOp: (U, U) => U): U
+聚合,将每一个元素的值进行集合,产生新的元素U,有初始化值
+
+因为aggregate和reduce都是每一个partition去聚合,然后所有partition的数据到driver上再进行最终合并的
+因此如果partition数量很大的话,会造成在driver上的合并会占内存,甚至内存溢出,因此应该让到达driver的partition数量少一些
+
+因此就有了treeAggregate方法
+def treeAggregate[U: ClassTag](zeroValue: U)(
+      seqOp: (U, T) => U,
+      combOp: (U, U) => U,
+      depth: Int = 2): U
+他会在原始RDD上重新根据depth深度.重新规划partition数量
+比如原始partition有100个,要3层,因此首先计算100/3,让partition变成33,然后每一个partition就变成(partitionId % 33,原始记录)这样的元组,进行一次reduceByKey
+这样循环3次,已达到最终driver的数据会合并的很少
+
+8.def fold(zeroValue: T)(op: (T, T) => T): T
+每一个partition都从zeroValue开始初始化,剩下的与reduce相同
+
+9.def count(): Long
+每一个partition计算有多少条数据,在driver中汇总所有数据的条数
+
+10.def max()(implicit ord: Ordering[T]): T 和 def min()(implicit ord: Ordering[T]): T
+找到RDD中最小和最大的元素
+前提是RDD的元素内容是可以比较的,实现方式是调用的reduce方法,找到最小的和最大的
+
+11.def take(num: Int): Array[T]
+获取前num个元素,这些元素是从第0个partition开始获取,一直获取到num数量为止,获取的数据跟排序没关系
+
+12.def first(): T
+获取第一个元素,该第一个元素不是排序后的第一个元素,而就是随意产生的一个元素
+实现原理take(1)
+
+13.def takeOrdered(num: Int)(implicit ord: Ordering[T]): Array[T]
+获取所有RDD中排序后前num个元素,默认的结果的元素是从小到大排序的排序
+实现原理
+a.每一个partition都有一个队列,都从队列中获取num个元素
+b.合并每一个队列,但是最终合并后的队列也是num个元素
+
+14.def top(num: Int)(implicit ord: Ordering[T]): Array[T]
+该方法是takeOrdered的反方法,是从大到小的获取前num条数据
+
+15.def countByValue()(implicit ord: Ordering[T] = null): Map[T, Long]
+获取每一个值出现的次数,即1出现4次..
+实现原理map(value => (value, null)).countByKey()
+
+16.def zipWithUniqueId(): RDD[(T, Long)]
+为每一个元素添加一个唯一的序号,最后组成元组
+
+17.def zipWithIndex(): RDD[(T, Long)]
+为每一个元素产生一个唯一的序号
+该方式不太好,因为他要先扫描所有的partition元素,确定每一个partition中有多少个元素,然后设置每一个partition序号的最小值,然后算出来的序号
+比如3个partition,第一个partition有3个记录,第二个partition有5条记录,第三个partition有2条记录
+因此第一个partition的序号就是0 1 2 第二个partition序号就是3 4 5 6 7 第三个partition序号就是8 9
+
+18.def subtract(other: RDD[T]): RDD[T]
 返回在RDD中出现，并且不在otherRDD中出现的元素，不去重
 将x变成(x,null) 这样K-V结构的就可以调用的PairRDDFunctions里面<K,V>结构的subtract逻辑
 
 
-
+saveFile
+1.def saveAsTextFile(path: String): Unit
+循环所有的partition元素.每一个元素组装成元组(NullWritable.get(),new Text()),然后存储到Hadoop的path下,存储格式是TextOutputFormat[NullWritable, Text]
+2.def saveAsTextFile(path: String, codec: Class[_ <: CompressionCodec]): Unit
+与1方法一样,只是保存的内容不是纯文本,而是使用压缩算法压缩过的内容
+3.def saveAsObjectFile(path: String): Unit
+循环所有的partition元素.每一个元素组装成元组(NullWritable.get(),new BytesWritable(Utils.serialize(元素内容))),存储到hadoop的path下,存储格式是SequenceFileOutputFormat
 
 
 ------------------------------------------------------------------------------------

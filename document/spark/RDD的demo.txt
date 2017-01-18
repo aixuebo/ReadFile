@@ -16,3 +16,27 @@ adsada
 index
 wowow
 )
+
+二、RDD各种转换
+
+val inputPath = "/log/r/test/xxxx.csv"
+val outputPath = "/log/r/test_output2/xxxx.csv"
+
+val dataRDD = sc.textFile(inputPath)
+1.将一行数据转换成元组(userid,line)
+2.对元组进行group by userid分组
+3.对分组的内容获取
+4.存储最终分组内容
+pipeRDD.saveAsTextFile(outputPath)
+val pipeRDD = dataRDD.map{line =>
+ (line.split(",")(0),line)
+}.groupByKey().flatMap(_._2)
+pipeRDD.saveAsTextFile(outputPath)
+
+拿到前20条数据,获取Array数组,然后打印数据内容
+val xxx = pipeRDD.take(20)
+for(x <- xxx) println(x)
+
+pipeRDD.collect() 拿回全部数据
+
+

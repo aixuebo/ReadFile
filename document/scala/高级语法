@@ -101,3 +101,7 @@ var it:Iterator[(String, Int)] = iterators.reduceLeft((x, y) => x ++ y)
 it.foreach(print(_))
 
 可以将flatMap换成map,测试是不通过的,原因就是iterators产生的是Some<String,Int>的迭代器
+
+六、PartialFunction 偏函数
+f: PartialFunction[T, U] 其实就是将T转换成U的函数,只是里面有一个filter功能,即T如果不满足的话,不会报错,只是过滤掉该不符合的元素
+

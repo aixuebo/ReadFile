@@ -1,6 +1,6 @@
 import
 --connect
-jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000
+jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&autoReconnect=true
 --driver
 com.mysql.jdbc.Driver
 --username
@@ -40,7 +40,7 @@ sqoop  --options-file /var/sqoop/ljc_import_hive.txt --delete-target-dir -m 10 -
 其中ljc_import_hive.txt内容
 import
 --connect
-jdbc:mysql://host:port/xxxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&useCursorFetch=true
+jdbc:mysql://host:port/xxxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&useCursorFetch=true&autoReconnect=true
 --driver
 com.mysql.jdbc.Driver
 --username

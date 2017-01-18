@@ -1,0 +1,33 @@
+一、reduceLeft  foldLeft  scanLeft区别
+val abc = List("A", "B", "C")
+
+def add(res: String, x: String) = {
+  println(s"op: $res + $x = ${res + x}")
+  res + x
+}
+
+abc.reduceLeft(add)  组成新的字符串
+// op: A + B = AB
+// op: AB + C = ABC    // accumulates value AB in *first* operator arg `res`
+// res: String = ABC
+
+abc.foldLeft("z")(add) // with start value "z"  有初始化值的reduceLeft
+// op: z + A = zA      // initial extra operation
+// op: zA + B = zAB
+// op: zAB + C = zABC
+// res: String = zABC
+
+abc.scanLeft("z")(add)  依然产生一个数组
+// op: z + A = zA      // same operations as foldLeft above...
+// op: zA + B = zAB
+// op: zAB + C = zABC
+// res: List[String] = List(z, zA, zAB, zABC) // maps intermediate results
+
+二、如何将一个Iterator转换成List,可以看到结果
+scala> normalizedCumWeights.sliding(2)
+res7: Iterator[Array[Double]] = non-empty iterator
+
+scala> normalizedCumWeights.sliding(2).toList
+res6: List[Array[Double]] = List(Array(0.0, 0.3333333333333333), Array(0.3333333333333333, 0.5555555555555556), Array(0.5555555555555556, 1.0))
+
+三、
