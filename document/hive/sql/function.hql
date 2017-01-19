@@ -141,6 +141,11 @@ select date_add('2016-08-17',-(datediff('2016-08-17','2015-01-09') % 7)) 返回�
 25.强制转换 cast as
 cast(actid as String)
 
+26.json
+SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.owner');
+打印 amy
+hive> SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.store.fruit\[0]');
+打印 {"weight":8,"type":"apple"}
 二、generic
 1.对case column when a then b else c end 形式进行处理
  注意:

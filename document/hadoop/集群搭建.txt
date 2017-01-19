@@ -67,7 +67,7 @@ source hadoop-env.sh
 4.mapred-site.xml
     <property>
         <name>mapreduce.framework.name</name>
-        <value>yarn</value>
+        <value>yarn</value><!--该配置集群使用yarn队列-->
     </property>
     <property>
         <name>mapreduce.jobhistory.address</name>

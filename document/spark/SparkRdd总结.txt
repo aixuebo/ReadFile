@@ -253,6 +253,33 @@ saveFile
 3.def saveAsObjectFile(path: String): Unit
 循环所有的partition元素.每一个元素组装成元组(NullWritable.get(),new BytesWritable(Utils.serialize(元素内容))),存储到hadoop的path下,存储格式是SequenceFileOutputFormat
 
+4.persist
+def persist(newLevel: StorageLevel, allowOverride: Boolean): this.type
+def persist(newLevel: StorageLevel): this.type
+def cache() =  def persist() = persist(StorageLevel.MEMORY_ONLY)
+def unpersist(blocking: Boolean = true): this.type
+暂时不理解如何存真正储RDD的
+
+5.def checkpoint(): Unit
+将RDD的内容写入到hdfs上,路径是固定路径/rddId/partitionid对应的文件,即每一个partitionid对应一个文件
+
+checkpoint与persist区别
+cache和persist都是Spark用来缓存数据的方法,
+cache和persist的唯一区别就是cache的存储级别是MEMORY_ONLY，而persist可以指定存储级别
+cache&persist和checkpoint的区别在于cache&persist只是为了加快数据的计算，RDD的依赖链路是完整保存的，在cache&persist的数据不可用时，Spark还可以根据RDD的依赖关系重新计算得到数据。
+而checkpoint检查点对应的RDD的依赖链路是不保存的，对应的RDD只有一个指向检查点文件的父RDD，所以在检查点数据丢失的情况下，Spark是无法根据RDD的依赖链路恢复数据的。
+而且由于cache&persist的数据由BlockManager管理，所以在driver程序执行结束时，被cache&persist的数据也会被清空。而checkpoint的数据是写入诸如HDFS文件系统中的，是独立存在的，所以可以被下一个driver程序执行使用。
+
+
+
+隐式转换
+1.可以将RDD[(K, V)]转换成PairRDDFunctions(rdd),即对KEY-value的RDD增加一些新的功能函数,该函数由PairRDDFunctions类提供
+2.可以将RDD[(K, V)]转换成OrderedRDDFunctions(rdd),条件是Key是支持排序的Key,即对KEY-value的RDD增加一些新的功能函数,该函数由OrderedRDDFunctions类提供
+3.可以将RDD[(K, V)]转换成SequenceFileRDDFunctions(rdd),条件是Key和value都是支持hadoop的Writable接口的,即对KEY-value的RDD增加一些新的功能函数,该函数由SequenceFileRDDFunctions类提供
+4.可以将double的RDD,RDD[Double]转换成DoubleRDDFunctions,为double运算提供了新的函数
+5.可以将RDD[T]元素是Numeric数字类型的都转换成DoubleRDDFunctions,为数字运算提供了新的函数,实现是将每一个数字map成double类型
+6.可以为每一个RDD都转换成AsyncRDDActions,为RDD本身提供了异步的功能函数
+
 
 ------------------------------------------------------------------------------------
 PairRDDFunctions(持有K-V元组形式的RDD作为私有属性,一切RDD操作都是操作该K-V类型的RDD)

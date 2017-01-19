@@ -1,11 +1,11 @@
-1.maven插件有异常,不能使用
+一、.maven插件有异常,不能使用
 异常提示maven.multiModuleProjectDirectory system property is not set
 解决方案
 setting---maven--runner--vm options 设置-Dmaven.multiModuleProjectDirectory=$M2_HOME即可
 
 -Dmaven.multiModuleProjectDirectory=$M2_HOME
 
-2.项目手动打包
+二、.项目手动打包
 file--project structure --artifacts -- jar --empty--other--添加jar包名称,这样会创建出来的jar包
 配置:
 1.从右侧的maven中添加各种第三方jar,因此生成的结果就是jar包了
@@ -13,4 +13,24 @@ file--project structure --artifacts -- jar --empty--other--添加jar包名称,�
 或者
 创建一个archive附件对象,并且移动到内部,将compile output 编译输出文件拖进该附件对象内即可完成。
 
-
+三、依赖的jar包版本冲突
+Exception in thread "main" java.lang.SecurityException: class "javax.servlet.ServletRegistration"'s signer information does not match signer information of other classes in the same package
+提示信息是javax.servlet.ServletRegistration包有冲突
+查看问题:
+执行mvn dependency:tree 可以看到两个版本:
+javax.servlet:javax.servlet-api:jar:3.0.1
+javax.servlet:javax.servlet-api:jar:2.5
+因此取消一个即可
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>2.7.0</version>
+            <scope>${provided_scope}</scope>
+            <!--因为该jar与org.apache.spark.spark-yarn_2.10提供的有版本冲突-->
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
