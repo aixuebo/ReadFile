@@ -65,6 +65,8 @@ def mapPartitions[U: ClassTag](f: Iterator[T] => Iterator[U],
       preservesPartitioning: Boolean = false): RDD[U] {
 相当于Map操作,他是一个变种,map输入函数是应用于RDD中每个元素，而mapPartitions的输入函数是应用于每个分区，也就是把每个分区中的内容作为整体来处理的。
 
+将RDD中的所有数据通过JDBC连接写入数据库，如果使用map函数，可能要为每一个元素都创建一个connection，这样开销很大，如果使用mapPartitions，那么只需要针对每一个分区建立一个connection
+
 b.def mapPartitionsWithIndex[U: ClassTag](
         f: (Int, Iterator[T]) => Iterator[U], //f参数int表示第几个partition,iter表示该partition的数据源的迭代器,返回新的迭代器
         preservesPartitioning: Boolean = false): RDD[U]
@@ -279,6 +281,42 @@ cache&persist和checkpoint的区别在于cache&persist只是为了加快数据�
 4.可以将double的RDD,RDD[Double]转换成DoubleRDDFunctions,为double运算提供了新的函数
 5.可以将RDD[T]元素是Numeric数字类型的都转换成DoubleRDDFunctions,为数字运算提供了新的函数,实现是将每一个数字map成double类型
 6.可以为每一个RDD都转换成AsyncRDDActions,为RDD本身提供了异步的功能函数
+
+
+PartitionPruningRDD
+对父RDD的partition进行精简筛选
+函数partitionFilterFunc表示 传入一个partition的id,返回该partition是否要被筛选掉,返回true的表示是最终要保留的partition
+
+
+1.PartitionerAwareUnionRDD 表示把N个RDD,每一个partition序号相同的,进行合并,即如果有10个partition,则最终结果依然是10个partition,只不过每一个partiton存在了更多的RDD的数据而已
+2.UnionPartition 表示将N个RDD进行合并,称为更大的RDD,但是新的RDD的partition数量是N个RDD的partition数量之和,即不会合并RDD处理
+3.SubtractedRDD 对两个RDD进行运算,找到在第一个RDD中存在的key,但是在第二个RDD中不存在的数据
+该实现逻辑是 如果两个RDD的partitoner不同,则要先进行shuffle,确保同一个key都在同一个partition中,然后才能方便判断是否存在Key
+而在同一个partition中,利用内存方式判断是否存在,因此可能会造成内存益处的可能,但是也不会,因为一个partition的内容都已经装进来了,而一个文件数据块又128M,因此也不会造成内存溢出,但是至少该方法一定是耗费内存的方法
+4.CoGroupedRDD[K](@transient var rdds: Seq[RDD[_ <: Product2[K, _]]], part: Partitioner)
+  extends RDD[(K, Array[Iterable[_]])](rdds.head.context, Nil)
+传入一组RDD[(k,v)],然后对该RDD按照Key分组,返回同一个Key对应每一个RDD的迭代器
+返回值是RDD[(K, (Iterable[V], Iterable[W1], Iterable[W2], Iterable[W3]))],即key与三个RDD对应的迭代器组成的元组作为value返回
+该实现逻辑是 如果多个RDD的partitoner不同,则要先进行shuffle,确保同一个key都在同一个partition中,然后才能方便判断是否存在Key
+肯定耗费内存,因此可能内存溢出,因此该方法默认是支持向磁盘写入和排序的
+返回的迭代器中V是没有顺序的,是乱序的
+5.CartesianPartition
+两个RDD进行笛卡尔乘积运算,即第一个RDD的每一个元素都与第二个RDD的每一个元素进行两两运算,产生元组[Pair[T, U]]
+6.OrderedRDDFunctions
+对RDD[K,V]形式的数据,其中K是支持排序的隐式转换,提供一些附加功能
+a.def sortByKey(ascending: Boolean = true, numPartitions: Int = self.partitions.length) : RDD[(K, V)]
+对RDD[K,V]结构的数据进行排序,按照K进行排序,返回排序后的RDD[K,V]
+该算法有一些运算成本,因为先会扫描一下RDD,采用抽样的方式,将采取回来的数据按照key划分了若干个partition区间,从而保证了key会分配到对应的排序好的partition中,即最终的每一个partition都是有顺序的,
+而shuffle阶段又保证了同一个partition的数据在shuffle的时候又有顺序,因此保证了全局的有序性
+b.def repartitionAndSortWithinPartitions(partitioner: Partitioner): RDD[(K, V)]
+重新分配partition数量,并且保证每一个shuffle的结果是有顺序的,但是不保证多个partition文件中key是有顺序的
+c.def filterByRange(lower: K, upper: K): RDD[P]
+查找全部RDD中的一个子集,子集的内容是key在[lower,upper]区间即可
+设置K的区间范围,即给定该区间的K的最小值和最大值
+
+7.CoalescedRDD
+代表一个合并RDD,合并后的partition比合并前的要少很多,即新的RDD中一个partition会读取父RDD中若干个partition信息即可
+难度在于如何实现的合并划分算法,有时间可以详细看一下视频,因为这个划分算法还是有一定难度的
 
 
 ------------------------------------------------------------------------------------
