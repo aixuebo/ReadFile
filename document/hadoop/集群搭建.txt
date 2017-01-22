@@ -151,4 +151,35 @@ c.org.apache.hadoop.yarn.server.webproxy.WebAppProxyServlet: dr.who is accessing
   </property>
 4.history服务后.仍然看不到app的详细信息页面
 因为默认的页面是有问题的,但是暂时不知道怎么设置,正确的路径是:http://192.168.203.182:19888/jobhistory/job/job_1484637263980_0002/
+5.java.net.NoRouteToHostException: No route to host问题的解决
+属于防火墙没有关闭导致的
+service iptables stoop
+或者卸载掉防火墙
+apt-get remove iptables
+-----------------------------
+搭建slove节点
+1.让hadoop masert可以ssh访问到slove就可以
+2.复制hadoop的目录到datanode节点
+3.在datanode节点上创建对应的文件夹
+4.修改hadoop在datanode上的配置信息--配置都是指向master的配置,本地不需要配置
+5.在master上配置slove文件,只是datanode的ip集合,一个ip一行记录
+6.在master上启动satr-all.sh,master就可以通过ssh到datanode上了,因此datanode就也启动了
+7.启动后,jps显示进程
+master上 NameNode  dataNode  SecondNameNode NodeManager ResourceManager
+datanode上只有 NameNode  dataNode
 
+具体更改哪些配置文件
+
+1.core.site
+什么也不更改,因为里面配置的原始内容就是master的地址,通过该地址,datanode可以向找到hdfs的信息
+2.hdfs-site.xml
+改动一个地方
+a.因为datanode不需要hadoop namenode -format,因此不需要name目录,因此删除dfs.name.dir配置信息
+3.hadoop-env.sh
+ 不需要更改
+4.mapred-site.xml
+什么也不需要更改,因为他们都是指向master的,即jobhistory相关url都是在master上启动的
+5.yarn-site.xml
+什么也不改
+6.将slove的内容清除,因为不需要datanode知道哪些节点是datanode
+7.创建对应的本地文件夹hadoop.tmp.dir   dfs.data.dir,并且设置权限

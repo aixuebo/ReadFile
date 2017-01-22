@@ -19,11 +19,11 @@
 cat /proc/cpuinfo 查看cpu
 df -h 查看磁盘
 du -sh * 查看磁盘
+du -shm * | sort -rn | head 其中-m表示都转换成M单位,sort -r表示倒排序
 
 查看电脑资源
 1.uname -a 查看操作系统多少位
 cat /proc/cpuinfo 查看cpu
-df -h 查看磁盘
 
 2./etc/profile 是系统的环境变量
 3./etc/group  文件是用户组的配置文件
