@@ -442,3 +442,163 @@ c.sampleByKey
       fractions: Map[K, Double],
       seed: Long = Utils.random.nextLong): RDD[(K, V)]
 抽样返回RDD的一个子集,用于抽样查看相关逻辑
+
+
+------------------------------
+Streaming
+一、ReceivedBlockTracker
+主要操作三个事件
+1.接收到数据信息ReceivedBlockInfo,将ReceivedBlockInfo信息追加到streamId对应的队列中,此时已经表示数据块已经接收完成,但是还没有进行streaming处理
+该对象表示一个streamingId,接收到了一个数据块,该数据块有多少条数据,以及一些元数据备注信息
+private[streaming] case class ReceivedBlockInfo(
+    streamId: Int,//哪个stream
+    numRecords: Option[Long],//该数据块有多少条数据
+    metadataOption: Option[Any],//该数据块的元数据信息内容.比如是kafka的话,会有topic-partition以及offset等信息
+    blockStoreResult: ReceivedBlockStoreResult //存储后的结果
+
+二、定期从队列中将每一个streamId对应的ReceivedBlockInfo集合 提取出来
+三、定期清理二中的数据,防止浪费内存
+
+------------------------------
+Streaming的recerver包
+一、RateLimiter(conf: SparkConf) 流量控制器
+因为接收数据的时候可能流量过大,防止流量过大,因此使用该类可以控制流量
+1.def getCurrentLimit: Long = rateLimiter.getRate.toLong 获取当前流量
+2.def updateRate(newRate: Long) 更新流量,但是不能超过最大流量值
+3.def waitToPush() 每次插入数据的时候都调用该方法,该方法会当超速流量的时候阻塞住,该方法一旦返回,说明可以继续接收数据
+
+二、BlockGenerator 数据块产生器
+  因为数据是一行一行接收的,而存储的文件是按照一个数据块为单位存储的,即一个数据块应该包含多条数据,因此就有该类用于在内存收集数据,然后定期将收集的数据写入到数据块文件中。
+  改善:
+  1.该类是定期的收集数据,如果定期周期比较小,数据产生慢,因此会产生很多小的数据块,因此应该再加入一个最小的条数,达到该条数再收集数据。
+  2.BlockGeneratorListener 该类持有一个监听器,用于监听一些事情
+  def onAddData(data: Any, metadata: Any) 当一条数据或者一组数据添加后,调用该监听,第一个参数是数据内容,第二个参数是一些备注信息
+  def onGenerateBlock(blockId: StreamBlockId) 当数据积攒一定程度后,产生一个数据块时候调用该函数,即通知已经产生了一个数据块
+  def onPushBlock(blockId: StreamBlockId, arrayBuffer: ArrayBuffer[_]) 将产生的数据块准备写入到磁盘时候调用该方法,该方法保存数据块ID以及数据块内容
+  def onError(message: String, throwable: Throwable) 收集过程中出现异常时候调用
+  3.def addData(data: Any) 仅仅单独添加数据,将数据添加到内存数组中,作为收集接收到的数据  要检查流量
+  4.def addDataWithCallback(data: Any, metadata: Any) 收集数据到数组中,并且调用监听器listener.onAddData(data, metadata) 要检查流量
+  5.def addMultipleDataWithCallback(dataIterator: Iterator[Any], metadata: Any)  收集数据到数组中,并且调用监听器listener.onAddData(data, metadata) 要检查流量
+  6.每隔一定周期,即200ms时候调用updateCurrentBuffer方法,进行切换数据块,产生一个新的数据块,将收集的数据都附属给该数据块
+    产生新的数据块内容,仅仅是包含数据块ID和数据块内容,但是没有写入到磁盘,因此将这些信息存储在队列中
+    调用listener.onGenerateBlock(blockId)
+  7.blockPushingThread 有一个线程,不断的从队列中获取已经准备好的数据块进行处理,没有数据块则阻塞,获取到数据块后,调用listener.onPushBlock(block.id, block.buffer)
+
+三、ReceiverSupervisorImpl 中实现了BlockGeneratorListener
+  private val defaultBlockGeneratorListener = new BlockGeneratorListener {
+      def onAddData(data: Any, metadata: Any): Unit = { }
+
+      def onGenerateBlock(blockId: StreamBlockId): Unit = { }
+
+      def onError(message: String, throwable: Throwable) {
+        reportError(message, throwable)
+      }
+
+      def onPushBlock(blockId: StreamBlockId, arrayBuffer: ArrayBuffer[_]) {
+        pushArrayBuffer(arrayBuffer, None, Some(blockId))
+      }
+    }
+四、Receiver
+当了解了如何对产生的数据信息收集,以及如何产生一个新的数据块,并且写入到具体文件中后,我们来看一下 接收数据的接口是如何定义的
+每一个streaming都要有一个数据入口,这个类就是数据接收器,接收的每一行数据的类型都是T
+Receiver[T](val storageLevel: StorageLevel) extends Serializable
+1.def onStart()  def onStop() 打开和关闭一个接收器,即如何开始接收数据以及结束接收数据
+2.def restart(message: String) ---- supervisor.restartReceiver(message) 如何重新开启一个接收器
+3.def preferredLocation : Option[String] 建议在哪个节点上执行该接收器
+4.def store(dataItem: T) 如何存储一条数据 supervisor.pushSingle(dataItem)
+5.如何存储一组数据
+def store(dataBuffer: ArrayBuffer[T]) ---- supervisor.pushArrayBuffer(dataBuffer, None, None)
+def store(dataBuffer: ArrayBuffer[T], metadata: Any) ----- supervisor.pushArrayBuffer(dataBuffer, Some(metadata), None)
+def store(dataIterator: Iterator[T]) ---- supervisor.pushIterator(dataIterator, None, None)
+def store(dataIterator: java.util.Iterator[T], metadata: Any) --- supervisor.pushIterator(dataIterator, Some(metadata), None)
+def store(dataIterator: java.util.Iterator[T]) ---- supervisor.pushIterator(dataIterator, None, None)
+def store(dataIterator: Iterator[T], metadata: Any) ---- supervisor.pushIterator(dataIterator, Some(metadata), None)
+def store(bytes: ByteBuffer) supervisor.pushBytes(bytes, None, None)
+def store(bytes: ByteBuffer, metadata: Any) supervisor.pushBytes(bytes, Some(metadata), None)
+6.def reportError(message: String, throwable: Throwable) ---- supervisor.reportError(message, throwable) 如何报告异常
+7.def streamId: Int = id 该接收器属于哪个streaming
+8.supervisor ReceiverSupervisor 接收器真正的工作者,即如何存储数据的,如何停止的,如果处理异常的
+
+五、ReceiverSupervisor 如何处理接收到的数据的抽象类
+一个接收器Receiver 对应一个该对象,是该对象启动和停止了Receiver
+1.futureExecutionContext 内部一个线程池,最多允许128个线程
+2.存储数据的抽象方法
+def pushSingle(data: Any)
+def pushBytes(
+bytes: ByteBuffer,//数据内容
+optionalMetadata: Option[Any],//数据的元数据--附加的一些信息
+optionalBlockId: Option[StreamBlockId]//数据存储在哪个数据块
+)
+def pushIterator(
+iterator: Iterator[_],
+optionalMetadata: Option[Any],
+optionalBlockId: Option[StreamBlockId]
+)
+def pushArrayBuffer(
+arrayBuffer: ArrayBuffer[_],
+optionalMetadata: Option[Any],
+optionalBlockId: Option[StreamBlockId]
+)
+3.def reportError(message: String, throwable: Throwable) 报告错误
+4.def start()  def stop(message: String, error: Option[Throwable])
+5. def createBlockGenerator(blockGeneratorListener: BlockGeneratorListener): BlockGenerator  传入一个监听器,创建一个数据块产生器
+六、ReceiverSupervisorImpl 具体的接收器实现类
+1.onStart() 和 onStop(message: String, error: Option[Throwable])
+对内部的数据块产生器进行start和stop方法处理
+2.def onReceiverStart() 和 def onReceiverStop(message: String, error: Option[Throwable])
+对调度包下的ReceiverTracker进行socket通信,发送receiver已经启动了以及已经停止了,即注册和取消注册一个receiver
+3.val registeredBlockGenerators = new mutable.ArrayBuffer[BlockGenerator]
+对该receiver上产生数据块行为进行事件监听的一组集合.可以多个监听一起监听该事件
+4.def nextBlockId = StreamBlockId(streamId, newBlockId.getAndIncrement) 创建新的数据块
+一个receiver有多个数据块,数据块每隔一定周期就产生一个,但是他们有相同的前缀,即streamId,因为一个receiver就是一个streamId
+5.def pushSingle(data: Any) 只是将一条该数据加入到内存中
+6.def pushAndReportBlock(
+      receivedBlock: ReceivedBlock,
+      metadataOption: Option[Any],
+      blockIdOption: Option[StreamBlockId]
+    )
+当添加一组信息的时候,将这些信息组装成一个数据块,真正意义去存储到磁盘上
+然后向调度包下的ReceiverTracker进行socket通信,发送AddBlock(blockInfo) 即当一个数据块进入磁盘后,通知其他服务说你可以操作这个数据块了
+blockInfo 包含 哪个streaming以及插入多少条数据以及对应的数据块ID
+7.def reportError(message: String, error: Throwable) 发送错误信息,向调度包下的ReceiverTracker进行socket通信,发送ReportError对象
+8.上面的6说真正将数据块的数据写入到磁盘了,那么如何写入的呢?
+WriteAheadLogBasedBlockHandler 或者 BlockManagerBasedBlockHandler 进行真正意义的存储数据
+9.本地开启服务,让调度包下的ReceiverTracker发送信息,进行删除一些已经没意义的数据、停止该receiver以及更新流量速度
+可以接收的信息参见ReceiverMessage类提供的接口
+
+七、ReceivedBlockHandler 用于真正意义的存储数据块的数据到磁盘上
+1.ReceivedBlockHandler 接口
+def storeBlock(blockId: StreamBlockId, receivedBlock: ReceivedBlock): ReceivedBlockStoreResult 存储该数据块ID以及数据块ID对应的内容,返回存储结果
+def cleanupOldBlocks(threshTime: Long) 清理过期的数据
+2.ReceivedBlockStoreResult 保存结果的接口
+def blockId: StreamBlockId 数据块ID,即属于哪个数据块的保存结果
+def numRecords: Option[Long] 该数据块内保存了多少条数据
+3.高级的保存结果的接口 WriteAheadLogBasedStoreResult
+不仅存储了数据块ID以及多少条数据,还多加了WriteAheadLogRecordHandle对象,用于知道日志的位置
+4.BlockManagerBasedBlockHandler磁盘存储器,将结果存储到磁盘上
+调用BlockManager.putIterator(blockId, arrayBuffer.iterator, storageLevel)方法将数据属于的blockId以及内容迭代器添加到存储器中,存储的级别取决于参数StorageLevel
+不支持cleanupOldBlocks删除方法
+5.WriteAheadLogBasedBlockHandler 保存在存储器上,同时也保存在日志中做备份
+第一部分:保存
+a.调用blockManager.dataSerialize将数据块内容序列化成字节数组
+b.调用blockManager.putBytes 将字节数组添加到存储级别中
+  同时调用writeAheadLog.write(serializedBlock, clock.getTimeMillis()) 将字节数组添加到日志中,并且返回WriteAheadLogRecordHandle对象
+c.将数据块ID以及该数据块内包含多少条数据以及日志的返回值WriteAheadLogRecordHandle组装成WriteAheadLogBasedStoreResult 结果返回
+第二部分 清理老数据
+cleanupOldBlocks 调用writeAheadLog.clean(threshTime, false),清理日志中的过期数据
+第三部分 细节
+a.private val writeAheadLog = WriteAheadLogUtils.createLogForReceiver(conf, checkpointDirToLogDir(checkpointDir, streamId), hadoopConf) 创建日志对象
+
+
+
+
+
+
+
+
+
+
+
+
+
+

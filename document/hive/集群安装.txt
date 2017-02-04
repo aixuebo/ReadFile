@@ -57,3 +57,4 @@ dbc:mysql://192.168.209.1:3306/metastore_hive_db?createDatabaseIfNotExist=true&a
 启动元数据
 bin/hive --service metastore &
 
+
