@@ -19,7 +19,7 @@ Alt+F7 查找该方法或该类在哪些地方被调用了
 Ctrl+Alt+B 跳转到方法的实现处
 Alt+回车 自动import导入包
 ctrl+j 可以查找main 然后sout
-alt + insert 可以设置set/get、重写父类等方法
+alt + insert 可以设置set/get 重写父类等方法
 ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
 ctrl+i 导入未实现的抽象方法  code--implement method里面
 Ctrl+/或Ctrl+Shift+/注释（//或者/**/） 再次按这个快捷键,可取消备注
