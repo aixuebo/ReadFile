@@ -809,3 +809,14 @@ c.如果已经没有job可以执行了,即该jobset都执行完了
  则在调度器中移除该jobset
  jobGenerator.onBatchCompletion(jobSet.time) //设置该jobSet全部完成
  listenerBus.post(StreamingListenerBatchCompleted(jobSet.toBatchInfo))
+-----------------------------
+ReducedWindowedDStream滑动窗口
+背景描述：在社交网络（例如微博），电子商务（例如京东），热搜词（例如百度）等人们核心关注的内容之一就是我所关注的内容中，大家正在最关注什么或者说当前的热点是什么，这在市级企业级应用中是非常有价值，例如我们关心过去30分钟大家正在热搜什么，并且每5分钟更新一次，这就使得热点内容是动态更新的，当然更有价值
+-----------------
+DStream
+一、方法
+1.def foreachRDD(foreachFunc: (RDD[T], Time) => Unit) 每一个RDD都会调用该函数进行处理
+与该方法意义相同的包括foreach方法
+该方法背后调用class ForEachDStream,该类会收集此时的RDD信息,然后与此时的时间点组合作为参数,调用foreachFunc函数进行真正的逻辑处理
+2.
+

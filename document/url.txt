@@ -65,6 +65,11 @@ https://www.iteblog.com/archives/1555
 http://blog.csdn.net/bluejoe2000/article/details/41456789
 http://blog.csdn.net/shadow_mi/article/details/51821613
 
+
+spark streaming
+http://blog.csdn.net/erfucun/article/details/52296353
+http://www.cnblogs.com/shishanyuan/p/4747735.html
+
 java
 http://docs.oracle.com/javase/tutorial/deployment/jar/index.html
 
