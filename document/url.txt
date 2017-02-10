@@ -75,3 +75,7 @@ http://docs.oracle.com/javase/tutorial/deployment/jar/index.html
 
 数学
 http://www.ee.ucl.ac.uk/~mflanaga/java/
+信息熵
+https://www.zhihu.com/question/22178202
+https://www.zhihu.com/question/30828247
+https://www.zhihu.com/question/24053383
