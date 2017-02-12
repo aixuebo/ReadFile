@@ -1,0 +1,43 @@
+总结
+1.Receiver 开启后不断接受数据,调用Receiver的store方法存储数据
+2.Receiver方法会让ReceiverSupervisorImpl的pushSingle(data: Any) 一条一条的接受数据 或者直接receiver自己产生一组数据块.
+然后直接调用ReceiverSupervisorImpl的pushArrayBuffer也可以,此时直接跳转到第4的后半步。
+但是针对ReceiverSupervisorImpl的pushSingle(data: Any)方法,BlockGenerator会接收到一个数据信息
+3.存储到BlockGenerator中,而BlockGenerator中会定期将积攒的数据产生一个数据块,然后产生事件--最终会调用onPushBlock方法
+a.def onAddData(data: Any, metadata: Any)
+b.def onGenerateBlock(blockId: StreamBlockId)
+c.def onPushBlock(blockId: StreamBlockId, arrayBuffer: ArrayBuffer[_])
+d.def onError(message: String, throwable: Throwable)
+4.ReceiverSupervisorImpl的默认监听器监听onPushBlock事件,就会调用ReceiverSupervisorImpl的pushArrayBuffer方法真正的存储数据到磁盘上
+5.存储到磁盘后会通知driver端,发送AddBlock(blockInfo)事件
+
+
+期间产生的事件
+receiver 发送给driver数据
+trackerEndpoint.askWithRetry[Boolean](AddBlock(blockInfo))
+trackerEndpoint.send(ReportError(streamId, message, errorString))//向master发送错误信息
+
+  override protected def onReceiverStart(): Boolean = {
+    val msg = RegisterReceiver(
+      streamId, receiver.getClass.getSimpleName, hostPort, endpoint)
+    trackerEndpoint.askWithRetry[Boolean](msg)
+  }
+
+  override protected def onReceiverStop(message: String, error: Option[Throwable]) {
+    logInfo("Deregistering receiver " + streamId)
+    val errorString = error.map(Throwables.getStackTraceAsString).getOrElse("")
+    trackerEndpoint.askWithRetry[Boolean](DeregisterReceiver(streamId, message, errorString))
+    logInfo("Stopped receiver " + streamId)
+  }
+
+
+driver 发送给receiver数据
+
+private[streaming] object StopReceiver extends ReceiverMessage //让Receiver停止
+
+private[streaming] case class CleanupOldBlocks(threshTime: Time) extends ReceiverMessage //让Receiver清理老一些的数据块信息
+
+private[streaming] case class UpdateRateLimit(elementsPerSecond: Long)
+                   extends ReceiverMessage //让Receiver更新带宽速度
+
+---------------------------------
