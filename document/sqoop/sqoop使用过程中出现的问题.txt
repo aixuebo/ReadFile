@@ -94,3 +94,9 @@ b.user_info表有id 和userid 是null的,原因也是回车问题导致的串行
 
 5.支持分区
 --hive-partition-key log_create_date --hive-partition-value 2016-11-11 --hive-table new_table_name
+
+6.重要参数
+a.当mysql中导入到hdfs的数据,默认每一个字段是使用\t进行拆分的,因此hive会按照\t去分割数据文件成字段,但是有时候数据库描述信息是有\t内容的,因此会导致数据串行
+在import的时候加入参数  --fields-terminated-by '\001'可以将mysql的拆分符号设置为acsii的1,这样就可以了
+
+

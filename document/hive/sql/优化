@@ -29,3 +29,4 @@ case when ad.bankcard is null or strTrim(ad.bankcard) = '' then concat(ceil(rand
 
 
 检查是否数据倾斜,就看结果文件是否大小不同就可以
+

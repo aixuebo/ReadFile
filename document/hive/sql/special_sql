@@ -36,6 +36,7 @@ c.select的最后几个字段的值就是分区的值
 
 注意:动态分区不要过多,否则会引起问题,因此有时候太多分区的话,要分批进行,比如我这边时间跨度是1年半,我就按照季度执行一次即可。
 当然你也可以写mr自己做这事儿,但是有时候不必要那么麻烦,多循环几次也还可以接受。
+动态分区最多支持100个,如果一次性超过100个,经常容易出错误
 
 5.在select中用两个case when 的sum做差,获取连续两天的数据增量
 sum(case when log_day = '20160623' then premium_final else 0 end )-sum(case when log_day = '20160622' then premium_final else 0 end ) premium_final_last,

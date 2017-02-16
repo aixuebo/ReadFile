@@ -33,3 +33,9 @@ set hive.execution.engine=tez;
 set mapred.job.name='topic_order-detail-1-${create_time}';
 五、设置hive的输出文件后缀
 set hive.output.file.extension=.c1;
+
+六、设置动态分区
+a.set hive.exec.dynamic.partition.mode=nostrick;
+b.insert overwrite table dim.topic_user_partition partition(log_day)
+c.select的最后几个字段的值就是分区的值
+

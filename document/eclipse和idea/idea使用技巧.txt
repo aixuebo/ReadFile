@@ -40,6 +40,7 @@ Ctrl+Tab 切换一大堆的tab页面,即class类
 ctrl+N 可以查找class,即navigate--class
 Shift+Shift 即可在一个弹出框中搜索任何东西，包括类、资源、配置项、方法等等。
 ctrl + F12获取该类所有的方法,再次F12,则显示父类的所有方法
+structure 上 随意点一个方法,然后就可以搜索一个类上哪一个方法了
 Ctrl+Shift+ALT+N 表示在一个class里面获取对应的方法或者变量
 Ctrl+F 在当前窗口中查找任意字符出现位置,再配合F3/Shift+F3前后移动到下一匹配处。
 Ctrl+Shift+F 在全工程中查找任意字符出现位置,再配合F3/Shift+F3前后移动到下一匹配处。

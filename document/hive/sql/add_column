@@ -6,6 +6,7 @@ ALTER TABLE invites ADD COLUMNS (new_col2 INT COMMENT 'a comment');
 
 删除该分区
 ALTER TABLE summary.leave_users DROP IF EXISTS PARTITION (log_day='20160531');
+ALTER TABLE summary.leave_users DROP IF EXISTS PARTITION (log_day>='20160531');
 重新添加该分区
 alter table summary.leave_users add partition (log_day='20160531') location '/path/log_day=20160531';
 
