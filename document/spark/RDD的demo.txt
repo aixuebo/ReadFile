@@ -77,3 +77,31 @@ pipeRDD.collect() 拿回全部数据
     }
 sqlContext.udf.register("constellation",  (x:String) => myfun(x))
 
+四、spark的排序
+1.spark 保证key-value中按照value排序
+答案 : sortByKey方法或者sortBy方法即可
+2.spark 如何做到全局排序 或者相同key的情况下 value局部排序
+这个就是二次排序,他比hadoop的代码量要小很多
+a.首先根据key进行groupby操作
+注意:以下(row.getString(0))对应的一行记录中的userid,因此先按照userid进行分组
+var userRdd = premiumRawData.rdd.groupBy { row =>
+      (row.getString(0))
+    }.map { useridToRow =>
+      //val userList = useridToRow._2.toList.sortBy( rowEle => rowEle.getString(1)).reverse
+      val userList = useridToRow._2.toList.sortWith(_.getString(1) > _.getString(1))
+      userList.foreach(println(_))
+      1
+    }.foreach{ x =>
+      println("=="+x)
+    }
+b.对于分组后,保证一个节点上已经存在该user的所有信息,因此获取的useridToRow是key和value的迭代器
+因此useridToRow._2获取的是value的迭代器,因为迭代器可以转换成List或者Array等集合,因此将其转换成集合
+c.集合是可以排序的,scala就可以完成排序,因此实现了二次排序功能
+sortBy( rowEle => rowEle.getString(1)) 中rowEle 表示一个Row对象,而1位置是date时间类型.因此是按照时间类型进行排序,默认是升序,如果要降序,则两种方法
+第一种调用集合的.reverse方法进行反转。
+第二种使用.sortWith(_.getString(1) > _.getString(1))方法,在该方法里面定义如何对两个对象排序,因为是降序,所以谁大是在前面,因此函数的boolean返回true时候是谁大就返回true
+
+如果二次排序不是基于一个字段,而是基于若干个字段,比如两个字段,则将排序里面设置元组即可,例如 rows.sortBy(row => (row.lastName, row.firstName))
+
+3.spark 如何保证每一个key获取属于该key的最大值
+即一个key对应一个数据,可以给T转换成一个函数,函数是要最大值即可,比如reduceByKey(mix(value))
