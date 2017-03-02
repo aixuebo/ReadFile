@@ -1,0 +1,16 @@
+一、dataframe的数据保存到hive的表中
+  finalResult.registerTempTable("aa")//先声明一个临时表名字
+  finalResult.sqlContext.sql("insert overwrite table databases.dim_user_arima partition(log_create_date='2017-02-27') select create_time,userid,redeem_amount,modelInfo,lambda,mean,pred_se,surprise from aa")
+二、从csv文件中加载dataframe
+      <dependency>
+          <groupId>com.databricks</groupId>
+          <artifactId>spark-csv_2.10</artifactId>
+          <version>1.4.0</version>
+      </dependency>
+val filepath1 = "F:\\Project\\20170210_Arima_premium_predict\\samples.csv"//数据内容用逗号拆分,每一行一条数据
+val premiumRawData = sqlContext.read.format("com.databricks.spark.csv").option("inferSchema","true").load(filepath1).toDF("userid","premium_final","log_day") //存量数据
+三、初始化的一些环境
+  val sc = new SparkContext(conf)
+  val sqlContext = new SQLContext(sc)
+  val hiveSqlContext = new HiveContext(sc) //执行hive
+  import sqlContext.implicits._ //可以隐式转换$("属性")

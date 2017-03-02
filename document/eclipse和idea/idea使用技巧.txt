@@ -67,7 +67,7 @@ setting--pulgin--搜索要的插件--install即可
 解决方案
 setting---maven--runner--vm options 设置-Dmaven.multiModuleProjectDirectory=$M2_HOME即可
 
--Dmaven.multiModuleProjectDirectory=$M2_HOME
+-Dmaven.multiModuleProjectDirectory=$M2_HOME -Xms250m -Xmx250m
 
 
 6.Idea设置编译JDK版本的三个地方

@@ -1,0 +1,24 @@
+一、val conf = new SparkConf().setAppName("Arima_premium_predict").set("spark.executor.instances", "30").set("spark.executor.cores", "1").set("spark.executor.memory", "3g").set("spark.ui.port","4038")
+表示开启30个executor,每一个executor有一个线程,一个executor一共持有3G内存,ui在端口4038上执行
+val conf = new SparkConf().setAppName("Arima_premium_predict").setMaster("local") 表示本地模式执行
+二、spark的rdd如何产生job
+1.spark的rdd是一个action行为产生一个job
+2.在一个action内,有若干个transfer,而transfer还有分shuffle阶段的,一次shuffle阶段就表示一个stage
+三、广播
+1.object MyObject extends App { 在这里面的广播是返回null的,不可以被使用
+例如
+val logDateDelimiter = args(0) //"2017-02-27" //此时程序处理什么时候的日志,带有分隔符
+val logDate = DateUtil.convert(logDateDelimiter) //"20170227"
+val blogDate = sc.broadcast(logDate)
+
+blogDate.value = null
+
+2.要想被使用,则在main方法中使用
+object ArimaPremiumPredictHive {
+
+def main (args: Array[String]) {
+	val logDateDelimiter = args(0) //"2017-02-27" //此时程序处理什么时候的日志,带有分隔符
+	val logDate = DateUtil.convert(logDateDelimiter) //"20170227"
+	val blogDate = sc.broadcast(logDate)
+	
+	blogDate.value != null

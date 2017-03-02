@@ -34,6 +34,14 @@ last_create_date STRING COMMENT '最后计息时间',
 last_premium DOUBLE COMMENT '当前存量')
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
 
+外部表
+CREATE EXTERNAL TABLE IF NOT EXISTS etl.mobile_region (
+mobile STRING,
+province STRING,
+city STRING)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+LOCATION '/log/statistics/etl/mobile_region';
+
 六、创建数据库
 create database if not exists databaseName location 'path';
 
