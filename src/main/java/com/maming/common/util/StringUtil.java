@@ -50,6 +50,21 @@ public class StringUtil {
     public static String trim(String value) {
         return trim(value, "");
     }
+    
+	public static double toDouble(String value, double defaultValue) {
+		try {
+			if ("".equals(trim(value))) {
+				return defaultValue;
+			}
+			return Double.parseDouble(value);
+		} catch (Exception ex) {
+			return defaultValue;
+		}
+	}
+	
+	public static double toDouble(String value) {
+		return toDouble(value, 0d);
+	}
 
     public static String cut(String value, int len) {
         if (trim(value).length() > len) {
@@ -81,6 +96,7 @@ public class StringUtil {
         return df1.format(decimalLong);
     }
 
+//scala版本BigDecimal.valueOf(0.09).setScale(1,BigDecimal.RoundingMode.DOWN)
     public static BigDecimal div(String value1, String value2) {
         return new BigDecimal(value1).divide(new BigDecimal(value2), 2, BigDecimal.ROUND_HALF_UP);
     }
@@ -194,6 +210,11 @@ public class StringUtil {
     	return MessageFormat.format(pattern, arr);
     }
     
+	//保留n位小数
+	public static double formatDecimal(double value) {
+		return Double.parseDouble(new DecimalFormat("###.00").format(value));
+	}
+	
     public static void main(String[] args) {
         int[] a = new int[]{5, 6, 7};
         String xx = StringUtil.setIntegerArrToString(a);

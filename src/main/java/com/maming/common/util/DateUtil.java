@@ -1,5 +1,8 @@
 package com.maming.common.util;
 
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -15,9 +18,27 @@ public class DateUtil {
 			"yyyy-MM-dd HH:mm:ss,SSS");
 	public static final DateFormat YMD_Middler_SINGLE = new SimpleDateFormat(
 			"yyyy-MM-dd");
-
 	
-	//每个月的开头和结尾
+	//多线程方式
+    public static final DateTimeFormatter YMD_ = DateTimeFormat.forPattern("yyyy-MM-dd");
+    public static final DateTimeFormatter YMD = DateTimeFormat.forPattern("yyyyMMdd");
+    //当前日期 DateUtil.YMD_.print(System.currentTimeMillis()
+
+    
+	//将yyyy-MM-dd 转换成 yyyyMMdd形式
+	public static String convert(String delimiterDate) {
+	    return YMD.print(YMD_.parseDateTime(delimiterDate));
+	}
+	
+	public static String aggregatorDateBy(String date, int dayNum) {
+	    return YMD.print(YMD.parseDateTime(date).plusDays(dayNum));
+	}
+	
+	public static String aggregatorDateMiddle(String date, int dayNum) {
+	    return YMD_.print(YMD_.parseDateTime(date).plusDays(dayNum));
+	}
+
+    //每个月的开头和结尾
 	public void month(){
 		
 		Date date = new Date();
