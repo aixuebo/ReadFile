@@ -3,7 +3,7 @@
 <build>
 	<plugins>
 		<plugin>
-			<group>org.apache.maven.plugins</group>
+			<groupId>org.apache.maven.plugins</groupId>
 			<artifactId>maven-compiler-plugin</artifactId>
 			<configuration>
 				<source>1.5</source>

@@ -1,0 +1,63 @@
+一、纯粹java部署
+#!/bin/bash
+###无意义的时间
+now=`date "+%G-%m-%d %H:%M:%S"`
+d=`date -d "-1 day" +%Y%m%d`
+echo $d
+
+libPath=/server/app/test/java_project_kafka/lib
+logPath=/server/logs/java_project_kafka
+
+export LIB_PATH=$libPath/*.jar
+cp=`echo $LIB_PATH | sed -e 's/ /:/g'`
+
+java -ms200m -mx200m -cp ${cp} com.maming.kafka.main $* 1>>$logPath/appout.log 2>>$logPath/apperr.log
+
+echo ending
+### nohup sh run.sh &
+
+注意:
+su - root  因为这个时候才是java8,必须java8才能跑
+
+cp的结果是所有jar包用:分隔,例如/server/app/hdfs_web/lib/commons-beanutils-1.8.0.jar:/server/app/hdfs_web/lib/commons-collections-3.2.1.jar
+
+二、不是spark或者hadoop
+#!/bin/bash
+###无意义的时间
+now=`date "+%G-%m-%d %H:%M:%S"`
+d=`date -d "-1 day" +%Y%m%d`
+echo $d
+
+libPath=/server/app/statistic/1.8
+logPath=/server/logs/statistic
+
+export LIB_PATH=$libPath/*.jar
+
+test=`echo $LIB_PATH | sed -e 's/ /,/g'`
+
+export HADOOP_CLASSPATH=`echo $LIB_PATH | sed -e 's/ /:/g'`
+
+hadoop jar /server/app/statistic/job/statistic.jar com.maming.kafka.hadoopMain -libjars $test $* 1>>$logPath/appout.log 2>>$logPath/apperr.log
+
+三、hive
+#!/bin/bash
+m=`date -d "-1 day" +%Y%m`
+d=`date -d "-1 day" +%Y%m%d`
+echo $d out addHivePartition###########################################
+echo $d addHivePartition error########################################## >>/server/logs/add_hive_partition_error.log
+
+hive <<EOF
+
+alter table database.interest_empty add partition (log_day='${d}') location '/xxx/log_day=${d}';
+
+set hive.auto.convert.join=false;
+set mapred.reduce.tasks = 1;
+set mapred.job.name='topic_channel-1${create_time}';
+set hive.output.file.extension=.c1;
+--------------清洗dim_jlc.topic_channel
+--------1激活人数
+insert overwrite table dim_temporary.topic_channel partition(log_period=${period},log_create_date='${create_time}',log_end_date='${end_time}')
+select '${create_time}','${end_time}',channel,${period},
+quit;
+
+EOF

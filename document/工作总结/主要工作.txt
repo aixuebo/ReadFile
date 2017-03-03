@@ -1,0 +1,2 @@
+一、2017-03-01
+spark sql中使用的LinearRegression改成单机版本,传入的参数不是dataframel,而是一个集合

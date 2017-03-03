@@ -32,6 +32,7 @@ max_create_date STRING COMMENT '最高存量时间',
 max_premium DOUBLE COMMENT '最高存量',
 last_create_date STRING COMMENT '最后计息时间',
 last_premium DOUBLE COMMENT '当前存量')
+PARTITIONED BY (log_day STRING)
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
 
 外部表
@@ -39,6 +40,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS etl.mobile_region (
 mobile STRING,
 province STRING,
 city STRING)
+PARTITIONED BY (log_day STRING)
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
 LOCATION '/log/statistics/etl/mobile_region';
 
