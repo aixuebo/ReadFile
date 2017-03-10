@@ -53,3 +53,7 @@ grep -a online /usr/bin/ls
 
 10.-v 表示取反
 
+二、vi
+查看二进制
+vi -b 文件名
+

@@ -1,0 +1,99 @@
+偏函数
+一、概念
+1.正常函数
+对给定的输入参数类型，函数可接受该类型的任何值。换句话说，一个(Int) => String 的函数可以接收任意Int值，并返回一个字符串。
+2.偏函数
+对给定的输入参数类型，偏函数只能接受该类型的某些特定的值。一个定义为(Int) => String 的偏函数可能不能接受所有Int值为输入。
+3.isDefinedAt方法
+isDefinedAt 是PartialFunction的一个方法，用来确定PartialFunction是否能接受一个给定的参数。
+4.总结
+一个PartialFunction[A, B]类型的函数是一个一元函数，接收一个类型为A的参数，返回类型为B的值,只是参数A的范围有所控制,因此就称作偏函数
+而如果用简单的白话来讲，就是一个PartialFunction只处理参数的一个子集。
+
+二、例子 通过case来过滤想要的int,虽然参数是传入int 返回String的一个函数,但是不想所有的int都成功,只是允许我们要的int范围的才成功
+其中isDefinedAt方法表示true说明该int是我们允许的范围内的,可以计算出结果
+val one: PartialFunction[Int, String] = {
+case 1 => "one"
+case 3 => "three"
+}
+输出one: PartialFunction[Int,String] = <function1>
+one(1)
+输出one
+one.isDefinedAt(1)
+输出true
+one.isDefinedAt(2)
+输出false
+
+
+
+val typeOfObject: PartialFunction[Any, Any] = {
+    case obj: Boolean => "aaaa" //如果第一个any是boolean类型的,则返回aaa
+    case obj: Array[Byte] => "bbbb"
+  }
+输出typeOfObject: PartialFunction[Any,Any] = <function1>
+typeOfObject(true)
+输出 res6: Any = aaaa  即输出一个Any类型的值是aaa
+
+三、PartialFunctions可以使用orElse组成新的函数，得到的新函数也是偏函数
+定义四个偏函数
+val one: PartialFunction[Int, String] = { case 1 => "one" }
+val two: PartialFunction[Int, String] = { case 2 => "two" }
+val three: PartialFunction[Int, String] = { case 3 => "three" }
+val wildcard: PartialFunction[Int, String] = { case _ => "something else" }
+
+创建组合后的偏函数
+val partial = one orElse two orElse three orElse wildcard
+输出partial: PartialFunction[Int,String] = <function1>
+
+测试输出:
+scala> partial(5)
+res24: String = something else
+
+scala> partial(3)
+res25: String = three
+
+scala> partial(2)
+res26: String = two
+
+scala> partial(1)
+res27: String = one
+
+scala> partial(0)
+res28: String = something else
+
+四、applyOrElse 其实与orElse作用相同,只是匿名产生新的组合而已
+比如 one.applyOrElse(1,two) 输出 String = one
+one.applyOrElse(2,two) 输出  String = two
+one.applyOrElse(3,two) 抛异常
+原因就是1或者2或者3作为参数去执行偏函数,首先在one中查找,如果失败,则继续到two查找,还失败则抛异常,不失败则返回正常值
+
+特别:
+val one_1: PartialFunction[Int, String] = { case 1 => "one1" }
+val one_2: PartialFunction[Int, String] = { case 1 => "one2" }
+one_1.applyOrElse(1,one_2) 输出String = one1 ,因此可以看到顺序,在两个输出都相同的情况下,顺序是依次执行的
+
+五、andThen 表示对结果进一步处理
+例如partial(5) 返回值是something else,相对其进一步打印,则该返回值会作为andThen函数的参数
+partial.andThen( a => println(a+"==="))(5) 因此打印something else===
+partial.compose( a => println(a+"==="))(5)
+六、lift 转换成一个正常的函数，返回Option 如果数据不是在范围内.则返回 Option[String] = None
+比如partial.lift(5)  输出Option[String] = Some(something else)
+重新定义一个不再esle的组合函数 val partial1 = one orElse two orElse three
+因此 partial1.lift(5) 输出 Option[String] = None 可以看到超过范围的都返回None
+
+七、case 之谜
+上周我们看到一些新奇的东西。我们在通常应该使用函数的地方看到了一个case语句。
+
+scala> case class PhoneExt(name: String, ext: Int)
+defined class PhoneExt
+
+scala> val extensions = List(PhoneExt("steve", 100), PhoneExt("robey", 200))
+extensions: List[PhoneExt] = List(PhoneExt(steve,100), PhoneExt(robey,200))
+
+scala> extensions.filter { case PhoneExt(name, extension) => extension < 200 }
+res0: List[PhoneExt] = List(PhoneExt(steve,100))
+为什么这段代码可以工作？
+
+filter使用一个函数。在这个例子中是一个谓词函数(PhoneExt) => Boolean。
+
+PartialFunction是Function的子类型，所以filter也可以使用PartialFunction!

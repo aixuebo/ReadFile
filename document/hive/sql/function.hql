@@ -138,6 +138,8 @@ select datediff('2016-08-17','2016-08-19');//-2 获取两个时间之差几天
 select datediff('2016-08-17','2015-01-09') % 7;//5 获取两个时间之差几天%7,表示距离2015-01-09这天周五来说,今天是周几
 select date_add('2016-08-17',-(datediff('2016-08-17','2015-01-09') % 7)) 返回值是与2016-08-17最近的周五,用于group by操作
 
+select to_date(from_unixtime(unix_timestamp(),'yyyy-MM-dd HH:mm:ss')); 获取当前的时间,相当于mysql的DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -1 DAY)
+select date_add(from_unixtime(unix_timestamp(),'yyyy-MM-dd'),-1);
 25.强制转换 cast as
 cast(actid as String)
 

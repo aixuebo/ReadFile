@@ -181,3 +181,9 @@ an escape character (--fields-terminated-by \t). Supported escape characters are
 \0 (NUL) - This will insert NUL characters between fields or lines, or will disable enclosing/escaping if used for one of the --enclosed-by, --optionally-enclosed-by, or --escaped-by arguments.
 The octal representation of a UTF-8 character's code point. This should be of the form \0ooo, where ooo is the octal value. For example, --fields-terminated-by \001 would yield the ^A character.
 The hexadecimal representation of a UTF-8 character's code point. This should be of the form \0xhhh, where hhh is the hex value. For example, --fields-terminated-by \0x10 would yield the carriage return character.
+
+7.--export-dir支持通配符,但是该通配符是HDFS的通配符
+原因是代码里面是这样使用的Path inputPath = new Path(context.getOptions().getExportDir());//输入数据源目录
+因此--export-dir /apps/user_assets_match/* 或者 --export-dir /apps/user_assets_match/{1,2,3}形式
+
+

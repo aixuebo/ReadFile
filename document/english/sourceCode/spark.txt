@@ -7,3 +7,23 @@ Space reserved for extra data in an Akka message besides serialized task or task
 
 2.Indirect 间接   direct 直接
 
+3.The generated ID is guaranteed to be monotonically increasing and unique, but not consecutive.  保证产生单调 且增加的唯一序号,但是该序号不是连续的
+guaranteed 保证
+monotonically 单调的
+consecutive 连续
+
+4.Converts a Scala type to its Catalyst equivalent (and vice versa).
+转换scala类型到spark的类型,反之亦然
+vice 代替的,不道德行为
+versa 反的
+vice versa 反之亦然
+
+
+5.Performs attribute resolution given a name and a sequence of possible attributes.
+给一个属性名字以及属性集合,来执行name属于哪个属性
+Perform 执行 表演
+resolution 分辨率 决心
+
+
+
+

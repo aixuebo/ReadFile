@@ -1,0 +1,40 @@
+自己定义的kafka项目,可以通过读取消费者消费到哪个offset,以及现在已经存在的offset位置,来消费数据,并且将数据存储到hdfs上
+因此主要涉及用到的包是
+1.kafka的core包
+2.zookeeper包访问zookeeper
+3.spark的core包和streaming-kakfa包,使用该包的工具
+4.hdfs的工具包,用于存储数据
+因此最终汇总为:
+-rw-r--r-- 1 root root    41123 Feb 28 09:59 commons-cli-1.2.jar
+-rw-r--r-- 1 root root   575389 Feb 28 09:59 commons-collections-3.2.1.jar
+-rw-r--r-- 1 root root   298829 Feb 28 09:59 commons-configuration-1.6.jar
+-rw-r--r-- 1 root root   185140 Feb 28 09:59 commons-io-2.4.jar
+-rw-r--r-- 1 root root   284220 Mar  8 14:40 commons-lang-2.6.jar
+-rw-r--r-- 1 root root    62050 Feb 28 09:59 commons-logging-1.1.3.jar
+-rw-r--r-- 1 zjy  zjy   1648200 Mar  8 15:35 guava-11.0.2.jar
+-rw-r--r-- 1 root root    49750 Feb 28 09:59 hadoop-auth-2.2.0.jar
+-rw-r--r-- 1 zjy  zjy      2559 Mar  8 14:49 hadoop-client-2.2.0.jar
+-rw-r--r-- 1 zjy  zjy   2735584 Mar  8 14:49 hadoop-common-2.2.0.jar
+-rw-r--r-- 1 zjy  zjy   5242252 Mar  8 14:49 hadoop-hdfs-2.2.0.jar
+-rw-r--r-- 1 zjy  zjy     38460 Mar  8 14:49 joda-convert-1.2.jar
+-rw-r--r-- 1 zjy  zjy    625993 Mar  8 14:49 joda-time-2.9.jar
+-rw-r--r-- 1 zjy  zjy    427780 Mar  8 14:49 jodd-core-3.5.2.jar
+-rw-r--r-- 1 zjy  zjy   3991269 Mar  8 14:57 kafka_2.10-0.8.2.1.jar
+-rw-r--r-- 1 zjy  zjy    324010 Mar  8 14:49 kafka-clients-0.8.2.1.jar
+-rw-r--r-- 1 zjy  zjy    489884 Mar  8 14:49 log4j-1.2.17.jar
+-rw-r--r-- 1 root root    82123 Feb 28 09:59 metrics-core-2.2.0.jar
+-rw-r--r-- 1 root root   533455 Feb 28 09:59 protobuf-java-2.5.0.jar
+-rw-r--r-- 1 zjy  zjy    476666 Mar  8 14:49 scala-actors-2.10.5.jar
+-rw-r--r-- 1 zjy  zjy  14472629 Mar  8 14:49 scala-compiler-2.10.5.jar
+-rw-r--r-- 1 zjy  zjy   7130772 Mar  8 14:49 scala-library-2.10.5.jar
+-rw-r--r-- 1 zjy  zjy    853866 Mar  8 14:49 scalap-2.10.5.jar
+-rw-r--r-- 1 zjy  zjy   3206179 Mar  8 14:49 scala-reflect-2.10.5.jar
+-rw-r--r-- 1 zjy  zjy     32119 Mar  8 14:49 slf4j-api-1.7.10.jar
+-rw-r--r-- 1 zjy  zjy     26084 Mar  8 14:49 slf4j-api-1.7.5.jar
+-rw-r--r-- 1 zjy  zjy      8866 Mar  8 14:49 slf4j-log4j12-1.7.10.jar
+-rw-r--r-- 1 zjy  zjy      8869 Mar  8 14:49 slf4j-log4j12-1.7.5.jar
+-rw-r--r-- 1 zjy  zjy  11179076 Mar  8 15:00 spark-core_2.10-1.6.1.jar
+-rw-r--r-- 1 root root   193991 Mar  8 16:12 spark_project.jar
+-rw-r--r-- 1 zjy  zjy    284924 Mar  8 14:49 spark-streaming-kafka_2.10-1.6.1.jar
+-rw-r--r-- 1 zjy  zjy     64009 Mar  8 14:49 zkclient-0.3.jar
+-rw-r--r-- 1 zjy  zjy    779974 Mar  8 14:49 zookeeper-3.4.5.jar

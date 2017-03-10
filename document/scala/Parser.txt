@@ -1,0 +1,70 @@
+用于spark sql中解析sql---详细参见spark sql源代码org.apache.spark.sql.catalyst.SqlParser类
+
+| 表示二选一
+{} 表示重复多次或者0次
+[]表示0次或者1次
+
+
+expr ::= term {"+" term | "-" term}. 表示定义一个表达式expr ,::=就是=的意思,表达式的含义是:
+term 与多个 +term 或者- term
+
+term ::= factor {"*" factor | "/" factor}. term是优先级更高的 *和/
+
+factor ::= floatingPointNumber | "(" expr ")". //最终计算都是由优先级更高的()或者浮点数开始计算的
+
+即汇总 浮点数 参与 * 或者 / 或者没有*/时候直接参与+-运算
+
+scala语法
+
+解析算数表达式
+class Arith extends JavaTokenParsers {
+def expr: Parser[Any] = term~rep("+"~term | "-"~term)
+def term: Parser[Any] = factor~rep("*"~factor | "/"~factor)
+def factor: Parser[Any] = floatingPointNumber | "("~expr~")"
+}
+
+1.在两个连续的操作符号之间加入~,表示连续性,即例如"+"~term 表示+ 后面跟的是term,即~只是代替了两个连续操作符之间的空格部分,
+为了视觉效果,~左右两边的操作符号之间没有空格,防止有空格的话产生视觉误会
+
+2.重复{}在scala中使用rep()  而[]使用opt()代替
+
+3.val ident: Parser[String] = """[a-zA-Z_]\w*""".r 使用"""""".r表示正则表达式
+
+
+解析json
+value ::= obj | arr | stringLiteral | floatingPointNumber | "null" | "true" | "false". 表示json的value值,可以是对象,是数组.是字符串,数字,null,true,false
+obj ::= "{" [members] "}". 定义json的对象,可能是空{},也可能是持有一个对象
+arr ::= "[" [ values] "]". 定义数组.数组是[],可是是空.也可以是一组value集合
+members ::= member {"," member}.//若干个key-value,使用逗号分割
+member ::= stringLiteral ":" value. //表示一个元素的key:value形式
+values ::= value {"," value} //定义value集合,用于数组,每一个集合元素用逗号分割
+
+
+scala语法
+4.repsep 表示解析一组term,这组term是使用一个分隔符进行分割的,即通过该分隔符可以将字符串转换成一组term,
+例如repsep(member, ",") 表示可以解析member,member,member,解析成member集合
+5.""里面包含的内容是不允许被解析的,比如"{"返回的就是{
+
+class JSON extends JavaTokenParsers {
+def value : Parser[Any] = obj | arr | stringLiteral | floatingPointNumber | "null" | "true" | "false"
+def obj : Parser[Any] = "{"~repsep(member, ",")~"}" //对象表示的是{},里面的是member使用逗号进行拆分的集合,两边~表示忽略两个member之间的所有空格
+def arr : Parser[Any] = "["~repsep(value, ",")~"]" //表示数组,数组集合是value使用逗号拆分的,并且忽略两个value之间的所有空格
+def member: Parser[Any] = stringLiteral~":"~value //表示key:value,即一个元素,~表示忽略空格
+}
+
+6.P~Q 返回p和q,这个结果被分会到case calss中,因此常用在模式匹配上,
+如果p返回true,q返回?,因此被组成的顺序P~Q,则返回~("true", "?"),打印(true~?)
+
+
+7.组合解析器^^
+^^操作转换一个解析器的结果,例如 P ^^ f ,p是一个解析器parser,f是一个函数,因为P返回一个结果是R,R作为参数传递到f中.即f(R)
+例子 一个解析器解析double类型,然后转换成scala的Double类型  floatingPointNumber ^^ (_.toDouble)
+或者 解析一个字符串 true,转换成scala的boolean 则 "true" ^^ (x => true)
+
+8.更高级的转换,将json转换成Map
+def obj: Parser[Map[String, Any]] = "{"~repsep(member, ",")~"}" ^^ { case "{"~ms~"}" => Map() ++ ms }
+将{key:value,key:value}形式转换成Map
+case "{"~ms~"}"  表示要匹配的结果是{}之间有一个ms集合,将ms集合添加到map中
+但是这里面还要写{},但是这两个字符又没有什么作用,因此使用~>和<~代替~,他表示只要~><~之间的元素作为参数,使代码更间接
+
+def obj: Parser[Map[String, Any]] = "{"~> repsep(member, ",") <~"}" ^^ (Map() ++ _)

@@ -1,3 +1,4 @@
+一、
 #!/bin/bash
 create_time=${1}
 
@@ -23,3 +24,58 @@ echo "finished"
 
 ###调用函数,并且传递参数
 copyFile user_info
+
+二、将本地文件定期上传到hdfs上.同时加载hive,让hive多一个分区
+#!/bin/bash
+
+d=`date -d "-1 day" +%Y-%m-%d`
+echo $d
+
+hdfs_file=/log/statistics/fact/activity_crm_kafka/log_create_date=${d}
+local_file=/server/app/data/${d}.log
+
+echo ${local_file}
+echo ${hdfs_file}
+
+if [ ! -e "${local_file}" ]; then  //如果本地文件不存在,则不进行处理
+  exit 0
+fi
+
+//代码执行到这里说明本地文件存在,则上传到hdfs上
+hadoop fs -rm -r ${hdfs_file}
+hadoop fs -mkdir ${hdfs_file}
+hadoop fs -put ${local_file} ${hdfs_file}/
+
+//加载hive的一个分区
+hive <<EOF
+
+alter table xxxx.xxx add partition(log_create_date='${d}') location '${hdfs_file}';
+
+quit;
+
+EOF
+
+三、查看hdfs上是否有数据,有数据了再加载到hive的分区中,这个的目的是因为kafka的数据直接写入到hdfs上,因此要判断有数据写入到hdfs了,则就加入分区一天的数据
+#!/bin/bash
+
+d=`date -d "-1 day" +%Y-%m-%d`
+echo $d
+
+hdfs_file=/log/statistics/activity_crm_kafka/log_create_date=${d}
+
+echo ${hdfs_file}
+
+hadoop fs -ls ${hdfs_file}
+
+if [ $? != 0 ]; then //说明有异常,没有异常就是0
+  exit 0
+fi
+
+//代码执行到这里,说明没有异常,进行hive分区加载操作
+hive <<EOF
+
+alter table xxxx.xxx add partition(log_create_date='${d}') location '${hdfs_file}';
+
+quit;
+
+EOF
