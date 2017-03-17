@@ -1,0 +1,64 @@
+一、hive面试综合sql
+student(S#,Sname,Sage,Ssex)
+teacher(T#,Tname)
+course(C#,Cname,T#)
+score(S#,C#,Sscore)
+备注:其中#的都表示表的唯一主键
+(1)查询各科成绩最高和最低分数（显示形式：课程ID，最高分，最低分）
+(2)查询学生平均成绩及名次（显示形式：学生ID，平均分，排名）
+答案思路 排名使用窗口函数rownum即可
+(3)查询“数学”课程比“语文”课程成绩高的所有学生的姓名
+(4)查询每个学生各自分数第二高的课程（显示形式：学生ID，分数第二高的课程）
+该课程主要考察rownum,按照rownum排序后,查找rownum=2的数据
+(5)查询每个教师教的所有课程：教师名称，教授课程（要求每个教师名称在查询结果中唯一）
+主要考察CONCAT_WS(',', COLLECT_SET(Cname)) 函数的应用
+
+二、设计的hive面试题
+1、如何确定hive的执行结果是否数据倾斜以及解决方案
+a.确认数据倾斜,简单的看结果文件每一个是否大小不同就可以
+b.将数据倾斜的数据打散到不同的文件中,比如如果是null引起的数据倾斜,将null值的数据都发到同一个节点上,因此可以考虑将null的数据随机生成一个id,这样就会打散数据。
+
+
+2、请说明hive中 Sort By，Order By，Cluster By，Distrbute By各代表什么意思。
+order by：会对输入做全局排序，因此只有一个reducer（多个reducer无法保证全局有序）。只有一个reducer，会导致当输入规模较大时，需要较长的计算时间。
+sort by：不是全局排序，其在数据进入reducer前完成排序。
+distribute by：按照指定的字段对数据进行划分输出到不同的reduce中。
+cluster by：除了具有 distribute by 的功能外还兼具 sort by 的功能。
+
+3、hive提供的UDF、UDAF、UDTF的区别
+UDF:   单行进入，单行输出
+UDAF:  多行进入，单行输出
+UDTF:  单行输入，多行输出
+
+4、考察对函数collect_set和concat_ws的理解
+一个用户理财表(financial)分别记录用户(userid),理财产品ID(productid),现在要求获取每一个用户购买了哪些理财产品
+
+比如数据内容
+user1  product1
+user1  product3
+user1  product5
+
+例如结果是:
+user1	product1,product3,product5
+
+
+答案sql:
+select userid,CONCAT_WS(',', COLLECT_SET(productid))
+from financial
+group by userid
+
+5、reduce side join，map side join，semi join 三者区别,以及优缺点
+
+
+6、工作中用到过哪些窗口函数,对窗口函数的理解
+
+
+7、一个窗口函数的使用场景
+一个用户投资表(invest_record)分别记录用户(userid),投资时间(invest_date),投资金额(amount),现在要求获取每一个用户二次投资时间以及金额
+
+答案sql
+select userid,invest_date,amount,ROW_NUMBER() OVER(PARTITION BY userid ORDER BY invest_date asc) AS rn
+from invest_record
+where rn = 2
+
+8、简述一下hive的SerDe原理

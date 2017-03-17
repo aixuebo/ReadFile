@@ -27,3 +27,7 @@ sayHello <- function(){
 }
 sayHello()
 
+
+四、R studio
+1.ctrl+回车 把选择的内容复制到执行命令中去执行
+2.导入一个文件,则最上面有一个source按钮
