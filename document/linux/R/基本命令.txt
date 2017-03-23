@@ -31,3 +31,40 @@ sayHello()
 四、R studio
 1.ctrl+回车 把选择的内容复制到执行命令中去执行
 2.导入一个文件,则最上面有一个source按钮
+
+五、data table的语法
+setkey(user_log,userid) //对data.table建立排序,对数据集合user_log按照userid对数据进行排序
+setkey(DT, colA, colB)，可以使得检索和分组更加快速。同时设置两个key变量的方式，也是可以的。
+DT[i,j,by]，表示对于数据集DT，选取子集行i,通过by分组计算j。
+c('A','B','C','A','A','B') 其中c表示一组向量,如果存储到data.table中,使用的都是c向量
+
+例如
+1.--创建一个table表格,有三列x,y,v,然后为每一行的赋值
+DT = data.table(x=rep(c("a","b","c"),each=3), y=c(1,3,6), v=1:9)
+   x y v
+1: a 1 1
+2: a 3 2
+3: a 6 3
+4: b 1 4
+5: b 3 5
+6: b 6 6
+7: c 1 7
+8: c 3 8
+9: c 6 9
+可以看到x=rep(c("a","b","c"),each=3)即x是向量a b c重复3次的结果,而且是每一个元素重复3次,再重复下一个元素
+y=c(1,3,6) 表示就是给出了3行数据
+v=1:9 表示给了9行数据
+
+但是必须注意,x y v的数量必须是整数倍
+
+2.
+X = data.table(c("b","c"),foo=c(4,2))  如果没有设置别名,则默认是V1 V2
+
+3.
+DT = data.table(x=rep(c("b","a","c"),each=3), y=c(1,3,6), v=1:9)
+setkey(DT,x)  //按照x列的顺序进行排序
+DT[X]
+X = data.table(c("b","c"),foo=c(4,2))
+#以DT为基准
+setkey(DT,x)
+DT[X]  相当于DT与X进行join,默认是第一列进行join
