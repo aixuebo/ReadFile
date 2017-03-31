@@ -1,0 +1,56 @@
+ 部署测试环境
+ 1.打包
+ 2.将jar包传输到测试环境下
+ 3.将jar包拷贝到测试环境53机器上
+   scp config-server-jar-with-dependencies.jar 192.168.10.53:/home/app/config-server
+ 4.执行
+    nohup java -jar config-server-jar-with-dependencies.jar  1>>out.log 2>>error.log &
+ 5.关闭程序
+   ps -ef | grep config-server
+   kill进程即可
+ 6.访问
+ http://192.168.10.53:8090/find
+
+ -------------------------------------------
+ 测试环境
+ ssh 192.168.10.53
+ redis.passwprd=xxx
+ redis-cli -h 192.168.10.53 -p 9705
+ 启动property程序后
+ http://192.168.10.203:8090/find 访问结果
+
+ 线上环境
+
+ ssh 10.163.214.185
+ redis-cli -h 10.163.214.185 -p 9705
+ hset appClientProperties share_time "10000,15000,20000,25000"
+ hset appClientProperties task_wall2 "{\"clickUrl\":\"http://www.xxxx.com/twclient/login\",\"actionType\":6,\"categoryName\":\"任务集市\",\"icon\":\"http://images.xxx.com/upload/564ae7e573b11.jpg\",\"taskStatus\":0,\"title\":\"完成深度任务，手到钱来\"}"
+ hget appClientProperties properties_file_version
+ hset appClientProperties properties_file_version +1
+ hincrby appClientProperties properties_file_version 1
+
+
+ 创建一个Map对象
+ HMSET appFindProperties key value
+ keys *
+
+ hgetAll appFindProperties
+
+ hset appFindProperties findpo1
+
+ HMSET appFindProperties findpo1 1@xxxx@http://www.xxxx.com/uploads/allimg/121203/10531G062-45.jpg@cooh@http://www.baidu.com@xxxx@1name@xxxx@1desc
+ hset appFindProperties findpo1 "{'desc':'1desc','id':1,'image':'http://www.qjis.com/uploads/allimg/121203/10531G062-45.jpg','link':'http://www.baidu.com','name':'1name','versions':[]}"
+
+ 获取key对应的内容
+ GET KEY_NAME
+ SET KEY_NAME VALUE
+
+--------------------------
+redis-cli -h 10.0.1.70 -p 6379
+GET "kylin_msg_flag"
+"0"
+10.0.1.70:6379> SET "kylin_msg_flag" 1
+
+
+
+
