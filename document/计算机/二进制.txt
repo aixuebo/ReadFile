@@ -5,3 +5,12 @@ bitwise-and (&), bitwise-or (|), and bitwise-xor (ˆ). (~, the method unary_~)
 1 ˆ 3 结果是1 (0001) and 3 (0011),即一个0和一个1对应的结果才是1,相同的都是0,因此结果是0010,即2
 ~1 结果是1 (0001) 被反转,即11111111111111111111111111111110,即-2
 
+二、1 << 3 表示2^3,即8,二进制是1000,即1加上3个0
+     long fullMask = 0;
+        for (int i = 0; i < 20; i++) {
+            int index = 20-i;
+            fullMask |= 1L << index;
+            System.out.println("index"+index+"=="+fullMask);
+            System.out.println(Long.toBinaryString(fullMask));
+        }
+返回结果是111111....0,最后一个位置是0

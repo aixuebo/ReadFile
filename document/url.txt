@@ -75,6 +75,7 @@ http://docs.oracle.com/javase/tutorial/deployment/jar/index.html
 
 数学
 http://www.ee.ucl.ac.uk/~mflanaga/java/
+https://github.com/joluet/okde-java-example  核密度
 信息熵
 https://www.zhihu.com/question/22178202
 https://www.zhihu.com/question/30828247
@@ -83,3 +84,20 @@ https://www.zhihu.com/question/24053383
 
 偏函数
 http://blog.csdn.net/bluishglc/article/details/50995939
+
+
+kylin
+http://kylin.apache.org/docs20/howto/howto_cleanup_storage.html
+http://blog.bcmeng.com/
+http://blog.bcmeng.com/post/kylin-dimension.html
+http://blog.bcmeng.com/post/kylin-query-metrics.html
+http://www.cnblogs.com/en-heng/p/cube-model-of-kylin.html
+http://www.cnblogs.com/sh425/p/5778953.html
+
+
+java无穷 以及求积分
+http://x-goder.iteye.com/blog/2036364
+
+
+redis
+http://mp.weixin.qq.com/s?__biz=MzI4OTU3ODk3NQ==&mid=2247484008&idx=1&sn=259e6f0767a0f98925c3037021ab781c&chksm=ec2c48d8db5bc1ce6745ea5f49196f71c1fbb33fd59a05a89f15e374763c354dd42f804986fb&mpshare=1&scene=23&srcid=040735KMyu2vm7FFKFAfvDYI#rd
