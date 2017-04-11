@@ -1,0 +1,66 @@
+<html>
+<head>
+    <script src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+</head>
+<body>
+抢票原理
+<input type="button" value="开始抢OA" onclick="autoRef()">
+<input type="button"  value="停止抢OA" onclick="stopAutoRef()">
+<input type="text" id="aasusername" value="" placeholder="请输入用户名">
+<input type="password" id="aaspassword" value=""  placeholder="密码">
+尝试次数<label id=attmptTime>0</label>
+<iframe  id="iframeaas" name="iframeaas" src="http://oa.xxxx.org:88888"  style="width:100%;height:100%">
+</iframe>
+
+
+
+<script>
+    var timer;
+    var count=0;
+
+    $(function(){
+
+        console.log("初始化");
+
+    });
+
+    function autoRef(){
+        count=0;
+        if(timer)stopAutoRef(timer);
+        var username=$('#aasusername').val();
+        var password=$('#aaspassword').val();
+
+        if(!username || !password){
+            alert('请在上方填写用户名密码');
+
+            stopAutoRef(timer);
+            return;
+        }
+
+        timer=setInterval('reloadif()',2000);
+
+    }
+
+    function stopAutoRef(){
+        clearInterval(timer);
+    }
+
+    function reloadif(){
+        count++;
+        $('#attmptTime').html(count);
+        var username=$('#aasusername').val();
+        var password=$('#aaspassword').val();
+
+        if(!username || !password){
+            alert('请在上方填写用户名密码');
+            stopAutoRef(timer);
+            return;
+        }
+        document.getElementById('iframeaas').src="http://oa.xxxx.org:88888/seeyon/main.do?method=login&login_username="+username+"&login_password="+password;
+
+    }
+
+</script>
+
+</body>
+</html>

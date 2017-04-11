@@ -1,0 +1,331 @@
+总结:
+一、model---kylin的使用的都是hive的数据库.table.字段组成的字段
+1.设置model名字和描述
+2.选择fact表和look up表,这一步骤属于join操作,因此对每一个look up表设置on的条件
+3.从N+1个表中选择维度
+  因为1个fact表和N个look up表
+4.从fact表中选择度量的列.
+ 因为星型结构中,fact表存储的是id以及要度量的属性,而look up表存储的是id对应的详细信息,因此度量肯定从fact表出,而look up表出的是维度字段
+5.设置该model的分区字段 以及 设置where条件
+a.where条件是为了筛选hive表时候进行缩小查询范围
+b.分区字段要从fact表选择一个字段作为分区字段,不能允许从look up表选择
+
+说明:
+model的意义是让若干个表进行关联,假设一共有100个字段,但是维度和度量根本不需要关注那么多字段,可能就关注10个字段,因此抽象一个model层.
+让该层只关注这10个字段,将这10个字段分成两组,即维度和度量组
+
+{
+  "uuid": "f9b62e30-becb-4642-b3e1-75aca6431550",
+  "last_modified": 1491897820758,
+  "version": "1.6.0",
+  "name": "test",
+  "owner": "ADMIN",
+  "description": "test",
+  "fact_table": "DIM_MM.DIM_USER_PORTRAIT",
+  "lookups": [
+    {
+      "table": "FACT_MM.CASH_RECORD",
+      "join": {
+        "type": "inner",
+        "primary_key": [
+          "USERID"
+        ],
+        "foreign_key": [
+          "USERID"
+        ]
+      }
+    },
+    {
+      "table": "FACT_MM.INVEST_RECORD",
+      "join": {
+        "type": "inner",
+        "primary_key": [
+          "USERID"
+        ],
+        "foreign_key": [
+          "USERID"
+        ]
+      }
+    }
+  ],
+  "dimensions": [
+    {
+      "table": "DIM_MM.DIM_USER_PORTRAIT",
+      "columns": [
+        "USERID",
+        "SEX",
+        "AGE",
+        "BIRTHDAY",
+        "BORN_ADDRESS",
+        "PROVINCE",
+        "CITY"
+      ],
+      "id": 1
+    },
+    {
+      "table": "FACT_MM.CASH_RECORD",
+      "columns": [
+        "CREATE_TIME",
+        "AMOUNT"
+      ],
+      "id": 2
+    },
+    {
+      "table": "FACT_MM.INVEST_RECORD",
+      "columns": [
+        "CREATE_TIME",
+        "AMOUNT"
+      ],
+      "id": 3
+    }
+  ],
+  "metrics": [
+    "CITY",
+    "OPEN_TIME",
+    "INVT_1TIME",
+    "INVT_1AMOUNT"
+  ],
+  "filter_condition": "1=1",
+  "partition_desc": {
+    "partition_date_column": "DIM_MM.DIM_USER_PORTRAIT.LOG_DAY",
+    "partition_time_column": null,
+    "partition_date_start": 0,
+    "partition_date_format": "yyyy-MM-dd",
+    "partition_time_format": "HH:mm:ss",
+    "partition_type": "APPEND",
+    "partition_condition_builder": "org.apache.kylin.metadata.model.PartitionDesc$DefaultPartitionConditionBuilder"
+  },
+  "capacity": "MEDIUM"
+}
+
+二、cube
+1.设置cube的名字、描述以及邮件通知集合、最关键的是选择一个model,在该model是建上建立cube
+只能选择一个model,因为该model上已经设置了维度以及对应的度量属性集合
+2.建立维度---normal和derived
+注意:选择的维度列,只能从model的维度中选择,不能从度量中选择。
+a.默认的是fact表选择3个属性,则该属性都是normal类型的
+b.默认从lookup表选择若个属性,都是derived类型的
+c.如果lookup表要使用normal,则要单独选择。
+3.建立度量
+a.选择的度量列只能从model的度量中选择,不能从维度中选择。
+b.创建min、max、sum、count、count(distinct())、top、row、extended_column这几种度量方式
+4.设置合并周期,以及分区的开始时间
+5.关键的设置部分,也是最迷糊的部分
+a.Aggregation Groups
+选择的字段都是从度量中的属性进行选择的,并且没有derived类型属性提供选择
+设置Includes、Mandatory Dimensions、Hierarchy Dimensions、Joint Dimensions
+b.Rowkeys 
+所有的度量属性集合,但是没有derived类型属性提供选择
+c.Advanced Dictionaries
+
+{
+  "uuid": "a413c76d-3464-42f7-838f-e786addb00fc",
+  "last_modified": 1491899538089,
+  "version": "1.6.0",
+  "name": "testcube",
+  "model_name": "test",
+  "description": "test_cube_desc",
+  "null_string": null,
+  "dimensions": [
+    {
+      "name": "DIM_MM.DIM_USER_PORTRAIT.USERID",
+      "table": "DIM_MM.DIM_USER_PORTRAIT",
+      "column": "USERID",
+      "derived": null
+    },
+    {
+      "name": "DIM_MM.DIM_USER_PORTRAIT.SEX",
+      "table": "DIM_MM.DIM_USER_PORTRAIT",
+      "column": "SEX",
+      "derived": null
+    },
+    {
+      "name": "DIM_MM.DIM_USER_PORTRAIT.AGE",
+      "table": "DIM_MM.DIM_USER_PORTRAIT",
+      "column": "AGE",
+      "derived": null
+    },
+    {
+      "name": "FACT_MM.CASH_RECORD_DERIVED",
+      "table": "FACT_MM.CASH_RECORD",
+      "column": null,
+      "derived": [
+        "CREATE_TIME",
+        "AMOUNT"
+      ]
+    }
+  ],
+  "measures": [
+    {
+      "name": "_COUNT_",
+      "function": {
+        "expression": "COUNT",
+        "parameter": {
+          "type": "constant",
+          "value": "1",
+          "next_parameter": null
+        },
+        "returntype": "bigint"
+      },
+      "dependent_measure_ref": null
+    },
+    {
+      "name": "AMOUNT",
+      "function": {
+        "expression": "SUM",
+        "parameter": {
+          "type": "column",
+          "value": "INVT_1AMOUNT",
+          "next_parameter": null
+        },
+        "returntype": "decimal"
+      },
+      "dependent_measure_ref": null
+    },
+    {
+      "name": "COUNT_DISTINCT",
+      "function": {
+        "expression": "COUNT_DISTINCT",
+        "parameter": {
+          "type": "column",
+          "value": "CITY",
+          "next_parameter": null
+        },
+        "returntype": "hllc(10)"
+      },
+      "dependent_measure_ref": null
+    }
+  ],
+  "dictionaries": [],
+  "rowkey": {
+    "rowkey_columns": [
+      {
+        "column": "USERID",
+        "encoding": "dict",
+        "isShardBy": false
+      },
+      {
+        "column": "SEX",
+        "encoding": "dict",
+        "isShardBy": false
+      },
+      {
+        "column": "AGE",
+        "encoding": "dict",
+        "isShardBy": false
+      }
+    ]
+  },
+  "hbase_mapping": {
+    "column_family": [
+      {
+        "name": "F1",
+        "columns": [
+          {
+            "qualifier": "M",
+            "measure_refs": [
+              "_COUNT_",
+              "AMOUNT"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "F2",
+        "columns": [
+          {
+            "qualifier": "M",
+            "measure_refs": [
+              "COUNT_DISTINCT"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "aggregation_groups": [
+    {
+      "includes": [
+        "USERID",
+        "SEX"
+      ],
+      "select_rule": {
+        "hierarchy_dims": [],
+        "mandatory_dims": [],
+        "joint_dims": []
+      }
+    }
+  ],
+  "signature": "zEH9lJ72dDudx4uS7r0y6Q==",
+  "notify_list": [],
+  "status_need_notify": [
+    "ERROR",
+    "DISCARDED",
+    "SUCCEED"
+  ],
+  "partition_date_start": 0,
+  "partition_date_end": 3153600000000,
+  "auto_merge_time_ranges": [
+    604800000,
+    2419200000
+  ],
+  "retention_range": 0,
+  "engine_type": 2,
+  "storage_type": 2,
+  "override_kylin_properties": {}
+}
+
+----------------------------
+三、kylin的意义
+1.星型结构表,一个fact表有若干表id以及度量的属性值。
+  若干个lookup表,有id的详细信息。
+2.关联这fact表和look up表
+3.对关联后的表可以进行sql查询需求
+select 各种属性,以及对度量值的sum,count等操作
+from fact join lookup on  ..
+where 分区 以及 where条件
+group by 各种属性
+order by 各种属性
+
+4.页面操作如何查询cube
+a.页面从维度集合中选择维度
+b.页面从度量集合中选择度量
+c.针对选择的维度可以进行选择具体的值,也可以不选择
+
+因此生成的sql
+select 各自维度,以及度量信息
+from cube
+where c中维度的具体的值,如果没有设置该值,则不需要设置where
+group by 各自维度
+order by 各自维度
+
+改进,后续可以加入having的页面添加方式
+
+5.例如
+
+预览总计sql
+select count(distinct B_OPEN),count(distinct B_INV1ST)
+from DIM_KYLIN.OLAP_BASIC_ACT 
+where 1=1 and CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY in('2017-04-10')
+
+预览sql
+select CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY,PROVINCE,
+count(distinct B_OPEN),count(distinct B_INV1ST) 
+from DIM_KYLIN.OLAP_BASIC_ACT 
+where 1=1  
+and CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY in('2017-04-10') 
+group by CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY,PROVINCE
+order by CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY desc,PROVINCE desc
+
+6.问题
+a.为什么组装sql的时候,对于度量信息依然要进行count distinct操作呢,按道理直接写入度量属性就可以了啊,
+因为定义cube的时候,该度量值就已经统计好了,没必要再次进行count(distinct)处理了。
+
+b.如何cube过程中减少维度
+c.选择2个维度时候,是如何到cube中查询的呢
+因为维度是在维度集合中选择的,而维度集合的各种组合都已经组合了,因此就会有结果直接被选中。
+被组合的可能性是2^n,n是维度数量
+但是每一个维度的值是不同的,因此最终产生的数据量是2^n * 每一个维度对应的不同的value数量
+
+因此是否可以看到不同的优化维度方式,可以减少数据量呢?
+d.各自维度优化,如何应用到现实例子中

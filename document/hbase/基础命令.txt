@@ -3,3 +3,16 @@ hbase shell <<EOF
 list
 quit;
 EOF
+
+二、table Enabled disable
+删除或者更改一个table的设置时候要先对该表进行禁用,然后修改后再开启
+disable 'emp'
+
+三、Filter    KeyOnlyFilter
+KeyOnlyFilter
+A filter that will only return the key component of each KV (the value will be rewritten as empty).
+This filter can be used to grab all of the keys without having to also grab the values.
+此filter可以用来计数，但是效率没有FirstKeyOnlyFilter高
+
+
+
