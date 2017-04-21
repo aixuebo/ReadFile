@@ -1,0 +1,2 @@
+一、存储
+因为hbase是regionserver存储数据,数据以region为单位瘃在regionserver上,而每一个region又分为若干个HFile文件

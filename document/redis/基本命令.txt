@@ -46,10 +46,10 @@
  SET KEY_NAME VALUE
 
 --------------------------
-redis-cli -h 10.0.1.70 -p 6379
+redis-cli -h 10.2.19.70 -p 6379
 GET "kylin_msg_flag"
 "0"
-10.0.1.70:6379> SET "kylin_msg_flag" 1
+10.0.1.70:6379> SET "kylin_msg_flag" 0
 
 
 

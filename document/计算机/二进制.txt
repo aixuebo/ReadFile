@@ -1,10 +1,13 @@
 一、位运算的规则demo
-bitwise-and (&), bitwise-or (|), and bitwise-xor (ˆ). (~, the method unary_~)
+bitwise-and (&), bitwise-or (|), and 异或 bitwise-xor (ˆ). 非 (~, the method unary_~)
 1 & 2 结果是1 (0001) and 2 (0010),相同1的才是1,因此结果是0000,即0
 1 | 2 结果是1 (0001) and 2 (0010),有1的就是1,因此结果是0011,即3
 1 ˆ 3 结果是1 (0001) and 3 (0011),即一个0和一个1对应的结果才是1,相同的都是0,因此结果是0010,即2
 ~1 结果是1 (0001) 被反转,即11111111111111111111111111111110,即-2
 
+
+这个可以使用集合的交集图在纸上画,反映关系
+& 表示获取交集   | 表示获取并集  ~表示获取非操作    ^表示的是获取两个数据中不同的元素,即一个是0,另外一个是1,则结果就是1,说明两个数据不相同
 二、1 << 3 表示2^3,即8,二进制是1000,即1加上3个0
      long fullMask = 0;
         for (int i = 0; i < 20; i++) {
@@ -14,3 +17,32 @@ bitwise-and (&), bitwise-or (|), and bitwise-xor (ˆ). (~, the method unary_~)
             System.out.println(Long.toBinaryString(fullMask));
         }
 返回结果是111111....0,最后一个位置是0
+
+三、应用
+1.long leftover = partialCubeFullMask & ~mandatoryColumnMask;
+a.~mandatoryColumnMask;表示反转,即1转换成0,0转换成1
+b.与该组内所有的字段全都是1的进行&,即返回依然是1的,此时返回的值就是:includes中字段 刨除 mandatory的字段
+即1的部分进行以下操作 includes 交 (mandatory的非)
+
+2.Long中跟二进制相关的方法
+long a = 1829l;
+System.out.println(Long.toBinaryString(a));//11100100101
+System.out.println(Long.lowestOneBit(a));//结果1-----获取二进制中有最底层是1,转换成long是多少,即发现最底层是1的位置就是第一个,因此结果转换成十进制也是1
+System.out.println(Long.bitCount(a));//结果6------出现1位置的次数,即6次,因此返回值是6
+System.out.println(Long.highestOneBit(a));//结果1024-----获取二进制中有最高层是1,转换成long是多少,即发现最高层是1的位置就是10000000000,因此结果转换成十进制也是1024
+System.out.println(Long.numberOfLeadingZeros(Long.parseLong("10",2))); 返回二进制中最高位有多少个0,比如一共64为,现在第一个1是出现在2位上,因此结果就是62个0,即返回62
+3.异或的意义
+a.按位异或可以用来使某些特定的位翻转
+如对数10100001的第2位和第3位翻转，可以将数与00000110进行按位异或运算。
+10100001^00000110=10100111
+因为后面的数是我们设置好的,其他都是0,只有两个位置是1
+根据异或原理,先看与0进行异或处理,如果前面的位置是1,则结果是1,如前面的位置是0,则结果是0,说明结果没有变化
+但是当与1进行异或的时候,如果前面的位置是1,则结果是0,如前面的位置是0,则结果就是1,因此可以起到反转的效果
+
+b.通过按位异或运算，可以实现两个值的交换，而不必使用临时变量
+例如交换两个整数a，b的值，可通过下列语句实现：
+a=10100001,b=00000110
+a=a^b； 　　//a=10100111
+b=b^a； 　　//b=10100001
+a=a^b； 　　//a=00000110
+c.异或运算符的特点是：数a两次异或同一个数b（a=a^b^b）仍然为原值a.

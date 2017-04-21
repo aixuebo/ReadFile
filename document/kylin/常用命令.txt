@@ -1,0 +1,28 @@
+
+一、Backup Metadata 清理和备份元数据
+1.定期备份元数据
+sh /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/bin/metastore.sh backup > /server/kylin/logs/backup.log 2>&1
+备份的输出是在/server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/meta_backups/下,比如有一个文件夹meta_2017_04_16_15_15_04表示2017-04-16 15:15:04备份的结果
+
+2.元数据恢复
+a.reset元数据,即将会清空在hbase中的一切kylin的元数据内容,因此要确保已经备份过元数据就了,否则数据就会被丢失.
+./bin/metastore.sh reset
+b.上传新的备份数据到hbase中
+./bin/metastore.sh restore $KYLIN_HOME/meta_backups/meta_xxxx_xx_xx_xx_xx_xx
+
+3.清理不再使用的元数据资源
+a.随着时间的推演,向字典、table snapshots等资源变成很少用,或者不用了,因为cube的segment被dropped或者merged了,但是他们仍然占用空间。
+因此需要找到这些资源,并且删除这些资源
+b../bin/metastore.sh clean
+这个命令会安全的打印要删除的资源信息,不会真正的去删除
+c../bin/metastore.sh clean --delete true
+这个命令会真的删除没有用的资源,因此执行时候要确保资源已经被备份过了
+
+
+二、Cleanup Storage (HDFS & HBase) 清理HDFS、hbase的资源
+因为kylin在cube的build过程中,会产生中间hive文件在hdfs上,
+还有当purge/drop/merge cubes或者一些hbase操作的时候,会使一些资源不会在被查询使用,因此要手动的清理资源
+a.export KYLIN_HOME=/path/to/kylin_home
+${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.storage.hbase.util.StorageCleanupJob --delete false
+这个只是会打印要清理的资源,不会真的去清理
+b.将--delete false 设置成 --delete true 则会真正去清理资源

@@ -22,11 +22,19 @@ google搜索关键字:hadoop hdfs exceeded: limit=255
 set hive.output.file.extension=.c1;
 
 4.因为null产生数据倾斜时候,对null的数据进行随机分配到不同桶中
-select *  from log a  left outer join users b  on case when a.user_id is null then concat(‘hive’,rand() ) else a.user_id end = b.user_id;
+a.select *  from log a  left outer join users b  on case when a.user_id is null then concat(‘hive’,rand() ) else a.user_id end = b.user_id;
 或者将其在select子查询中先映射成非null的值
 case when ad.bankcard is null or strTrim(ad.bankcard) = '' then concat(ceil(rand()*10000000000000000),'h') else ad.bankcard end bank_card
 然后在进行join操作
+b.方法2 DISTRIBUTE BY RAND()也可以解决数据倾斜问题
+c.检查是否数据倾斜,就看结果文件是否大小不同就可以
 
+5.排序的区别
+order by 仅一个reduce
+sort by 每一个reduce局部排序
+distribute by 按照字段进行partition划分,即相同字段的数据都在一个reduce中
+distribute by和sort by一起使用,可以让同一个用户在一个分区中,并且排序,因此就说明同一个用户的数据是排序好的。
+cluster by 就是distribute by和sort by相结合,但是不经常这么使用,因为该分区不支持asc和desc。支持是一种
 
-检查是否数据倾斜,就看结果文件是否大小不同就可以
+因此DISTRIBUTE BY RAND()也可以解决数据倾斜问题
 

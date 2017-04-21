@@ -1,0 +1,55 @@
+一、删除一个segment-----执行 /usr/bin/python /server/app/fixJob/kylin_daily/aaPy.py olap_bi_act_cube 20170416063000_20170417063000
+import requests
+import json
+import time
+import sys
+
+cube_name=sys.argv[1]
+segment_name=sys.argv[2]
+url = 'http://10.0.1.94:7070/kylin/api/cubes/%s/segs/%s' % (cube_name,segment_name)
+print url
+params = {'force':False}
+
+username = 'ADMIN'
+passwd = 'KYLIN'
+auth_params = (username, passwd)
+header={'Content-Type':'application/json;charset=UTF-8'}
+print 'Prepare to build .....'
+rep = requests.delete(url=url, json=params, auth=auth_params, headers=header)
+print rep.content
+
+备注:
+1.使用delete方式提交
+2.传入的cubeName和segmentName去查看备份元数据关于cube的segment,要从最后一个segment开始删除
+
+
+二、每日提交builder
+import requests
+import json
+import time
+import sys
+
+startTime=sys.argv[1] ###2016-07-01
+endTime=sys.argv[2]  ####2016-09-01
+cube_name=sys.argv[3] ####cube的名字
+
+start_timestamp = long(time.mktime(time.strptime(startTime + ' 14:30:00','%Y-%m-%d %H:%M:%S'))) * 1000
+end_timestamp = long(time.mktime(time.strptime(endTime + ' 14:30:00','%Y-%m-%d %H:%M:%S'))) * 1000
+print type(start_timestamp),start_timestamp
+print type(end_timestamp),end_timestamp
+url = 'http://10.0.1.94:7070/kylin/api/cubes/%s/rebuild' % cube_name
+print url
+params = {'startTime':start_timestamp, 'endTime':end_timestamp, 'buildType':'BUILD', 'force':False}
+
+username = 'ADMIN'
+passwd = 'KYLIN'
+auth_params = (username, passwd)
+header={'Content-Type':'application/json;charset=UTF-8'}
+print 'Prepare to build .....'
+rep = requests.put(url=url, json=params, auth=auth_params, headers=header)
+print rep.content
+
+
+备注:
+提交脚本的时候需要传递三个参数-----开始时间和结束时间以及cube的name,对这部分的segment创建cube
+
