@@ -1,0 +1,49 @@
+一、BitSet类意义
+用于存储int值,每一个int值占用一个bit,因此1G内存可以存放8*1024*1024*1024个不同的数字
+
+二、实现原理
+内部使用8个字节的long类型存储64个值,即1个位存储一个值。
+
+比如给定一个值,让其/64,就表示该值应该在哪个long数组下标中。然后余数位置就设置为1.
+
+因此还原的时候，只要以此循环每一个long,根据long 的索引下标*64+余数就是存储的真实的值。
+
+三、构造函数
+BitSet() 默认初始化64个位置,即一个long表示元素.不够的时候会自动增加long
+public BitSet(int nbits) 初始化能容纳nbits的长度,比如nbits是100,则需要初始化两个long才能容纳该值
+BitSet(long[] words) 使用一个long数组初始化该bit,说明long的1的位置都已经存在值了,即bitset是自带很多值的
+四、主要方法
+set(int) 将该int位置设置成1
+clear(int) 清楚该int位置成0
+set(int bitIndex, boolean value) value是true,表示则调用set(int),value是false,则调用clear(int)
+
+set(int fromIndex, int toIndex) [from,to)位置都设置为1
+clear(int fromIndex, int toIndex) [from,to)位置都设置为0
+set(int fromIndex, int toIndex, boolean value) 根据value是true,则调用set(int fromIndex, int toIndex) ,value是0,则调用clear(int fromIndex, int toIndex)
+
+clear() 全部将元素清空为0
+
+
+boolean get(int bitIndex) 获取该int位置是否已经设置过了,true表示该位置已经是1了,false表示该位置是0
+BitSet get(int fromIndex, int toIndex) 返回新的bitset对象
+int nextSetBit(int fromIndex) 从fromIndex之后,下一个是1的是哪个int
+int nextClearBit(int fromIndex) 从fromIndex之后,下一个是0的是哪个int
+int previousSetBit(int fromIndex)  从fromIndex之前,上一个是1的是哪个int
+int previousClearBit(int fromIndex) 从fromIndex之前,上一个是0的是哪个int
+
+int cardinality() 一共设置了多少个元素,即有多少个位置是1
+int size() 表示一共有多少个位置可以存储,即能容纳多少个数字
+
+
+
+boolean intersects(BitSet set) 两个bitset是否有交集,即有相同的元素,实现上是有相同的位置是1
+and(BitSet set) 两个bitset获取交集,最终返回的结果就是交集
+or(BitSet set) 两个bitset获取并集,主要出现的都是位置是1
+xor(BitSet set)
+andNot(BitSet set) 将参数set中是1的位置,本身set该位置则变换成0
+
+
+注意:
+1.为什么要内部使用long实现,而不用int实现呢
+答:主要处于性能的考虑,因为and or等操作是需要所有bit位都操作的,用long的虎牙循环的次数会降低很多
+2.如果是添加的String,则要考虑将String进行hash成唯一int,或者long,然后在调用bitset方法,进行统计,但是原始的String是没办法获得了
