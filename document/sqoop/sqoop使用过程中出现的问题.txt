@@ -1,6 +1,6 @@
 import
 --connect
-jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&autoReconnect=true
+jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&autoReconnect=true&connectTimeout=3000&socketTimeout=60000
 --driver
 com.mysql.jdbc.Driver
 --username

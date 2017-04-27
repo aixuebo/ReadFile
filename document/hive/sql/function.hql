@@ -25,6 +25,8 @@ from  your_table
 group by  appid;
 
 
+sort_array(array(1, 2, 2,5, 3, 3)); 对数据排序,大多数情况下使用在group by中
+
 3.hive 的in 操作
 a.select login.uid from login left outer join regusers on login.uid=regusers.uid where regusers.uid is not null
 
@@ -148,6 +150,8 @@ SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight
 打印 amy
 hive> SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.store.fruit\[0]');
 打印 {"weight":8,"type":"apple"}
+
+27.sort_array(array(1, 2, 2,5, 3, 3)); 对数据排序,大多数情况下使用在group by中
 二、generic
 1.对case column when a then b else c end 形式进行处理
  注意:

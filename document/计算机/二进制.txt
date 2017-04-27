@@ -18,6 +18,10 @@ bitwise-and (&), bitwise-or (|), and 异或 bitwise-xor (ˆ). 非 (~, the method
         }
 返回结果是111111....0,最后一个位置是0
 
+System.out.println(3<<6);//64*3=192 表示3*(2^6)
+
+System.out.println(64 >> 3); 表示64 / 2^3 = 8
+192 >> 6 表示 192 / 2^6 = 3
 三、应用
 1.long leftover = partialCubeFullMask & ~mandatoryColumnMask;
 a.~mandatoryColumnMask;表示反转,即1转换成0,0转换成1
