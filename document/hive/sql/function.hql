@@ -5,8 +5,9 @@
  
 连接字符串concat(string A, string B…)
 
-2.collect_set,该函数要配合group by语法
+2.collect_set,collect_list 该函数要配合group by语法
 例如 collect_set(age),返回array,类似set,包含所有不重复的age信息
+collect_list是按照出现的顺序展现结果
 size(collect_set(age)),即array的值是可以放到size函数里面的
 eg:
 a.SELECT id, CONCAT_WS(',', COLLECT_SET(pic)) FROM tbl GROUP BY id
@@ -179,4 +180,7 @@ select reflect2(source, "replaceAll","\\s+","|");
 1.在脚本中 hive <<EOF 执行的时候尽量不用双引号,要用单引号  即 select reflect2(source, 'replaceAll','\\\\s+','|');
 2.在脚本中 hive <<EOF 执行的时候,要对\进行转义,即\\s+要改成\\\\s+
 
-4.
+三、show functions
+show functions; 查看全部函数
+show functions like "xpath_shor*";  模糊查询以什么开头的函数
+desc  FUNCTION "xpath_short"; 查看该函数的详细参数信息以及说明
