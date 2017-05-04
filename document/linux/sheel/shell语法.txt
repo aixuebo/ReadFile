@@ -41,3 +41,7 @@ $? 是显示最后命令的退出状态，0表示没有错误，其他表示有�
 [ STRING1 < STRING2 ]  如果 “STRING1” sorts before “STRING2” lexicographically in the current locale则为真。
 [ STRING1 > STRING2 ]  如果 “STRING1” sorts after “STRING2” lexicographically in the current locale则为真。
 
+三、()和{}还有``的区别
+$( )中放的是命令,执行里面的代码得到的结果,相当于` `,例如a=$(pwd)  也可以写为a=`pwd`
+${ }中放的是变量,例如echo ${PATH}取PATH变量的值并打印,也可以不加括号比如$PATH
+

@@ -1,0 +1,211 @@
+一、check-env.sh
+1.确保有环境变量$KYLIN_HOME
+2.确保节点有一些客户端
+hbase、hive、hadoop
+3.创建hdfs上一个目录,该目录是kylin.hdfs.working.dir对应的value,默认是kylin
+
+二、get-properties.sh
+用于读取/conf/kylin.properties文件下给定key对应的value
+比如WORKING_DIR=`sh $KYLIN_HOME/bin/get-properties.sh kylin.hdfs.working.dir` 返回kylin.hdfs.working.dir对应的value
+
+三、find-hive-dependency.sh
+1.读取kylin.properties文件kylin.hive.client对应的值,比如默认是cli
+即 client_mode=cli
+2.hive_env=`hive -e set | grep 'env:CLASSPATH'`
+即获取hive配置了哪些环境变量
+3.在hive_env中过滤获取hive的执行的jar包路径以及hive的conf配置路径
+hive_conf_path=hive[^/]*/conf   ----- 因此该路径就可以读取hive-site.xml等配置文件了,比如/usr/hdp/current/hive-client/conf
+hive_exec_path=hive-exec[a-z0-9A-Z\.-]*.jar----比如/usr/hdp/2.4.2.0-258/hive/lib/hive-exec-1.2.1000.2.4.2.0-258.jar
+4.获取hcatalog_home路径
+a.获取$HCAT_HOME环境变量对应的值
+b.如果没有$HCAT_HOME环境变量
+则通过hive_exec_path进行推导,
+首先执行hadoop_home=/usr/hdp/2.4.2.0-258/hive/lib/hive-exec-1.2.1000.2.4.2.0-258.jar" | awk -F '/hive.*/lib/' '{print $1}'` ,获取返回值是/usr/hdp/2.4.2.0-258
+再次执行hive_home=`echo $hive_exec_path | awk -F '/lib/' '{print $1}'`  ,获取返回值是/usr/hdp/2.4.2.0-258/hive
+最终推论:
+如果${hadoop_home}/hive-hcatalog是一个目录,则hcatalog_home=${hadoop_home}/hive-hcatalog
+如果${hadoop_home}/hive/hcatalog是一个目录,则hcatalog_home=${hadoop_home}/hive/hcatalog
+如果${hive_home}/hcatalog是一个目录,则hcatalog_home=${hive_home}/hcatalog
+5.让hcatalog表示hcatlog对应的jar包路径
+hcatalog=`find -L ${hcatalog_home} -name "hive-hcatalog-core[0-9\.-]*.jar" 2>&1 | grep -m 1 -v 'Permission denied'`
+比如 获取到 /usr/hdp/2.4.2.0-258/hive-hcatalog/share/hcatalog/hive-hcatalog-core-1.2.1000.2.4.2.0-258.jar
+6.寻找hive的lib所在jar包
+hive_lib=`find -L "$(dirname $hive_exec_path)" -name '*.jar' ! -name '*calcite*' -printf '%p:' | sed 's/:$//'`
+7.最终export导入hive需要的所有的环境
+hive_dependency=${hive_conf_path}:${hive_lib}:${hcatalog}
+export hive_dependency
+
+
+四、find-hbase-dependency.sh
+1.hbase_classpath=`hbase classpath` 获取hbase的classpath内容
+2.在hbase的classpath下查找hbase-common.jar对应的path
+查找hbase-common[a-z0-9A-Z\.-]*jar匹配的文件
+比如hbase_common_path=/usr/hdp/2.4.2.0-258/hbase/lib/hbase-common.jar
+3.设置hbase的环境变量
+hbase_dependency=${hbase_common_path}:/usr/hdp/2.4.2.0-258/hadoop/conf
+注意:我觉得应该是/usr/hdp/2.4.2.0-258/hbase/conf,而不是追加hadoop的conf文件夹
+export hbase_dependency
+
+
+五、find-kafka-dependency.sh
+1.从环境变量中读取kafka_home=$KAFKA_HOME
+2.查找kafka-clinet这个jar包
+kafka_client=kafka-clients-[a-z0-9A-Z\.-]*.jar,即在kafka home下查找对应的jar包
+代码是kafka_client=`find -L "$(dirname $kafka_home)" -name 'kafka-clients-[a-z0-9A-Z\.-]*.jar' ! -name '*doc*' ! -name '*test*' ! -name '*sources*' ''-printf '%p:' | sed 's/:$//'`
+
+如果上面的$kafka_client不存在,则查找kafka_[a-z0-9A-Z\.-]*.jar
+
+3.设置环境变量
+export kafka_dependency
+代码此时有问题,应该日后使用的时候将kafka的kafka-clinet这个jar包 以及kafka的conf目录配置到环境变量中
+
+
+六、metastore.sh
+1.获取kylin的home目录 以及bin目录
+2.执行check-env.sh进行校验环境是否可用
+3.根据第一个参数的不同,执行不同逻辑
+a.backup
+创建目录以及备份文件
+mkdir -p ${KYLIN_HOME}/meta_backups
+_now=$(date +"%Y_%m_%d_%H_%M_%S")
+_file="${KYLIN_HOME}/meta_backups/meta_${_now}"
+echo "Starting backup to ${_file}"
+mkdir -p ${_file}
+调用命令执行备份元数据
+${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool download ${_file}
+b.fetch path
+获取path对应的文件
+_file=$2
+_now=$(date +"%Y_%m_%d_%H_%M_%S")
+_fileDst="${KYLIN_HOME}/meta_backups/meta_${_now}"
+echo "Starting restoring $_fileDst"
+mkdir -p $_fileDst
+
+执行命令
+${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool fetch $_fileDst $_file
+echo "metadata store backed up to $_fileDst"
+
+c.restore path
+_file=$2
+echo "Starting restoring $_file"
+${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool upload $_file
+
+d.list path
+_file=$2
+echo "Starting list $_file"
+${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool list $_file
+
+f.remove path
+    _file=$2
+    echo "Starting remove $_file"
+    ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool remove $_file
+
+g.cat path
+    _file=$2
+    echo "Starting cat $_file"
+    ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool cat $_file
+
+h.reset
+ ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.common.persistence.ResourceTool  reset
+
+i.clean
+ ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.engine.mr.steps.MetadataCleanupJob "${@:2}"
+
+七、setenv.sh
+设置环境变量export KYLIN_EXTRA_START_OPTS="",可以安排JVM等参数,kylin中会使用
+
+八、diag.sh ------diag.sh Project|JobId [target_path]  执行org.apache.kylin.tool.JobDiagnosisInfoCLI类
+第一个参数Project or Job Id  第二个参数 目录路径
+1.先设置kylin_home 以及 kylin/bin目录 以及kylin/tomcat目录
+export KYLIN_HOME=`cd "$KYLIN_HOME"; pwd`
+export tomcat_root
+2.创建${KYLIN_HOME}/logs目录,以及执行check-env.sh
+3.获取第一个参数和第二个参数
+patient="$1"
+destDir="$2",如果没有设置该参数,则设置默认路径destDir="$KYLIN_HOME/diagnosis_dump/"
+4.引入hive的环境变量source ${dir}/find-hive-dependency.sh
+5.引入环境变量
+    export HBASE_CLASSPATH_PREFIX=${KYLIN_HOME}/conf:${KYLIN_HOME}/lib/*:${KYLIN_HOME}/tool/*:${KYLIN_HOME}/ext/*:${HBASE_CLASSPATH_PREFIX}
+    export HBASE_CLASSPATH=${HBASE_CLASSPATH}:${hive_dependency}
+6.具体执行
+    if [ ${#patient} -eq 36 ]; then
+        hbase ${KYLIN_EXTRA_START_OPTS} \
+        -Dlog4j.configuration=kylin-server-log4j.properties \
+        -Dcatalina.home=${tomcat_root} \
+        org.apache.kylin.tool.JobDiagnosisInfoCLI \
+        -jobId $patient \
+        -destDir $destDir || exit 1
+    else
+        hbase ${KYLIN_EXTRA_START_OPTS} \
+        -Dlog4j.configuration=kylin-server-log4j.properties \
+        -Dcatalina.home=${tomcat_root} \
+        org.apache.kylin.tool.DiagnosisInfoCLI \
+        -project -all \
+        -destDir $destDir || exit 1
+    fi
+
+九、kylin.sh
+1.设置kylin_home环境变量,并且执行check-env.sh脚本
+2.非主要命令
+a.如果命令是stop,则读取${KYLIN_HOME}/pid文件,获取kylin正在执行的pid,然后kill掉即可,然后删除pid文件
+b.如果命令是streaming,先忽略,跟流相关的暂时不看
+c.如果命令是version,则exec hbase -Dlog4j.configuration=kylin-log4j.properties org.apache.kylin.common.KylinVersion,暂时不明白为什么要用hbase去执行,因为本身kylin就可以执行
+d.如果命令是以org.apache.kylin.*开头的,则
+retrieveDependency
+unset KYLIN_EXTRA_START_OPTS 取消环境变量
+exec hbase ${KYLIN_EXTRA_START_OPTS} -Dkylin.hive.dependency=${hive_dependency} -Dkylin.hbase.dependency=${hbase_dependency} -Dlog4j.configuration=kylin-log4j.properties "$@"
+e.如果命令是monitor,则执行streaming的监听
+ retrieveDependency
+    source ${dir}/find-kafka-dependency.sh
+
+    # KYLIN_EXTRA_START_OPTS is for customized settings, checkout bin/setenv.sh
+    hbase ${KYLIN_EXTRA_START_OPTS} \
+    -Dlog4j.configuration=kylin-log4j.properties\
+    -Dkylin.hive.dependency=${hive_dependency} \
+    -Dkylin.kafka.dependency=${kafka_dependency} \
+    -Dkylin.hbase.dependency=${hbase_dependency} \
+    org.apache.kylin.engine.streaming.cli.MonitorCLI $@ > ${KYLIN_HOME}/logs/monitor.log 2>&1
+
+3.主要命令start
+a.设置环境变量依赖
+function retrieveDependency() {
+    #retrive $hive_dependency and $hbase_dependency
+    source ${dir}/find-hive-dependency.sh
+    source ${dir}/find-hbase-dependency.sh
+
+
+    if [ -f "${dir}/setenv.sh" ]
+        then source ${dir}/setenv.sh
+    fi
+
+    export HBASE_CLASSPATH_PREFIX=${KYLIN_HOME}/conf:${KYLIN_HOME}/lib/*:${KYLIN_HOME}/tool/*:${KYLIN_HOME}/ext/*:${HBASE_CLASSPATH_PREFIX}
+    export HBASE_CLASSPATH=${HBASE_CLASSPATH}:${hive_dependency}
+}
+b.追加tomcat的jar包
+export HBASE_CLASSPATH_PREFIX=${tomcat_root}/bin/bootstrap.jar:${tomcat_root}/bin/tomcat-juli.jar:${tomcat_root}/lib/*:${HBASE_CLASSPATH_PREFIX}
+c.设置kylin.rest.address属性
+可以环境变量$KYLIN_REST_ADDRESS,如果没有配置,则要自己创建一个
+kylin_rest_address=`hostname -f`":"`grep "<Connector port=" ${tomcat_root}/conf/server.xml |grep protocol=\"HTTP/1.1\" | cut -d '=' -f 2 | cut -d \" -f 2`
+说明
+hostname -f 返回值是域名 kylin-job.maming.com
+读取 ${tomcat_root}/conf/server.xml文件,获取是HTTP1.1对应的端口
+
+
+d.开启服务
+    hbase ${KYLIN_EXTRA_START_OPTS} \
+    -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager \
+    -Dlog4j.configuration=kylin-server-log4j.properties \
+    -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true \
+    -Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true \
+    -Djava.endorsed.dirs=${tomcat_root}/endorsed  \
+    -Dcatalina.base=${tomcat_root} \
+    -Dcatalina.home=${tomcat_root} \
+    -Djava.io.tmpdir=${tomcat_root}/temp  \
+    -Dkylin.hive.dependency=${hive_dependency} \
+    -Dkylin.hbase.dependency=${hbase_dependency} \
+    -Dkylin.rest.address=${kylin_rest_address} \
+    -Dspring.profiles.active=${spring_profile} \
+    org.apache.hadoop.util.RunJar ${tomcat_root}/bin/bootstrap.jar  org.apache.catalina.startup.Bootstrap start >> ${KYLIN_HOME}/logs/kylin.out 2>&1 & echo $! > ${KYLIN_HOME}/pid &
+    echo "A new Kylin instance is started by $USER, stop it using \"kylin.sh stop\""
+    echo "Please visit http://<ip>:7070/kylin"
+    echo "You can check the log at ${KYLIN_HOME}/logs/kylin.log"

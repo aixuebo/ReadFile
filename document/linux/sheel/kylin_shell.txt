@@ -1,0 +1,19 @@
+一、check-env.sh
+1.-z true表示后面跟的字符串长度是0,
+if [ -z "$KYLIN_HOME" ]  ##true说明环境变量$KYLIN_HOME对应的内容是0,因此要提示设置$KYLIN_HOME
+then
+    echo 'please make sure KYLIN_HOME has been set'
+    exit 1
+fi
+2.$(command -v hbase version)
+表示执行command -v hbase version命令,而该命令是查看是否可以执行hbase命令
+如果没有该命令,则返回值是空,比如$(command -v aaaaa version)
+例如:
+if [ -z "$(command -v hbase version)" ]
+then
+    echo "Please make sure the user has the privilege to run hbase shell"
+    exit 1
+fi
+
+二、
+
