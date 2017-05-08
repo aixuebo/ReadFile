@@ -1,0 +1,55 @@
+一、raw内存不足造成的异常
+1.异常内容
+Error: java.lang.RuntimeException: BufferOverflow! Please use one higher cardinality column for dimension column when build RAW cube!
+at org.apache.kylin.measure.raw.RawSerializer.serialize(RawSerializer.java:94)
+at org.apache.kylin.measure.raw.RawSerializer.serialize(RawSerializer.java:33)
+at org.apache.kylin.measure.BufferedMeasureEncoder.encode(BufferedMeasureEncoder.java:93)
+at org.apache.kylin.engine.mr.steps.CuboidReducer.reduce(CuboidReducer.java:102)
+at org.apache.kylin.engine.mr.steps.CuboidReducer.reduce(CuboidReducer.java:42)
+at org.apache.hadoop.mapreduce.Reducer.run(Reducer.java:171)
+at org.apache.hadoop.mapred.ReduceTask.runNewReducer(ReduceTask.java:627)
+at org.apache.hadoop.mapred.ReduceTask.run(ReduceTask.java:389)
+at org.apache.hadoop.mapred.YarnChild$2.run(YarnChild.java:168)
+at java.security.AccessController.doPrivileged(Native Method)
+at javax.security.auth.Subject.doAs(Subject.java:422)
+at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1709)
+at org.apache.hadoop.mapred.YarnChild.main(YarnChild.java:162)
+2.异常原因
+CRM系统中根据不同的维度选择后,找到userid集合,因此此时不是使用的任何聚合度量,而是使用raw方式将所有的userid保存起来,用于查询。
+3.解决方法
+a.public static final int RAW_BUFFER_SIZE = 10 * 1024 * 1024;//10M  原来是1M,后来我改成的10M
+这个问题不是最重要的,因为没有找到具体的产生原因
+b.主要解决方法
+ public void serialize(List<ByteArray> values, ByteBuffer out) 方法中抛出的异常是
+throw new RuntimeException("BufferOverflow! Please use one higher cardinality column for dimension column when build RAW cube!");
+要将其改成throw new BufferOverflowException();即可
+因为根据异常来看,at org.apache.kylin.measure.BufferedMeasureEncoder.encode(BufferedMeasureEncoder.java:93) 调用的serialize方法,而这encode里面是有异常捕获的,捕获后会扩容字节数组,因此就解决该问题了。
+而真实抛出的RuntimeException异常,不是BufferOverflowException异常,因此不会进行扩容,导致异常出现。
+
+源代码:at org.apache.kylin.measure.BufferedMeasureEncoder.encode
+    public ByteBuffer encode(Object[] values) {
+        if (buf == null) {
+            setBufferSize(DEFAULT_BUFFER_SIZE);
+        }
+
+        assert values.length == codec.nMeasures;
+
+        while (true) {
+            try {
+                buf.clear();
+                for (int i = 0, pos = 0; i < codec.nMeasures; i++) {
+                    codec.serializers[i].serialize(values[i], buf);//序列化到buf中
+                    measureSizes[i] = buf.position() - pos;//序列化该度量的字节大小
+                    pos = buf.position();
+                }
+                return buf;
+
+            } catch (BufferOverflowException boe) {
+                if (buf.capacity() >= MAX_BUFFER_SIZE) //扩容到极限了,抛异常
+                    throw boe;
+
+                setBufferSize(buf.capacity() * 2);//扩容
+            }
+        }
+    }
+
