@@ -223,3 +223,10 @@ date	user	class	yes_class	class_flag
 20160910	1	3	4	1						
 
 11.partition(log_day='substr('2016-10-30',1,7)')不支持UDF函数,因此要么用固定静态值填充,要么动态分区,将UDF定义到select的最后一个字段中解决该问题
+
+12.计算连续两条记录的差,比如已知每一天的存量,求每日新增存量,即今天存量-昨天存量=新增存量
+1.使用row_number() over (PARTITION BY imei ORDER BY ts ASC) as row_num 可以产生编号
+2.join自身,然后同一条记录就可以做差
+比如
+select a.value-b.value
+from biao a join biao b on a.id = b.id and a.row_num = b.row_num +1
