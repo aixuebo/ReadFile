@@ -1,0 +1,25 @@
+一、RAW
+1.存储原始内容
+比如:CRM系统中根据不同的维度选择后,找到userid集合,因此此时不是使用的任何聚合度量,而是使用raw方式将所有的userid保存起来,用于查询。
+2.例如数据内容
+日期 销售人员ID 销售表ID 商品价格
+DT	SITE_ID	SELLER_ID	ITEM_COUNT
+2016-05-01	0	SELLER-001	100
+2016-05-01	0	SELLER-002	200
+2016-05-02	1	SELLER-003	300
+2016-05-02	1	SELLER-004	400
+2016-05-03	2	SELLER-005	500
+3.让DT	SITE_ID作为两个维度,获取SUM(ITEM_COUNT)
+Rowkey of base cuboid	SUM(ITEM_COUNT)
+2016-05-01_0	300
+2016-05-02_1	700
+2016-05-03_2	500
+
+但是我们没有办法获取ITEM_COUNT的原始内容,只能获取到汇总值
+比如SELECT DT,SITE_ID,ITEM_COUNT FROM FACT_TABLE 我们是没办法查询的
+因此要使用RAW方法
+
+4.优化
+RAW方法会将列进行字典编码,如果字段的值太多
+a.则一个大的segment要切分成若干个小的segment
+b.设置kylin.properties文件中的kylin.dictionary.max.cardinality 为更大的值 (default is 5000000).

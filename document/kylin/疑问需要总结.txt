@@ -1,0 +1,87 @@
+
+
+
+restclient
+kylin.rest.servers
+存储一组服务器登录信息user:pwd@host:port 用于不同的kylin节点之间同步原数据
+
+
+kylin.metadata.url
+使用hbase的table@hbase连接串,也可能是一个本地路径目录,用于表示元数据存储在本地节点上,参考org.apache.kylin.common.persistence.FileResourceStore
+
+读取配置文件
+1.先从-D中读取KYLIN_CONF,表示kylin配置文件目录
+2.从系统的环境变量中读取KYLIN_HOME对应的值
+3.加载配置文件顺序
+优先读取$KYLIN_CONF/kylin.properties对应的配置文件
+其次读取$KYLIN_HOME/conf/kylin.properties对应的配置文件
+优先读取$KYLIN_CONF/kylin_account.properties对应的配置文件
+其次读取$KYLIN_HOME/conf/kylin_account.properties对应的配置文件
+然后读取kylin_account.properties.override和kylin.properties.override文件,对相关key进行覆盖操作
+
+
+
+kylin.hbase.client.keyvalue.maxsize//默认是1024*1024,即1M
+
+//当hbase存储的内容太大的时候,会存储到hdfs上,这个是hdfs的根目录
+hdfs的根目录配置kylin.hdfs.working.dir + metadataUrl中hbase的table名字
+比如存储到/kylin/kylin_metadata/resources
+
+
+
+
+    @JsonProperty("tables")
+    private Set<String> tables = new TreeSet<String>();
+
+    @JsonProperty("realizations")
+    private List<RealizationEntry> realizationEntries;
+
+    @JsonProperty("models")
+    private List<String> models;
+
+    @JsonProperty("ext_filters")
+    private Set<String> extFilters = new TreeSet<String>();
+
+
+    private ProjectL2Cache l2Cache; 二极缓存的意义
+    二级缓存功能---用于查询属于project的table、RealizationEntry、model、extFilters,因为这些并不是必须每次都要加载的,因此需要耗费些性能,因此设计了一个二级缓存
+
+
+    删除project的时候要        BadQueryHistoryManager.getInstance(config).removeBadQueryHistory(projectName);//删除该project相关联的bad query,因为该project已经被删除了
+
+
+hive的数据库表加载到原数据中
+服务器启动时候读取元数据,因此可以获取hive的信息
+model建立在hive table的元数据上
+
+综上所述,只要将hive的元数据手动改了,然后重新启动服务器，或者发送请求,重新加载全部数据,即可当hive表更改后,依然不用更改cube以及model
+
+然后就可以在model中看到table的新字段了,然后就可以更改model了
+
+日后可以提供一个功能,去修改hive的元数据,而不需要手动改
+
+问题
+SegmentStatusEnum 状态什么时候发生变化的
+
+
+   @JsonProperty("retention_range")
+    private long retentionRange = 0;//Retention Threshold值
+
+    //设置字典
+    @JsonProperty("dictionaries")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<DictionaryDesc> dictionaries;
+
+    //设置rowkey关于字段的顺序
+    @JsonProperty("rowkey")
+    private RowKeyDesc rowkey;
+
+    @JsonProperty("hbase_mapping")
+    private HBaseMappingDesc hbaseMapping;
+
+cube描述信息的保存过程
+1.根据KylinConfig和overrideKylinProps创建KylinConfigExt对象在cube中使用
+2.根据model的name加载model对应的对象
+3.校验validate
+4.对每一个DimensionDesc度量进行init调用
+

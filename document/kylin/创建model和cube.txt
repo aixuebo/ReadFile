@@ -318,14 +318,130 @@ group by CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY,PROVINCE
 order by CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY desc,PROVINCE desc
 
 6.问题
-a.为什么组装sql的时候,对于度量信息依然要进行count distinct操作呢,按道理直接写入度量属性就可以了啊,
+a.为什么组装sql的时候,对于度量信息依然要进行count distinct操作呢,按道理直接写入度量属性就可以了啊(已经解决)
 因为定义cube的时候,该度量值就已经统计好了,没必要再次进行count(distinct)处理了。
 
 b.如何cube过程中减少维度
-c.选择2个维度时候,是如何到cube中查询的呢
+c.选择2个维度时候,是如何到cube中查询的呢 
 因为维度是在维度集合中选择的,而维度集合的各种组合都已经组合了,因此就会有结果直接被选中。
 被组合的可能性是2^n,n是维度数量
 但是每一个维度的值是不同的,因此最终产生的数据量是2^n * 每一个维度对应的不同的value数量
 
 因此是否可以看到不同的优化维度方式,可以减少数据量呢?
 d.各自维度优化,如何应用到现实例子中
+e.如果设置了某一个维度必须存在,sql中不使用该维度.会影响结果么(已经解决)
+不会影响.因为会查询所有必须维度+自定义维度的数据,然后额外的sum等操作处理。
+比如 年是固定的,因此可以有8中可能性,而不是16种可能性组合: 但是当查询某一日的数据的时候,可以查询年 日的组合,然后将结果进行sum即可
+年 月 日 时间
+年 月 时间
+年 月 日
+年 日 时间
+年 月
+年 日
+年 时间
+f.如果设置继承关系,但是sql中没有使用继承关系,因此也没有问题.也是跟e一样,会有额外的操作去进行fiter或者sum。
+g.Joint Dimensions 一起查询设置,如果查询的只是一组查询中的一个属性,cube是如何做到查询的
+h.推测derived方式是如何做到的?
+
+
+
+---------------
+一、Create Intermediate Flat Hive Table
+先根据model执行hive,使用where和分区进行过滤数据,数据结果存储在kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335;
+二、 Redistribute Flat Hive Table  执行两个sql
+1.查询总条数
+INSERT OVERWRITE DIRECTORY '/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/row_count' 
+SELECT count(*) FROM kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335;
+2.查询数据,分布到不同的reduce中
+INSERT OVERWRITE TABLE kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 
+SELECT * FROM kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 DISTRIBUTE BY RAND(); 保证在一个reduce中是有顺序的。
+三、Extract Fact Table Distinct Columns 抽取fact表中不重复的列
+ -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml 
+ -cubename olap_bi_act_cube 
+ -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/fact_distinct_columns 
+ -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
+ -statisticsenabled true 
+ -statisticsoutput /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/statistics 
+ -statisticssamplingpercent 100 
+ -jobname Kylin_Fact_Distinct_Columns_olap_bi_act_cube_Step 
+ -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
+ 四、Build Dimension Dictionary
+-cubename olap_bi_act_cube 
+-segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
+-input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/fact_distinct_columns
+五、Save Cuboid Statistics
+六、Create HTable
+ -cubename olap_bi_act_cube 
+ -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
+ -partitions hdfs://namenode01.xxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/rowkey_stats/part-r-00000
+ -statisticsenabled true
+七、Build Base Cuboid Data
+ -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
+-cubename olap_bi_act_cube 
+-segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
+-input FLAT_TABLE -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/base_cuboid 
+-jobname Kylin_Base_Cuboid_Builder_olap_bi_act_cube 
+-level 0 
+-cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
+八、Build N-Dimension Cuboid Data : 18-Dimension
+  -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
+  -cubename olap_bi_act_cube 
+  -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
+  -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/base_cuboid
+  -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/18d_cuboid 
+  -jobname Kylin_ND-Cuboid_Builder_olap_bi_act_cube_Step 
+  -level 1
+  -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
+九、Build N-Dimension Cuboid Data : 17-Dimension
+ -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
+ -cubename olap_bi_act_cube -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
+ -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/18d_cuboid
+ -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/17d_cuboid 
+ -jobname Kylin_ND-Cuboid_Builder_olap_bi_act_cube_Step 
+ -level 2 
+ -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
+
+。。。。
+十、Build Cube
+-conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf_inmem.xml
+-cubename olap_bi_act_cube -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
+-output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/
+-jobname Kylin_Cube_Builder_olap_bi_act_cube 
+-cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
+十一、Convert Cuboid Data to HFile
+ -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml 
+ -cubename olap_bi_act_cube 
+ -partitions hdfs://namenode01.xxxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/rowkey_stats/part-r-00000_hfile
+ -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/* 
+ -output hdfs://namenode01.xxxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/hfile
+ -htablename KYLIN_4BMCXGILH9
+ -jobname Kylin_HFile_Generator_olap_bi_act_cube_Step
+十二、Load HFile to HBase Table
+ -input hdfs://namenode01.xxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/hfile
+ -htablename KYLIN_4BMCXGILH9 
+ -cubename olap_bi_act_cube
+十三、Update Cube Info
+十四、Garbage Collection
+Hive table default.kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 is dropped. 
+Hive table default.kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 external data path /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 is deleted. 
+
+
+hbase
+resgion和resgionServer
+
+
+    public static void deleteHTable(TableName tableName) throws IOException {
+        Configuration conf = HBaseConnection.getCurrentHBaseConfiguration();
+        HBaseAdmin admin = new HBaseAdmin(conf);
+        try {
+            if (admin.tableExists(tableName)) {
+                logger.info("disabling hbase table " + tableName);
+                admin.disableTable(tableName);
+                logger.info("deleting hbase table " + tableName);
+                admin.deleteTable(tableName);
+            }
+        } finally {
+            admin.close();
+        }
+    }
+
