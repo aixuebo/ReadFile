@@ -1,18 +1,18 @@
-×Ü½á:
-Ò»¡¢model---kylinµÄÊ¹ÓÃµÄ¶¼ÊÇhiveµÄÊı¾İ¿â.table.×Ö¶Î×é³ÉµÄ×Ö¶Î
-1.ÉèÖÃmodelÃû×ÖºÍÃèÊö
-2.Ñ¡Ôñfact±íºÍlook up±í,ÕâÒ»²½ÖèÊôÓÚjoin²Ù×÷,Òò´Ë¶ÔÃ¿Ò»¸ölook up±íÉèÖÃonµÄÌõ¼ş
-3.´ÓN+1¸ö±íÖĞÑ¡ÔñÎ¬¶È
-  ÒòÎª1¸öfact±íºÍN¸ölook up±í
-4.´Ófact±íÖĞÑ¡Ôñ¶ÈÁ¿µÄÁĞ.
- ÒòÎªĞÇĞÍ½á¹¹ÖĞ,fact±í´æ´¢µÄÊÇidÒÔ¼°Òª¶ÈÁ¿µÄÊôĞÔ,¶ølook up±í´æ´¢µÄÊÇid¶ÔÓ¦µÄÏêÏ¸ĞÅÏ¢,Òò´Ë¶ÈÁ¿¿Ï¶¨´Ófact±í³ö,¶ølook up±í³öµÄÊÇÎ¬¶È×Ö¶Î
-5.ÉèÖÃ¸ÃmodelµÄ·ÖÇø×Ö¶Î ÒÔ¼° ÉèÖÃwhereÌõ¼ş
-a.whereÌõ¼şÊÇÎªÁËÉ¸Ñ¡hive±íÊ±ºò½øĞĞËõĞ¡²éÑ¯·¶Î§
-b.·ÖÇø×Ö¶ÎÒª´Ófact±íÑ¡ÔñÒ»¸ö×Ö¶Î×÷Îª·ÖÇø×Ö¶Î,²»ÄÜÔÊĞí´Ólook up±íÑ¡Ôñ
+æ€»ç»“:
+ä¸€ã€model---kylinçš„ä½¿ç”¨çš„éƒ½æ˜¯hiveçš„æ•°æ®åº“.table.å­—æ®µç»„æˆçš„å­—æ®µ
+1.è®¾ç½®modelåå­—å’Œæè¿°
+2.é€‰æ‹©factè¡¨å’Œlook upè¡¨,è¿™ä¸€æ­¥éª¤å±äºjoinæ“ä½œ,å› æ­¤å¯¹æ¯ä¸€ä¸ªlook upè¡¨è®¾ç½®onçš„æ¡ä»¶
+3.ä»N+1ä¸ªè¡¨ä¸­é€‰æ‹©ç»´åº¦
+  å› ä¸º1ä¸ªfactè¡¨å’ŒNä¸ªlook upè¡¨
+4.ä»factè¡¨ä¸­é€‰æ‹©åº¦é‡çš„åˆ—.
+ å› ä¸ºæ˜Ÿå‹ç»“æ„ä¸­,factè¡¨å­˜å‚¨çš„æ˜¯idä»¥åŠè¦åº¦é‡çš„å±æ€§,è€Œlook upè¡¨å­˜å‚¨çš„æ˜¯idå¯¹åº”çš„è¯¦ç»†ä¿¡æ¯,å› æ­¤åº¦é‡è‚¯å®šä»factè¡¨å‡º,è€Œlook upè¡¨å‡ºçš„æ˜¯ç»´åº¦å­—æ®µ
+5.è®¾ç½®è¯¥modelçš„åˆ†åŒºå­—æ®µ ä»¥åŠ è®¾ç½®whereæ¡ä»¶
+a.whereæ¡ä»¶æ˜¯ä¸ºäº†ç­›é€‰hiveè¡¨æ—¶å€™è¿›è¡Œç¼©å°æŸ¥è¯¢èŒƒå›´
+b.åˆ†åŒºå­—æ®µè¦ä»factè¡¨é€‰æ‹©ä¸€ä¸ªå­—æ®µä½œä¸ºåˆ†åŒºå­—æ®µ,ä¸èƒ½å…è®¸ä»look upè¡¨é€‰æ‹©
 
-ËµÃ÷:
-modelµÄÒâÒåÊÇÈÃÈô¸É¸ö±í½øĞĞ¹ØÁª,¼ÙÉèÒ»¹²ÓĞ100¸ö×Ö¶Î,µ«ÊÇÎ¬¶ÈºÍ¶ÈÁ¿¸ù±¾²»ĞèÒª¹Ø×¢ÄÇÃ´¶à×Ö¶Î,¿ÉÄÜ¾Í¹Ø×¢10¸ö×Ö¶Î,Òò´Ë³éÏóÒ»¸ömodel²ã.
-ÈÃ¸Ã²ãÖ»¹Ø×¢Õâ10¸ö×Ö¶Î,½«Õâ10¸ö×Ö¶Î·Ö³ÉÁ½×é,¼´Î¬¶ÈºÍ¶ÈÁ¿×é
+è¯´æ˜:
+modelçš„æ„ä¹‰æ˜¯è®©è‹¥å¹²ä¸ªè¡¨è¿›è¡Œå…³è”,å‡è®¾ä¸€å…±æœ‰100ä¸ªå­—æ®µ,ä½†æ˜¯ç»´åº¦å’Œåº¦é‡æ ¹æœ¬ä¸éœ€è¦å…³æ³¨é‚£ä¹ˆå¤šå­—æ®µ,å¯èƒ½å°±å…³æ³¨10ä¸ªå­—æ®µ,å› æ­¤æŠ½è±¡ä¸€ä¸ªmodelå±‚.
+è®©è¯¥å±‚åªå…³æ³¨è¿™10ä¸ªå­—æ®µ,å°†è¿™10ä¸ªå­—æ®µåˆ†æˆä¸¤ç»„,å³ç»´åº¦å’Œåº¦é‡ç»„
 
 {
   "uuid": "f9b62e30-becb-4642-b3e1-75aca6431550",
@@ -98,24 +98,24 @@ modelµÄÒâÒåÊÇÈÃÈô¸É¸ö±í½øĞĞ¹ØÁª,¼ÙÉèÒ»¹²ÓĞ100¸ö×Ö¶Î,µ«ÊÇÎ¬¶ÈºÍ¶ÈÁ¿¸ù±¾²»ĞèÒª¹Ø×¢
   "capacity": "MEDIUM"
 }
 
-¶ş¡¢cube
-1.ÉèÖÃcubeµÄÃû×Ö¡¢ÃèÊöÒÔ¼°ÓÊ¼şÍ¨Öª¼¯ºÏ¡¢×î¹Ø¼üµÄÊÇÑ¡ÔñÒ»¸ömodel,ÔÚ¸ÃmodelÊÇ½¨ÉÏ½¨Á¢cube
-Ö»ÄÜÑ¡ÔñÒ»¸ömodel,ÒòÎª¸ÃmodelÉÏÒÑ¾­ÉèÖÃÁËÎ¬¶ÈÒÔ¼°¶ÔÓ¦µÄ¶ÈÁ¿ÊôĞÔ¼¯ºÏ
-2.½¨Á¢Î¬¶È---normalºÍderived
-×¢Òâ:Ñ¡ÔñµÄÎ¬¶ÈÁĞ,Ö»ÄÜ´ÓmodelµÄÎ¬¶ÈÖĞÑ¡Ôñ,²»ÄÜ´Ó¶ÈÁ¿ÖĞÑ¡Ôñ¡£
-a.Ä¬ÈÏµÄÊÇfact±íÑ¡Ôñ3¸öÊôĞÔ,Ôò¸ÃÊôĞÔ¶¼ÊÇnormalÀàĞÍµÄ
-b.Ä¬ÈÏ´Ólookup±íÑ¡ÔñÈô¸öÊôĞÔ,¶¼ÊÇderivedÀàĞÍµÄ
-c.Èç¹ûlookup±íÒªÊ¹ÓÃnormal,ÔòÒªµ¥¶ÀÑ¡Ôñ¡£
-3.½¨Á¢¶ÈÁ¿
-a.Ñ¡ÔñµÄ¶ÈÁ¿ÁĞÖ»ÄÜ´ÓmodelµÄ¶ÈÁ¿ÖĞÑ¡Ôñ,²»ÄÜ´ÓÎ¬¶ÈÖĞÑ¡Ôñ¡£
-b.´´½¨min¡¢max¡¢sum¡¢count¡¢count(distinct())¡¢top¡¢row¡¢extended_columnÕâ¼¸ÖÖ¶ÈÁ¿·½Ê½
-4.ÉèÖÃºÏ²¢ÖÜÆÚ,ÒÔ¼°·ÖÇøµÄ¿ªÊ¼Ê±¼ä
-5.¹Ø¼üµÄÉèÖÃ²¿·Ö,Ò²ÊÇ×îÃÔºıµÄ²¿·Ö
+äºŒã€cube
+1.è®¾ç½®cubeçš„åå­—ã€æè¿°ä»¥åŠé‚®ä»¶é€šçŸ¥é›†åˆã€æœ€å…³é”®çš„æ˜¯é€‰æ‹©ä¸€ä¸ªmodel,åœ¨è¯¥modelæ˜¯å»ºä¸Šå»ºç«‹cube
+åªèƒ½é€‰æ‹©ä¸€ä¸ªmodel,å› ä¸ºè¯¥modelä¸Šå·²ç»è®¾ç½®äº†ç»´åº¦ä»¥åŠå¯¹åº”çš„åº¦é‡å±æ€§é›†åˆ
+2.å»ºç«‹ç»´åº¦---normalå’Œderived
+æ³¨æ„:é€‰æ‹©çš„ç»´åº¦åˆ—,åªèƒ½ä»modelçš„ç»´åº¦ä¸­é€‰æ‹©,ä¸èƒ½ä»åº¦é‡ä¸­é€‰æ‹©ã€‚
+a.é»˜è®¤çš„æ˜¯factè¡¨é€‰æ‹©3ä¸ªå±æ€§,åˆ™è¯¥å±æ€§éƒ½æ˜¯normalç±»å‹çš„
+b.é»˜è®¤ä»lookupè¡¨é€‰æ‹©è‹¥ä¸ªå±æ€§,éƒ½æ˜¯derivedç±»å‹çš„
+c.å¦‚æœlookupè¡¨è¦ä½¿ç”¨normal,åˆ™è¦å•ç‹¬é€‰æ‹©ã€‚
+3.å»ºç«‹åº¦é‡
+a.é€‰æ‹©çš„åº¦é‡åˆ—åªèƒ½ä»modelçš„åº¦é‡ä¸­é€‰æ‹©,ä¸èƒ½ä»ç»´åº¦ä¸­é€‰æ‹©ã€‚
+b.åˆ›å»ºminã€maxã€sumã€countã€count(distinct())ã€topã€rowã€extended_columnè¿™å‡ ç§åº¦é‡æ–¹å¼
+4.è®¾ç½®åˆå¹¶å‘¨æœŸ,ä»¥åŠåˆ†åŒºçš„å¼€å§‹æ—¶é—´
+5.å…³é”®çš„è®¾ç½®éƒ¨åˆ†,ä¹Ÿæ˜¯æœ€è¿·ç³Šçš„éƒ¨åˆ†
 a.Aggregation Groups
-Ñ¡ÔñµÄ×Ö¶Î¶¼ÊÇ´Ó¶ÈÁ¿ÖĞµÄÊôĞÔ½øĞĞÑ¡ÔñµÄ,²¢ÇÒÃ»ÓĞderivedÀàĞÍÊôĞÔÌá¹©Ñ¡Ôñ
-ÉèÖÃIncludes¡¢Mandatory Dimensions¡¢Hierarchy Dimensions¡¢Joint Dimensions
-b.Rowkeys 
-ËùÓĞµÄ¶ÈÁ¿ÊôĞÔ¼¯ºÏ,µ«ÊÇÃ»ÓĞderivedÀàĞÍÊôĞÔÌá¹©Ñ¡Ôñ
+é€‰æ‹©çš„å­—æ®µéƒ½æ˜¯ä»åº¦é‡ä¸­çš„å±æ€§è¿›è¡Œé€‰æ‹©çš„,å¹¶ä¸”æ²¡æœ‰derivedç±»å‹å±æ€§æä¾›é€‰æ‹©
+è®¾ç½®Includesã€Mandatory Dimensionsã€Hierarchy Dimensionsã€Joint Dimensions
+b.Rowkeys
+æ‰€æœ‰çš„åº¦é‡å±æ€§é›†åˆ,ä½†æ˜¯æ²¡æœ‰derivedç±»å‹å±æ€§æä¾›é€‰æ‹©
 c.Advanced Dictionaries
 
 {
@@ -276,158 +276,158 @@ c.Advanced Dictionaries
 }
 
 ----------------------------
-Èı¡¢kylinµÄÒâÒå
-1.ĞÇĞÍ½á¹¹±í,Ò»¸öfact±íÓĞÈô¸É±íidÒÔ¼°¶ÈÁ¿µÄÊôĞÔÖµ¡£
-  Èô¸É¸ölookup±í,ÓĞidµÄÏêÏ¸ĞÅÏ¢¡£
-2.¹ØÁªÕâfact±íºÍlook up±í
-3.¶Ô¹ØÁªºóµÄ±í¿ÉÒÔ½øĞĞsql²éÑ¯ĞèÇó
-select ¸÷ÖÖÊôĞÔ,ÒÔ¼°¶Ô¶ÈÁ¿ÖµµÄsum,countµÈ²Ù×÷
+ä¸‰ã€kylinçš„æ„ä¹‰
+1.æ˜Ÿå‹ç»“æ„è¡¨,ä¸€ä¸ªfactè¡¨æœ‰è‹¥å¹²è¡¨idä»¥åŠåº¦é‡çš„å±æ€§å€¼ã€‚
+  è‹¥å¹²ä¸ªlookupè¡¨,æœ‰idçš„è¯¦ç»†ä¿¡æ¯ã€‚
+2.å…³è”è¿™factè¡¨å’Œlook upè¡¨
+3.å¯¹å…³è”åçš„è¡¨å¯ä»¥è¿›è¡ŒsqlæŸ¥è¯¢éœ€æ±‚
+select å„ç§å±æ€§,ä»¥åŠå¯¹åº¦é‡å€¼çš„sum,countç­‰æ“ä½œ
 from fact join lookup on  ..
-where ·ÖÇø ÒÔ¼° whereÌõ¼ş
-group by ¸÷ÖÖÊôĞÔ
-order by ¸÷ÖÖÊôĞÔ
+where åˆ†åŒº ä»¥åŠ whereæ¡ä»¶
+group by å„ç§å±æ€§
+order by å„ç§å±æ€§
 
-4.Ò³Ãæ²Ù×÷ÈçºÎ²éÑ¯cube
-a.Ò³Ãæ´ÓÎ¬¶È¼¯ºÏÖĞÑ¡ÔñÎ¬¶È
-b.Ò³Ãæ´Ó¶ÈÁ¿¼¯ºÏÖĞÑ¡Ôñ¶ÈÁ¿
-c.Õë¶ÔÑ¡ÔñµÄÎ¬¶È¿ÉÒÔ½øĞĞÑ¡Ôñ¾ßÌåµÄÖµ,Ò²¿ÉÒÔ²»Ñ¡Ôñ
+4.é¡µé¢æ“ä½œå¦‚ä½•æŸ¥è¯¢cube
+a.é¡µé¢ä»ç»´åº¦é›†åˆä¸­é€‰æ‹©ç»´åº¦
+b.é¡µé¢ä»åº¦é‡é›†åˆä¸­é€‰æ‹©åº¦é‡
+c.é’ˆå¯¹é€‰æ‹©çš„ç»´åº¦å¯ä»¥è¿›è¡Œé€‰æ‹©å…·ä½“çš„å€¼,ä¹Ÿå¯ä»¥ä¸é€‰æ‹©
 
-Òò´ËÉú³ÉµÄsql
-select ¸÷×ÔÎ¬¶È,ÒÔ¼°¶ÈÁ¿ĞÅÏ¢
+å› æ­¤ç”Ÿæˆçš„sql
+select å„è‡ªç»´åº¦,ä»¥åŠåº¦é‡ä¿¡æ¯
 from cube
-where cÖĞÎ¬¶ÈµÄ¾ßÌåµÄÖµ,Èç¹ûÃ»ÓĞÉèÖÃ¸ÃÖµ,Ôò²»ĞèÒªÉèÖÃwhere
-group by ¸÷×ÔÎ¬¶È
-order by ¸÷×ÔÎ¬¶È
+where cä¸­ç»´åº¦çš„å…·ä½“çš„å€¼,å¦‚æœæ²¡æœ‰è®¾ç½®è¯¥å€¼,åˆ™ä¸éœ€è¦è®¾ç½®where
+group by å„è‡ªç»´åº¦
+order by å„è‡ªç»´åº¦
 
-¸Ä½ø,ºóĞø¿ÉÒÔ¼ÓÈëhavingµÄÒ³ÃæÌí¼Ó·½Ê½
+æ”¹è¿›,åç»­å¯ä»¥åŠ å…¥havingçš„é¡µé¢æ·»åŠ æ–¹å¼
 
-5.ÀıÈç
+5.ä¾‹å¦‚
 
-Ô¤ÀÀ×Ü¼Æsql
+é¢„è§ˆæ€»è®¡sql
 select count(distinct B_OPEN),count(distinct B_INV1ST)
-from DIM_KYLIN.OLAP_BASIC_ACT 
+from DIM_KYLIN.OLAP_BASIC_ACT
 where 1=1 and CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY in('2017-04-10')
 
-Ô¤ÀÀsql
+é¢„è§ˆsql
 select CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY,PROVINCE,
-count(distinct B_OPEN),count(distinct B_INV1ST) 
-from DIM_KYLIN.OLAP_BASIC_ACT 
-where 1=1  
-and CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY in('2017-04-10') 
+count(distinct B_OPEN),count(distinct B_INV1ST)
+from DIM_KYLIN.OLAP_BASIC_ACT
+where 1=1
+and CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY in('2017-04-10')
 group by CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY,PROVINCE
 order by CREATE_YEAR||'-'||CREATE_MONTH||'-'||CREATE_DAY desc,PROVINCE desc
 
-6.ÎÊÌâ
-a.ÎªÊ²Ã´×é×°sqlµÄÊ±ºò,¶ÔÓÚ¶ÈÁ¿ĞÅÏ¢ÒÀÈ»Òª½øĞĞcount distinct²Ù×÷ÄØ,°´µÀÀíÖ±½ÓĞ´Èë¶ÈÁ¿ÊôĞÔ¾Í¿ÉÒÔÁË°¡(ÒÑ¾­½â¾ö)
-ÒòÎª¶¨ÒåcubeµÄÊ±ºò,¸Ã¶ÈÁ¿Öµ¾ÍÒÑ¾­Í³¼ÆºÃÁË,Ã»±ØÒªÔÙ´Î½øĞĞcount(distinct)´¦ÀíÁË¡£
+6.é—®é¢˜
+a.ä¸ºä»€ä¹ˆç»„è£…sqlçš„æ—¶å€™,å¯¹äºåº¦é‡ä¿¡æ¯ä¾ç„¶è¦è¿›è¡Œcount distinctæ“ä½œå‘¢,æŒ‰é“ç†ç›´æ¥å†™å…¥åº¦é‡å±æ€§å°±å¯ä»¥äº†å•Š(å·²ç»è§£å†³)
+å› ä¸ºå®šä¹‰cubeçš„æ—¶å€™,è¯¥åº¦é‡å€¼å°±å·²ç»ç»Ÿè®¡å¥½äº†,æ²¡å¿…è¦å†æ¬¡è¿›è¡Œcount(distinct)å¤„ç†äº†ã€‚
 
-b.ÈçºÎcube¹ı³ÌÖĞ¼õÉÙÎ¬¶È
-c.Ñ¡Ôñ2¸öÎ¬¶ÈÊ±ºò,ÊÇÈçºÎµ½cubeÖĞ²éÑ¯µÄÄØ 
-ÒòÎªÎ¬¶ÈÊÇÔÚÎ¬¶È¼¯ºÏÖĞÑ¡ÔñµÄ,¶øÎ¬¶È¼¯ºÏµÄ¸÷ÖÖ×éºÏ¶¼ÒÑ¾­×éºÏÁË,Òò´Ë¾Í»áÓĞ½á¹ûÖ±½Ó±»Ñ¡ÖĞ¡£
-±»×éºÏµÄ¿ÉÄÜĞÔÊÇ2^n,nÊÇÎ¬¶ÈÊıÁ¿
-µ«ÊÇÃ¿Ò»¸öÎ¬¶ÈµÄÖµÊÇ²»Í¬µÄ,Òò´Ë×îÖÕ²úÉúµÄÊı¾İÁ¿ÊÇ2^n * Ã¿Ò»¸öÎ¬¶È¶ÔÓ¦µÄ²»Í¬µÄvalueÊıÁ¿
+b.å¦‚ä½•cubeè¿‡ç¨‹ä¸­å‡å°‘ç»´åº¦
+c.é€‰æ‹©2ä¸ªç»´åº¦æ—¶å€™,æ˜¯å¦‚ä½•åˆ°cubeä¸­æŸ¥è¯¢çš„å‘¢
+å› ä¸ºç»´åº¦æ˜¯åœ¨ç»´åº¦é›†åˆä¸­é€‰æ‹©çš„,è€Œç»´åº¦é›†åˆçš„å„ç§ç»„åˆéƒ½å·²ç»ç»„åˆäº†,å› æ­¤å°±ä¼šæœ‰ç»“æœç›´æ¥è¢«é€‰ä¸­ã€‚
+è¢«ç»„åˆçš„å¯èƒ½æ€§æ˜¯2^n,næ˜¯ç»´åº¦æ•°é‡
+ä½†æ˜¯æ¯ä¸€ä¸ªç»´åº¦çš„å€¼æ˜¯ä¸åŒçš„,å› æ­¤æœ€ç»ˆäº§ç”Ÿçš„æ•°æ®é‡æ˜¯2^n * æ¯ä¸€ä¸ªç»´åº¦å¯¹åº”çš„ä¸åŒçš„valueæ•°é‡
 
-Òò´ËÊÇ·ñ¿ÉÒÔ¿´µ½²»Í¬µÄÓÅ»¯Î¬¶È·½Ê½,¿ÉÒÔ¼õÉÙÊı¾İÁ¿ÄØ?
-d.¸÷×ÔÎ¬¶ÈÓÅ»¯,ÈçºÎÓ¦ÓÃµ½ÏÖÊµÀı×ÓÖĞ
-e.Èç¹ûÉèÖÃÁËÄ³Ò»¸öÎ¬¶È±ØĞë´æÔÚ,sqlÖĞ²»Ê¹ÓÃ¸ÃÎ¬¶È.»áÓ°Ïì½á¹ûÃ´(ÒÑ¾­½â¾ö)
-²»»áÓ°Ïì.ÒòÎª»á²éÑ¯ËùÓĞ±ØĞëÎ¬¶È+×Ô¶¨ÒåÎ¬¶ÈµÄÊı¾İ,È»ºó¶îÍâµÄsumµÈ²Ù×÷´¦Àí¡£
-±ÈÈç ÄêÊÇ¹Ì¶¨µÄ,Òò´Ë¿ÉÒÔÓĞ8ÖĞ¿ÉÄÜĞÔ,¶ø²»ÊÇ16ÖÖ¿ÉÄÜĞÔ×éºÏ: µ«ÊÇµ±²éÑ¯Ä³Ò»ÈÕµÄÊı¾İµÄÊ±ºò,¿ÉÒÔ²éÑ¯Äê ÈÕµÄ×éºÏ,È»ºó½«½á¹û½øĞĞsum¼´¿É
-Äê ÔÂ ÈÕ Ê±¼ä
-Äê ÔÂ Ê±¼ä
-Äê ÔÂ ÈÕ
-Äê ÈÕ Ê±¼ä
-Äê ÔÂ
-Äê ÈÕ
-Äê Ê±¼ä
-f.Èç¹ûÉèÖÃ¼Ì³Ğ¹ØÏµ,µ«ÊÇsqlÖĞÃ»ÓĞÊ¹ÓÃ¼Ì³Ğ¹ØÏµ,Òò´ËÒ²Ã»ÓĞÎÊÌâ.Ò²ÊÇ¸úeÒ»Ñù,»áÓĞ¶îÍâµÄ²Ù×÷È¥½øĞĞfiter»òÕßsum¡£
-g.Joint Dimensions Ò»Æğ²éÑ¯ÉèÖÃ,Èç¹û²éÑ¯µÄÖ»ÊÇÒ»×é²éÑ¯ÖĞµÄÒ»¸öÊôĞÔ,cubeÊÇÈçºÎ×öµ½²éÑ¯µÄ
-h.ÍÆ²âderived·½Ê½ÊÇÈçºÎ×öµ½µÄ?
+å› æ­¤æ˜¯å¦å¯ä»¥çœ‹åˆ°ä¸åŒçš„ä¼˜åŒ–ç»´åº¦æ–¹å¼,å¯ä»¥å‡å°‘æ•°æ®é‡å‘¢?
+d.å„è‡ªç»´åº¦ä¼˜åŒ–,å¦‚ä½•åº”ç”¨åˆ°ç°å®ä¾‹å­ä¸­
+e.å¦‚æœè®¾ç½®äº†æŸä¸€ä¸ªç»´åº¦å¿…é¡»å­˜åœ¨,sqlä¸­ä¸ä½¿ç”¨è¯¥ç»´åº¦.ä¼šå½±å“ç»“æœä¹ˆ(å·²ç»è§£å†³)
+ä¸ä¼šå½±å“.å› ä¸ºä¼šæŸ¥è¯¢æ‰€æœ‰å¿…é¡»ç»´åº¦+è‡ªå®šä¹‰ç»´åº¦çš„æ•°æ®,ç„¶åé¢å¤–çš„sumç­‰æ“ä½œå¤„ç†ã€‚
+æ¯”å¦‚ å¹´æ˜¯å›ºå®šçš„,å› æ­¤å¯ä»¥æœ‰8ä¸­å¯èƒ½æ€§,è€Œä¸æ˜¯16ç§å¯èƒ½æ€§ç»„åˆ: ä½†æ˜¯å½“æŸ¥è¯¢æŸä¸€æ—¥çš„æ•°æ®çš„æ—¶å€™,å¯ä»¥æŸ¥è¯¢å¹´ æ—¥çš„ç»„åˆ,ç„¶åå°†ç»“æœè¿›è¡Œsumå³å¯
+å¹´ æœˆ æ—¥ æ—¶é—´
+å¹´ æœˆ æ—¶é—´
+å¹´ æœˆ æ—¥
+å¹´ æ—¥ æ—¶é—´
+å¹´ æœˆ
+å¹´ æ—¥
+å¹´ æ—¶é—´
+f.å¦‚æœè®¾ç½®ç»§æ‰¿å…³ç³»,ä½†æ˜¯sqlä¸­æ²¡æœ‰ä½¿ç”¨ç»§æ‰¿å…³ç³»,å› æ­¤ä¹Ÿæ²¡æœ‰é—®é¢˜.ä¹Ÿæ˜¯è·Ÿeä¸€æ ·,ä¼šæœ‰é¢å¤–çš„æ“ä½œå»è¿›è¡Œfiteræˆ–è€…sumã€‚
+g.Joint Dimensions ä¸€èµ·æŸ¥è¯¢è®¾ç½®,å¦‚æœæŸ¥è¯¢çš„åªæ˜¯ä¸€ç»„æŸ¥è¯¢ä¸­çš„ä¸€ä¸ªå±æ€§,cubeæ˜¯å¦‚ä½•åšåˆ°æŸ¥è¯¢çš„
+h.æ¨æµ‹derivedæ–¹å¼æ˜¯å¦‚ä½•åšåˆ°çš„?
 
 
 
 ---------------
-Ò»¡¢Create Intermediate Flat Hive Table
-ÏÈ¸ù¾İmodelÖ´ĞĞhive,Ê¹ÓÃwhereºÍ·ÖÇø½øĞĞ¹ıÂËÊı¾İ,Êı¾İ½á¹û´æ´¢ÔÚkylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335;
-¶ş¡¢ Redistribute Flat Hive Table  Ö´ĞĞÁ½¸ösql
-1.²éÑ¯×ÜÌõÊı
-INSERT OVERWRITE DIRECTORY '/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/row_count' 
+ä¸€ã€Create Intermediate Flat Hive Table
+å…ˆæ ¹æ®modelæ‰§è¡Œhive,ä½¿ç”¨whereå’Œåˆ†åŒºè¿›è¡Œè¿‡æ»¤æ•°æ®,æ•°æ®ç»“æœå­˜å‚¨åœ¨kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335;
+äºŒã€ Redistribute Flat Hive Table  æ‰§è¡Œä¸¤ä¸ªsql
+1.æŸ¥è¯¢æ€»æ¡æ•°
+INSERT OVERWRITE DIRECTORY '/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/row_count'
 SELECT count(*) FROM kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335;
-2.²éÑ¯Êı¾İ,·Ö²¼µ½²»Í¬µÄreduceÖĞ
-INSERT OVERWRITE TABLE kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 
-SELECT * FROM kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 DISTRIBUTE BY RAND(); ±£Ö¤ÔÚÒ»¸öreduceÖĞÊÇÓĞË³ĞòµÄ¡£
-Èı¡¢Extract Fact Table Distinct Columns ³éÈ¡fact±íÖĞ²»ÖØ¸´µÄÁĞ
- -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml 
- -cubename olap_bi_act_cube 
- -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/fact_distinct_columns 
- -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
- -statisticsenabled true 
- -statisticsoutput /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/statistics 
- -statisticssamplingpercent 100 
- -jobname Kylin_Fact_Distinct_Columns_olap_bi_act_cube_Step 
+2.æŸ¥è¯¢æ•°æ®,åˆ†å¸ƒåˆ°ä¸åŒçš„reduceä¸­
+INSERT OVERWRITE TABLE kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335
+SELECT * FROM kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 DISTRIBUTE BY RAND(); ä¿è¯åœ¨ä¸€ä¸ªreduceä¸­æ˜¯æœ‰é¡ºåºçš„ã€‚
+ä¸‰ã€Extract Fact Table Distinct Columns æŠ½å–factè¡¨ä¸­ä¸é‡å¤çš„åˆ—
+ -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
+ -cubename olap_bi_act_cube
+ -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/fact_distinct_columns
+ -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
+ -statisticsenabled true
+ -statisticsoutput /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/statistics
+ -statisticssamplingpercent 100
+ -jobname Kylin_Fact_Distinct_Columns_olap_bi_act_cube_Step
  -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
- ËÄ¡¢Build Dimension Dictionary
--cubename olap_bi_act_cube 
--segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
+ å››ã€Build Dimension Dictionary
+-cubename olap_bi_act_cube
+-segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
 -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/fact_distinct_columns
-Îå¡¢Save Cuboid Statistics
-Áù¡¢Create HTable
- -cubename olap_bi_act_cube 
+äº”ã€Save Cuboid Statistics
+å…­ã€Create HTable
+ -cubename olap_bi_act_cube
  -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
  -partitions hdfs://namenode01.xxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/rowkey_stats/part-r-00000
  -statisticsenabled true
-Æß¡¢Build Base Cuboid Data
+ä¸ƒã€Build Base Cuboid Data
  -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
--cubename olap_bi_act_cube 
--segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
--input FLAT_TABLE -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/base_cuboid 
--jobname Kylin_Base_Cuboid_Builder_olap_bi_act_cube 
--level 0 
+-cubename olap_bi_act_cube
+-segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
+-input FLAT_TABLE -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/base_cuboid
+-jobname Kylin_Base_Cuboid_Builder_olap_bi_act_cube
+-level 0
 -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
-°Ë¡¢Build N-Dimension Cuboid Data : 18-Dimension
+å…«ã€Build N-Dimension Cuboid Data : 18-Dimension
   -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
-  -cubename olap_bi_act_cube 
+  -cubename olap_bi_act_cube
   -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
   -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/base_cuboid
-  -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/18d_cuboid 
-  -jobname Kylin_ND-Cuboid_Builder_olap_bi_act_cube_Step 
+  -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/18d_cuboid
+  -jobname Kylin_ND-Cuboid_Builder_olap_bi_act_cube_Step
   -level 1
   -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
-¾Å¡¢Build N-Dimension Cuboid Data : 17-Dimension
+ä¹ã€Build N-Dimension Cuboid Data : 17-Dimension
  -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
- -cubename olap_bi_act_cube -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335 
+ -cubename olap_bi_act_cube -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
  -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/18d_cuboid
- -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/17d_cuboid 
- -jobname Kylin_ND-Cuboid_Builder_olap_bi_act_cube_Step 
- -level 2 
+ -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/17d_cuboid
+ -jobname Kylin_ND-Cuboid_Builder_olap_bi_act_cube_Step
+ -level 2
  -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
 
-¡£¡£¡£¡£
-Ê®¡¢Build Cube
+ã€‚ã€‚ã€‚ã€‚
+åã€Build Cube
 -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf_inmem.xml
 -cubename olap_bi_act_cube -segmentid b51823c8-4d3b-4ded-add4-72b13c2e9335
 -output /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/
--jobname Kylin_Cube_Builder_olap_bi_act_cube 
+-jobname Kylin_Cube_Builder_olap_bi_act_cube
 -cubingJobId bee23db1-4457-4bca-a9d4-a09bb4834e49
-Ê®Ò»¡¢Convert Cuboid Data to HFile
- -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml 
- -cubename olap_bi_act_cube 
+åä¸€ã€Convert Cuboid Data to HFile
+ -conf /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/conf/kylin_job_conf.xml
+ -cubename olap_bi_act_cube
  -partitions hdfs://namenode01.xxxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/rowkey_stats/part-r-00000_hfile
- -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/* 
+ -input /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/cuboid/*
  -output hdfs://namenode01.xxxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/hfile
  -htablename KYLIN_4BMCXGILH9
  -jobname Kylin_HFile_Generator_olap_bi_act_cube_Step
-Ê®¶ş¡¢Load HFile to HBase Table
+åäºŒã€Load HFile to HBase Table
  -input hdfs://namenode01.xxxx.com:8020/kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/olap_bi_act_cube/hfile
- -htablename KYLIN_4BMCXGILH9 
+ -htablename KYLIN_4BMCXGILH9
  -cubename olap_bi_act_cube
-Ê®Èı¡¢Update Cube Info
-Ê®ËÄ¡¢Garbage Collection
-Hive table default.kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 is dropped. 
-Hive table default.kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 external data path /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 is deleted. 
+åä¸‰ã€Update Cube Info
+åå››ã€Garbage Collection
+Hive table default.kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 is dropped.
+Hive table default.kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 external data path /kylin/kylin_metadata/kylin-bee23db1-4457-4bca-a9d4-a09bb4834e49/kylin_intermediate_olap_bi_act_cube_b51823c8_4d3b_4ded_add4_72b13c2e9335 is deleted.
 
 
 hbase
-resgionºÍresgionServer
+resgionå’ŒresgionServer
 
 
     public static void deleteHTable(TableName tableName) throws IOException {

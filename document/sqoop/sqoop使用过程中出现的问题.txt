@@ -1,6 +1,6 @@
 import
 --connect
-jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&autoReconnect=true&connectTimeout=3000&socketTimeout=60000
+jdbc:mysql://ip:5306/xxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&autoReconnect=true&connectTimeout=3000&socketTimeout=60000&tinyInt1isBit=false
 --driver
 com.mysql.jdbc.Driver
 --username
@@ -40,7 +40,7 @@ sqoop  --options-file /var/sqoop/ljc_import_hive.txt --delete-target-dir -m 10 -
 其中ljc_import_hive.txt内容
 import
 --connect
-jdbc:mysql://host:port/xxxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&useCursorFetch=true&autoReconnect=true
+jdbc:mysql://host:port/xxxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&useCursorFetch=true&autoReconnect=true&tinyInt1isBit=false
 --driver
 com.mysql.jdbc.Driver
 --username
@@ -100,3 +100,9 @@ a.当mysql中导入到hdfs的数据,默认每一个字段是使用\t进行拆分
 在import的时候加入参数  --fields-terminated-by '\001'可以将mysql的拆分符号设置为acsii的1,这样就可以了
 
 
+7.mysql tinyint类型转换成boolean类型分析
+jdbc会把tinyint 认为是Java.sql.Types.BIT，然后sqoop就会转为Boolean了,悲剧吧
+解决办法：
+a.在连接上加上一句话tinyInt1isBit=false
+比如 jdbc:mysql://localhost/test?tinyInt1isBit=false
+b.产生这种问题是因为mysql设置的tinyint(1),可以将其设置成tinyint(4)就没问题了

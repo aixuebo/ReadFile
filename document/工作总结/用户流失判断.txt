@@ -1,0 +1,36 @@
+一、用户行为表记录
+dim_temporary.user_app_log表存储用户行为信息
+用户id、在哪天有行为
+行为表记录来自于---行为埋点表、投资表、赎回表,只要这三个表有行为记录,则认为用户在当天存在行为
+
+注意:用户虽然可能30天内没有行为,但是用户却有定期存在
+二、dim_temporary.leave_user_temp 创建临时表
+将dim_temporary.user_app_log表进行自join,where条件是相同的用户,连续的记录比较,相差30天的数据没有活跃的用户 或者 最后一次活跃后,再也没有出现活跃的用户 被选择出来
+即选择30天内没有活跃的用户
+三、 dim_temporary.leave_user 最终表
+对dim_temporary.leave_user_temp表中用户进一步过滤,过滤掉还有定期存量的用户,有定期存量,说明当天用户不是流失
+
+四、具体sql
+a.获取最大的行为日期以及最大的定期时间----因此可以推导出user的最大流失时间
+b.判断最大流失时间是否是今天,如果是今天,则说明用户已经流失
+
+select userid,max(d)
+from
+(
+select userid,max(part_log_day) d
+from dim_temporary.user_app_log
+group by userid
+union all
+select userid,max(due_date) d
+from fact_xxx.regular_info
+where strTrim(due_date)!='null'
+group by userid
+) t
+group by userid
+having date_add(to_date(max(d)),30) = '2017-05-01'
+
+当前时间是2017-05-01,因此查看两个表，
+1.用户最后一天活跃
+2.用户最后一个定期到期时间
+
+然后获取两个时间最大的一个,是否与相对于今天的前30天相同,相同，则说明流失

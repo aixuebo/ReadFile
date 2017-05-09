@@ -61,7 +61,10 @@ model建立在hive table的元数据上
 日后可以提供一个功能,去修改hive的元数据,而不需要手动改
 
 问题
-SegmentStatusEnum 状态什么时候发生变化的
+1.SegmentStatusEnum 状态什么时候发生变化的
+2.维度都可以进行编码,维度也包含了rowke,由于rowkey设置了编码方式,那么rowkey中的字段在字典中也设置了编码,是以谁为准呢
+答案:因为getAllColumnsHaveDictionary类中是先加载rowkey,再加载字典,因此应该字典会覆盖掉rowkey,但是只是怀疑。
+维度不仅仅包含rowkey,还包含derived,因此这些字段都没有在rowkey中配置字典,因此字典中需要更加进一步的配置这些字段的字典
 
 
    @JsonProperty("retention_range")
@@ -72,16 +75,62 @@ SegmentStatusEnum 状态什么时候发生变化的
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private List<DictionaryDesc> dictionaries;
 
-    //设置rowkey关于字段的顺序
+    //设置rowkey关于字段的顺序---该字段就是设计维度的时候,表示为normal的维度,derived维度是不允许在rowkey中存在的,因为derived是推测出来的
     @JsonProperty("rowkey")
     private RowKeyDesc rowkey;
 
     @JsonProperty("hbase_mapping")
-    private HBaseMappingDesc hbaseMapping;
+    private HBaseMappingDesc hbaseMapping;//表示度量函数如何定义到hbase的列族中
 
 cube描述信息的保存过程
 1.根据KylinConfig和overrideKylinProps创建KylinConfigExt对象在cube中使用
 2.根据model的name加载model对应的对象
 3.校验validate
 4.对每一个DimensionDesc度量进行init调用
+
+
+
+一、假设设置维度的时候,不设置derived,仅仅是normal
+1.因此该字段可以是fact也可以使lookup的字段---将该字段设置为initDimensionColRef即可
+2.特例,如果该字段是lookup表,并且该字段是lookp表的on字段,因此就不再用该字段了,而改用fact表中字段
+
+二、如果该字段是derived
+1.则该derived字段集合一定存在在lookup表里面,即derived也是维度
+因此让lookup表中的on 相关连的fact表字段都加入到initDimensionColRef中。
+
+2.获取derived字段集合,
+因为derived字段都是lookup表的字段,因此可能该字段是on中字段,因此将derived字段拆分成两部分----fact表中字段和lookup表中没办法转换on的字段
+
+3.设置推测映射
+a.fact表参与on的字段 肯定对应lookup表一行数据,因此可以推测出该行数据的任意内容,即on字段集合作为key----推测字段集合作为value
+b.反过来
+每一个推测的value,都可以由on参与的字段组合成
+
+注意:
+要先删除on中字段与推测字段相同的字段
+之所以删除,是因为on的key 和推测的字段相同时候,不需要推测,因此将其删除掉
+
+比如
+fact表 :userid 注册时间 投资金额
+lookup表要推测的字段:userid,注册时间,name
+
+想按照userid,注册时间,name三个维度分组
+
+很明显userid和注册时间是不需要推测的,因此推测就变成通过userid,注册时间去推测name,反过来name可以通过userid和注册时间推测出来
+
+
+
+三、对于lookup表中字段进行主外键映射推测
+1.向allColumns中添加所有关联的主外键
+2.将lookup表中on参与的字段加入到dimensionColumns队列中
+3.设置推测映射关系
+即fact的一个字段 可以 推测 lookup表中相关的字段,即他们两个字段是相同on位置
+反过来也一样
+
+
+有推测的话,就避免进行多一个维度进行builder了,因此会增速,但是query的时候会有cost额外的价值去查询,查询时间会增加.因此当lookup表很小的时候可以采用推测方式执行。
+
+
+四、initDimensionColRef方法的意义
+将该字段添加到allColumns以及dimensionColumns中,即表示该字段属于维度字段,并且属于cube需要的字段之一
 
