@@ -1,0 +1,66 @@
+一、tar
+1.打包
+tar -cvf xx.tar file1 file2
+
+2.解压缩
+tar -xvf 命令即可。不需要加z
+
+3.查看tar包内容
+查看全部文件
+tar -tvf 20141016.tar.gz
+查看通配符制定文件
+tar -tzvf 20141016.tar.gz 20141016/log/10.163.167.84/log_service_c*
+
+
+二、tar.gz 注意最后一个是f命令
+1.压缩打包
+tar -czvf xx.tar.gz file1 file2
+tar -czvf name.tar.gz path
+该path可以是目录,也可以是文件,即将该path进行打包
+
+2.各种解压缩
+全部解压缩
+tar -xzvf 20141016.tar.gz
+解压缩tar.gz中某一个文件
+tar -xzvf source.tar.gz 20141016/log/10.163.167.84/log_service_coohua_com.2014101615.gz
+解压缩tar.gz中某一类型文件
+tar -xzvf source.tar.gz 20141016/log/10.163.167.84/log_log_coohua_com.*
+
+2.tar和tar.gz区别
+.tar只是将文件打包，文件的大小没什么变化
+.tar.gz是加入了gzip的压缩命令，会将文件压缩存放，可以有效压缩文件的大小，以便于缩短传输时间或者释放磁盘空间
+
+三、gz
+1.压缩打包
+gzip –c filename > filename.gz
+2.解压缩
+zcat *.gz >xx.log 读取的gz文件存放到xx.log中,相当于解压缩
+gunzip –c filename.gz > filename  解压gz 并且保留源文件
+3.读取gz文件
+zcat *.gz 读取gz压缩文件
+
+四、zip
+1.压缩打包
+zip -r mydata.zip mydata #压缩mydata目录或者mydata文件
+zip -r mydata.zip mydata1 mydata2 #压缩mydata1和mydata2文件
+zip -q mydata.zip mydata1 mydata2 #如果文件夹下面包含太多的文件，可以使用-q选项 表示仅压缩该目录下非mydata1 mydata2文件外其他文件都要被压缩
+
+2.解压缩zip
+unzip mydata.zip -d mydatabak ###注意-d表示将zip文件解压到mydatabak文件夹下,mydatabak文件夹可以不存在
+
+
+五.war/jar包
+1.创建war包
+jar -cvfM0 game.war ./
+-c   创建war包
+-v   显示过程信息
+-f
+-M
+-0   这个是阿拉伯数字，只打包不压缩的意思
+2.解压game.war 或者jar
+jar -xvf game.war
+解压到当前目录
+
+
+六.deb包安装 双击即可
+删除 sudo  dpkg  -i  package.deb

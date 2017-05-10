@@ -53,3 +53,30 @@ throw new RuntimeException("BufferOverflow! Please use one higher cardinality co
         }
     }
 
+二、org.apache.kylin.tool.JobTaskCounterExtractor
+方法getHttpResponse无限循环打印日志,导致磁盘空间满,程序无法运行异常
+
+源代码:
+    private String getHttpResponse(String url) {
+        HttpClient client = new HttpClient();
+        String response = null;
+        while (response == null) {
+            HttpMethod get = new GetMethod(url);
+            try {
+                get.addRequestHeader("accept", "application/json");
+                client.executeMethod(get);
+                response = get.getResponseBodyAsString();
+            } catch (Exception e) {
+                logger.warn("url11111:"+url+":Failed to fetch http response");
+                logger.warn("url:"+url+":Failed to fetch http response" + e);
+            } finally {
+                get.releaseConnection();
+            }
+        }
+        return response;
+    }
+
+解决方法
+1.先打印url,先知道什么url出现的问题
+2.设置count数量,超过一定count失败次数后,就不会在循环请求。
+

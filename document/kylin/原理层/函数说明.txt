@@ -23,3 +23,4 @@ Rowkey of base cuboid	SUM(ITEM_COUNT)
 RAW方法会将列进行字典编码,如果字段的值太多
 a.则一个大的segment要切分成若干个小的segment
 b.设置kylin.properties文件中的kylin.dictionary.max.cardinality 为更大的值 (default is 5000000).
+
