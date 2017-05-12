@@ -39,3 +39,5 @@ a.set hive.exec.dynamic.partition.mode=nostrick;
 b.insert overwrite table dim.topic_user_partition partition(log_day)
 c.select的最后几个字段的值就是分区的值
 
+七、set hive.mapred.mode=nostrict; 取消hive的约束,即查询分区表的时候,如果不写分区字段,也是允许执行的
+

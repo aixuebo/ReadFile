@@ -17,7 +17,7 @@ b.select appid,
 from your_table
 group by appid;
 c.
-另一种做法：可以考虑使用min, max
+另一种做法:可以考虑使用min, max
 
 select appid,
         max(app_name),

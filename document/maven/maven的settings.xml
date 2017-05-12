@@ -149,13 +149,14 @@ under the License.
      | this mirror serves has an ID that matches the mirrorOf element of this mirror. IDs are used
      | for inheritance and direct lookup purposes, and must be unique across the set of mirrors.
      |
-    <mirror>
+     -->
+     <mirror>
       <id>mirrorId</id>
       <mirrorOf>repositoryId</mirrorOf>
       <name>Human Readable Name for this Mirror.</name>
       <url>http://my.repository.com/repo/path</url>
-    </mirror>
-     -->
+     </mirror>
+
     <mirror>
       <id>nexus</id>
       <mirrorOf>central</mirrorOf>
