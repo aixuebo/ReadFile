@@ -1,0 +1,3 @@
+一、CubeSegment
+Overlap 重叠,交集
+gap 间隙

@@ -46,6 +46,13 @@ a	+b
 	  return value == null ? null : value.trim();
   }
 
+上面的方法是org.apache.sqoop.orm.ClassWriter自动生成代码的时候调用的,可以在这个类里面找到代码逻辑
+
+因为上面的代码虽然过滤了mysql的空格,但是有时候mysql的字段value里面包含\n回车,或者\t等等其他违法的内容,因此有必要将其替换成其他的字符,因此修改下面代码,将其替换成|
+    public static String convertString(String value){
+  	  return value == null ? null : value.trim().replaceAll("\r\n", "").replaceAll("\n", "");
+    }
+
 三、mysql的包版本过低
 异常sqoop java.sql.SQLException: Streaming result set com.mysql.jdbc.RowDataDynamicis still active
 mysql的mysql-connector-java-5.1.17.jar版本太低了,导致以下的两个方法在Date的数据库类型的时候,会抛异常。

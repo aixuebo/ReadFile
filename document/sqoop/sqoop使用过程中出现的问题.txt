@@ -99,6 +99,16 @@ b.user_info表有id 和userid 是null的,原因也是回车问题导致的串行
 a.当mysql中导入到hdfs的数据,默认每一个字段是使用\t进行拆分的,因此hive会按照\t去分割数据文件成字段,但是有时候数据库描述信息是有\t内容的,因此会导致数据串行
 在import的时候加入参数  --fields-terminated-by '\001'可以将mysql的拆分符号设置为acsii的1,这样就可以了
 
+--lines-terminated-by '\021' 设置行分隔符,该值设置以0开头表示的是8进制
+
+用于读取mysql数据的时候,如何拆分一行数据
+--input-fields-terminated-by <char>      Sets the input field separator
+--input-lines-terminated-by <char>       Sets the input end-of-line
+
+用于如何往hive中写入
+--fields-terminated-by
+--lines-terminated-by
+比如 上面说的,sqoop把数据写入到hdfs上,默认使用\t拆分,但是某一个字段的value值是有\t的,那么就会有错误.因此使用 --fields-terminated-by '\001'为hdfs上的输出设置成新的分隔符,不是用\t,就解决了该问题
 
 7.mysql tinyint类型转换成boolean类型分析
 jdbc会把tinyint 认为是Java.sql.Types.BIT，然后sqoop就会转为Boolean了,悲剧吧

@@ -53,3 +53,6 @@ print rep.content
 备注:
 提交脚本的时候需要传递三个参数-----开始时间和结束时间以及cube的name,对这部分的segment创建cube
 
+三、如何获取一个cube的详细元数据信息以及cube的某一个segment的执行hive的sql
+http://ip:7070/kylin/api/cubes/${cubeMame} 获取cube的全部描述信息
+http://ip:7070/kylin/api/cubes/${cubeMame}/segs/${segmentName20160901063000_20161001063000}/sql  获取cube的某一个segment在builder的时候,原始从hive中加载的sql
