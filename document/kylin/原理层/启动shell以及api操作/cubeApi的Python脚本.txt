@@ -56,3 +56,8 @@ print rep.content
 三、如何获取一个cube的详细元数据信息以及cube的某一个segment的执行hive的sql
 http://ip:7070/kylin/api/cubes/${cubeMame} 获取cube的全部描述信息
 http://ip:7070/kylin/api/cubes/${cubeMame}/segs/${segmentName20160901063000_20161001063000}/sql  获取cube的某一个segment在builder的时候,原始从hive中加载的sql
+http://10.1.5.83:7070/kylin/api/cubes/ 获取全部数据
+
+四、获取job的信息
+get http://10.1.5.83:7070/kylin/api/jobs/jobid
+jobid从kylin的任务的param参数中可以拿到

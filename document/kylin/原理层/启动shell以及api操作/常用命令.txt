@@ -10,7 +10,7 @@ a.reset元数据,即将会清空在hbase中的一切kylin的元数据内容,因�
 b.上传新的备份数据到hbase中
 ./bin/metastore.sh restore $KYLIN_HOME/meta_backups/meta_xxxx_xx_xx_xx_xx_xx
 
-3.清理不再使用的元数据资源
+3.清理不再使用的元数据资源----只是会整理元数据,不会清理真实的HDFS上的文件
 a.随着时间的推演,向字典、table snapshots等资源变成很少用,或者不用了,因为cube的segment被dropped或者merged了,但是他们仍然占用空间。
 因此需要找到这些资源,并且删除这些资源
 b../bin/metastore.sh clean
@@ -19,10 +19,38 @@ c../bin/metastore.sh clean --delete true
 这个命令会真的删除没有用的资源,因此执行时候要确保资源已经被备份过了
 
 
-二、Cleanup Storage (HDFS & HBase) 清理HDFS、hbase的资源
+二、Cleanup Storage (HDFS & HBase) 清理HDFS、hbase的资源----此时尽量少清理,因为一旦清理了,元数据需要的内容也就不存在了,当还原元数据的时候,其实是没有意义的了,即如果该文件清理后,以前备份的元数据是可以被删除了,因为无意义了
 因为kylin在cube的build过程中,会产生中间hive文件在hdfs上,
 还有当purge/drop/merge cubes或者一些hbase操作的时候,会使一些资源不会在被查询使用,因此要手动的清理资源
 a.export KYLIN_HOME=/path/to/kylin_home
 ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.storage.hbase.util.StorageCleanupJob --delete false
 这个只是会打印要清理的资源,不会真的去清理
 b.将--delete false 设置成 --delete true 则会真正去清理资源
+
+三、备份
+定义的根目录
+    public static final String CUBE_RESOURCE_ROOT = "/cube";//存储cube
+    public static final String CUBE_DESC_RESOURCE_ROOT = "/cube_desc";//存储一个web页面中配置的cube信息
+    public static final String DATA_MODEL_DESC_RESOURCE_ROOT = "/model_desc";//存放model模型
+    public static final String DICT_RESOURCE_ROOT = "/dict";//存储字典
+    public static final String PROJECT_RESOURCE_ROOT = "/project";//存储project内容,将该project对象序列化成json对象,存储到/project/projectName.json文件中
+    public static final String SNAPSHOT_RESOURCE_ROOT = "/table_snapshot";//快照存储路径
+    public static final String TABLE_EXD_RESOURCE_ROOT = "/table_exd";//存储table的额外的key-value信息
+    public static final String TABLE_RESOURCE_ROOT = "/table";//保存table元数据信息
+    public static final String EXTERNAL_FILTER_RESOURCE_ROOT = "/ext_filter";//用于存储filter
+    public static final String HYBRID_RESOURCE_ROOT = "/hybrid";
+    public static final String EXECUTE_RESOURCE_ROOT = "/execute";//存放每一个job任务的执行信息
+    public static final String EXECUTE_OUTPUT_RESOURCE_ROOT = "/execute_output";//存放每一个job任务的执行的输出信息
+    public static final String STREAMING_RESOURCE_ROOT = "/streaming";
+    public static final String KAFKA_RESOURCE_ROOT = "/kafka";
+    public static final String STREAMING_OUTPUT_RESOURCE_ROOT = "/streaming_output";
+    public static final String CUBE_STATISTICS_ROOT = "/cube_statistics";//cube的统计内容输出
+    public static final String BAD_QUERY_RESOURCE_ROOT = "/bad_query";
+1.抓去指定目录元数据
+/bin/metastore.sh fetch /execute
+2.更改元数据后上传到hbase上,即kylin上传新的数据
+./bin/metastore.sh restore $KYLIN_HOME/meta_backups/meta_xxxx_xx_xx_xx_xx_xx
+注意:此时meta_xxxx_xx_xx_xx_xx_xx里面存储的仅仅是更改后的内容.不需要全部内容
+
+
+

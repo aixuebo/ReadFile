@@ -8,3 +8,38 @@
 
 二、userid这种字符串编码的,可以将其使用字典dict,但是要经过一层字典映射,还要存储字典,比较麻烦,而且占用内存。
 因此可以直接将他转换成fixlength,这样优点是不需要dict字典了,直接可以转换.缺点是转换没有节省字节,依然很大。
+
+三、kylin的job是一个job对应多个子任务,但是每一次job调度器只能调度一个子任务,当一个子任务完成的时候,才能在下一轮中对job进行再一次调度,具体代码在org.apache.kylin.job.impl.threadpool.DefaultScheduler
+
+四、唯一字典竟然出现两个dict文件,因此调度job失败。
+教训:
+1.可以清理kylin的元数据,但是不要随意清理hdfs上的文件内容,如果一旦HDFS和Hbase上的文件被删除了,即使备份了元数据,也没有办法还原数据了
+2.通过kylin的build页面,可以通过param拿到job的id,比如kylin-8f84fccf-143c-4721-82ad-b5e44dcf4f53,而具体的jobId其实是8f84fccf-143c-4721-82ad-b5e44dcf4f53
+3.通过jobid可以获取该job的每一个子任务情况
+get http://10.1.5.83:7070/kylin/api/jobs/jobid
+比如: get 请求 http://10.1.5.83:7070/kylin/api/jobs/8f84fccf-143c-4721-82ad-b5e44dcf4f53
+4.可以单独调用某一个子任务
+比如执行bulk任务----找到对应的job执行class,配置对应的参数即可
+sh kylin.sh org.apache.kylin.storage.hbase.steps.BulkLoadJob -input hdfs://namenode01.xxx.com:8020/kylin/kylin_metadata/kylin-8f84fccf-143c-4721-82ad-b5e44dcf4f53/olap_basic_cube_v3/hfile/ -htablename KYLIN_HBWCQ5ZQR1 -cubename olap_basic_cube_v3
+5.更改job的状态为ready,重新上传元数据,然后重新启动集群
+
+五、jobid如何关联execute的
+创建job的时候,job对象虽然会写入到存储hbase中,但是该job对象中会有cube和segment内容,以及该job的创建时间,通过这些可以按照job创建时间排序,获取最后一个job就是该cube对应的job
+
+六、查看什么原理清空的元数据信息  org.apache.kylin.engine.mr.steps.MetadataCleanupJob
+1.先将一定时间前的元数据添加到删除目录中
+2.加载还活跃的cube和cube的segment
+3.从删除的目录中移除还活跃的cube相关的文件,因此就可以删除剩余的元数据了
+
+七、查看什么原理情况的hdfs和hbase上的数据  org.apache.kylin.storage.hbase.util.StorageCleanupJob
+
+八、kylin的dict字典项目
+创建字典的调用顺序
+a.JobBuilderSupport.createBuildDictionaryStep
+b.CreateDictionaryJob.run
+c.DictionaryGeneratorCLI.processSegment
+d.CubeManager.buildDictionary
+e.创建字典
+String builderClass = cubeDesc.getDictionaryBuilderClass(col);//返回构建字典的class对象
+DictionaryInfo dictInfo = DictionaryManager.buildDictionary(cubeDesc.getModel(), col, factTableValueProvider, builderClass);//构建一个字典表对象
+

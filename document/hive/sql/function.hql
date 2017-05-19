@@ -1,3 +1,6 @@
+hive支持的数据类型
+boolean、tinyint、smallint、int、bigint、float、double、decimal、string、varchar、ts、date、binary
+
 一、普通UDF
 1.concat_ws
 例如ELECT concat_ws('.', 'www', array('facebook', 'com')) FROM src LIMIT 1
@@ -145,6 +148,8 @@ select to_date(from_unixtime(unix_timestamp(),'yyyy-MM-dd HH:mm:ss')); 获取当
 select date_add(from_unixtime(unix_timestamp(),'yyyy-MM-dd'),-1);
 25.强制转换 cast as
 cast(actid as String)
+select from_unixtime(cast(1495037476000/1000 as bigint),'yyyy/MM/dd HH:mm:ss');
+
 
 26.json
 SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.owner');
