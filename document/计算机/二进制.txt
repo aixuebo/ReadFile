@@ -21,7 +21,14 @@ bitwise-and (&), bitwise-or (|), and 异或 bitwise-xor (ˆ). 非 (~, the method
 System.out.println(3<<6);//64*3=192 表示3*(2^6)
 
 System.out.println(64 >> 3); 表示64 / 2^3 = 8
-192 >> 6 表示 192 / 2^6 = 3
+192 >> 6 表示 192 / 2^6 = 3  即表示 192的二进制的最后6位删除掉
+
+
+j>>>i 与 j/(int)(Math.pow(2,i))的结果相同，其中i和j是整形。即J与2的i次方去整除
+比如10100  101 一个代表20,一个代表5,而结果20 >>> 2 = 5,即20的二进制取消后两个位置得到的结果
+比如Integer.toBinaryString((102627293 >>> 6)&0x03) 表示整数102627293丢弃后面6位,然后再获取最后两位,即获取最低位置的8个bit的前两位
+
+
 三、应用
 1.long leftover = partialCubeFullMask & ~mandatoryColumnMask;
 a.~mandatoryColumnMask;表示反转,即1转换成0,0转换成1

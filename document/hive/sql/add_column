@@ -13,11 +13,14 @@ alter table summary.leave_users add partition (log_day='20160531') location '/pa
 hive这边是这样的,如果设置了一个分区后,该分区已经存在数据了,即使重新将数据写入到该分区中,但是select 查出来的数据依然是null.
 只有删除了该分区才能好用。
 
+insert overwrite table database.topic_payment partition(log_period={{period}},log_create_date='{{create_time}}')
+
 二、修改一个列
 更改一个列名字和类型
 alter table database.user_info change `last_update_time` open_time STRING COMMENT '首次赎回金额';
 
 三、加载数据
+load data local inpath '/server/test/mark.log.2017-05-09' overwrite into table databases.table partition (log_day='2017-05-09'); 加载本地文件到hive中
 load data local inpath '/home/xxxx' into table summary.cash_ba partition(log_day='201606');
 加载数据到一个分区中
 注意不支持覆盖分区功能,只能先移除分区,再重新添加该分区
@@ -47,8 +50,6 @@ LOCATION '/log/statistics/etl/mobile_region';
 
 六、创建数据库
 create database if not exists databaseName location 'path';
-
-
 
 七、自动修复分区
 msck repair table dabatabase.table;

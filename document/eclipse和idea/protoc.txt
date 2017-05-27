@@ -1,0 +1,8 @@
+一、如何编译protoc文件
+1.去pdf项目中下载protoc的window环境
+2.在doc命令下,到protoc.exe文件夹下,执行以下命令
+protoc -I=E:/mm/document/workspaceApache/orc1.4.0/proto --java_out=E:/mm/document/workspaceApache/orc1.4.0/proto/aa E:/mm/document/workspaceApache/orc1.4.0/proto/orc_proto.proto
+即-I 表示proto文件所在路径
+java_out 表示java的文件输出路径
+后面最后一组参数就是proto具体的定义文件
+

@@ -64,6 +64,7 @@ on day_login.uid=day_regusers.uid where day_login.dt='20130101' and day_regusers
 注意,在脚本中 hive <<EOF 执行的时候,要对\进行转义,即\\s+要改成\\\\s+
 16.rlike(string,regexp) 校验string是否匹配正则表达式
    regexp(string,regexp) 校验string是否匹配正则表达式
+   case when status like '%余额不足%'
 17.regexp_extract(string,regexp,index) 返回匹配正则表达式的第index个group,默认index可以省略,默认为1
 例如:
 regexp_extract('100-200', '(\\d+)-(\\d+)', 1) will return '100'  例子从100-200中获取第一个分组100

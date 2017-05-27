@@ -10,7 +10,7 @@ RandomAccessFile aFile = new RandomAccessFile("E://mm//aaa.txt", "rw");
 FileChannel inChannel = aFile.getChannel();
 1.ByteBuffer buf = ByteBuffer.allocate(48);
 buf.put((byte)68);//先存储一个字节
-System.out.println(buf.remaining());//47,还剩余47个字节没有使用
+System.out.println(buf.remaining());//47,还剩余47个字节没有使用---limit - position;即flip后也表示剩余多少个字段还没有被读
 后面的方法会存储后续的47个字节,不会覆盖第一个字节
 int bytesRead = inChannel.read(buf); 从inChannel流中读取内容,存储到buf中,最多存储48个字节,返回具体读取了多少个字节
 2.int bytesWritten = inChannel.write(buf) 将buf的内容写入到inChannel输出流中,返回具体写入了多少个字节

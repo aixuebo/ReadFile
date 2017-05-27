@@ -1,6 +1,8 @@
 一、dataframe的数据保存到hive的表中
-  finalResult.registerTempTable("aa")//先声明一个临时表名字
-  finalResult.sqlContext.sql("insert overwrite table databases.dim_user_arima partition(log_create_date='2017-02-27') select create_time,userid,redeem_amount,modelInfo,lambda,mean,pred_se,surprise from aa")
+     val finalResultHive = hiveSqlContext.createDataFrame(finalResult)//注意 一定要用hiveSqlContext去执行
+     //追加到hive数据库中
+     finalResultHive.registerTempTable("temp")
+     finalResultHive.sqlContext.sql("insert overwrite table databases.preference_hour partition(log_type='"+investPathStr+"') select userid,startTime,endTime from temp")
 二、从csv文件中加载dataframe
       <dependency>
           <groupId>com.databricks</groupId>

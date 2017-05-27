@@ -38,3 +38,6 @@ cluster by 就是distribute by和sort by相结合,但是不经常这么使用,�
 
 因此DISTRIBUTE BY RAND()也可以解决数据倾斜问题
 
+
+6.网友提出的优化方案
+优化这里包含的太多   存储格式、压缩格式、分片个数（map\reduce）、数据倾斜、语句写法及解析、执行过程
