@@ -1,0 +1,2 @@
+一、demo 杀死所有属于一个执行命令后的进程
+ps aux | grep rebuild_maming | awk '{print $2}' | xargs kill -9
