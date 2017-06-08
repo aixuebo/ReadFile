@@ -7,7 +7,7 @@ sh /server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin/bin/metastore.sh backup > /se
 2.元数据恢复
 a.reset元数据,即将会清空在hbase中的一切kylin的元数据内容,因此要确保已经备份过元数据就了,否则数据就会被丢失.
 ./bin/metastore.sh reset
-b.上传新的备份数据到hbase中
+b.上传新的备份数据到hbase中----注意此时不能有任何builder行为,元数据不能在修改和上传期间有任何更改
 ./bin/metastore.sh restore $KYLIN_HOME/meta_backups/meta_xxxx_xx_xx_xx_xx_xx
 
 3.清理不再使用的元数据资源----只是会整理元数据,不会清理真实的HDFS上的文件

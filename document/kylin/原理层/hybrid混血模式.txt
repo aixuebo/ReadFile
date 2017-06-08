@@ -1,0 +1,63 @@
+一、Hybrid Model说明
+如果我们以前有一个cube版本是v1,现在增加了一些维度或者度量值,称之为v2
+我们有一些理由,让v1继续保持.v2从v1的最后一天开始增加使用。
+以下是可能性
+1.历史老的数据已经删除了,没办法重新builder
+2.历史数据太大了,builder需要花费很长时间
+3.新增加的维度和度量只有最近才增加的,因此还原老的数据也没意义
+4.用户可能感觉对于老的数据查询结果是null也还ok.
+基于上面的情况,可能混血hybrid模式就非常适合了
+
+二、原理
+1.Hybrid model是一个新的realization,他是多个cube的组合结果,即该模式内部包含多个cube
+2.Hybrid不是一个真正的存储,而是虚拟的,他就是多个cube的一个代理类,真的请求还是请求到多个子cube中,然后结果进行合并.返回
+
+三、创建---因为没有UI,因此需要手动修改kylin的metadata元数据
+1.备份元数据
+2.创建hybrid目录
+mkdir -p $KYLIN_HOME/metadata_backup/2015-09-25/hybrid
+3.创建json文件
+vi $KYLIN_HOME/metadata_backup/2015-09-25/hybrid/my_hybrid.json
+注意:name和uuid要保证唯一
+json文件内容
+{
+  "uuid": "9iiu8590-64b6-4367-8fb5-7500eb95fd9c",
+  "name": "my_hybrid",
+  "realizations": [
+    {
+           "type": "CUBE",
+           "realization": "Cube_V1"
+    },
+    {
+            "type": "CUBE",
+            "realization": "Cube_V2"
+    }
+  ]
+}
+即已经合并了两个cube了
+4.将该hybrid添加到对应的product中,比如例子总在default这个product下
+vi $KYLIN_HOME/metadata_backup/2015-09-25/project/default.json
+追加以下内容
+    {
+      "name": "my_hybrid",
+      "type": "HYBRID",
+      "realization": "my_hybrid"
+    }
+5.上传元数据--注意此时不能有任何builder行为,元数据不能在修改和上传期间有任何更改
+$KYLIN_HOME/bin/metastore.sh restore $KYLIN_HOME/metadata_backup/2015-09-25/
+
+6.重新加载元数据
+a.重新启动kylin的server
+b.在System下,点击Reload metadata按钮
+
+四、实现问题
+1.如何回答query的
+hybrid代理多个cube,每一个cube都会回答sql中的dimensions/metrics信息,如果有结果,则返回给hybrid,没有结果则跳过.最终hybrid会聚合所有的返回值
+2.如何确保hybrid模式下,时间的不重复性
+hybrid模式依赖cube的创建的时间不重复性,即本身hybrid不做处理,而是依赖v1和v2在时间上是不能重叠的,比如v1到2015-9-20截至,2015-9-20之后产生v2,因此要更改2015-9-20之前的数据,就重新builder v1的cube即可。
+3.hybrid将会限制子cube拥有相同的data model吗?
+为了更强大的灵活性,不去限制和校验子cube依赖的fact和lookup表,以及join条件。
+4.可以嵌套hybrid吗
+暂时不支持,也没发现这样的demo,目前子类都是具体的cube
+5.如果一个cube变成disabled了,hybrid会扫描该cube吗
+不会扫描的,因为在query之前,hybrid会检查每一个子cube的状态,如果是disabled,则不会扫描该cube
