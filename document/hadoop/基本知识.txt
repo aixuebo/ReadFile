@@ -13,6 +13,12 @@ http://10.1.5.91:50070/dfshealth.html#tab-overview
       <name>fs.defaultFS</name>
       <value>hdfs://namenode01.xxxx.com:8020</value>
     </property>
+
+    <property>
+      <name>dfs.namenode.rpc-address.dd.nn1</name>
+      <value>namenode01.xxxx.com:8020</value>
+    </property>
+
 5.yarn去kill一个应用
 yarn application  -kill ApplicationID
 6.rebalance平衡时候执行mr导致速度慢,主要原因是平衡的时候速度慢,尚未平衡完

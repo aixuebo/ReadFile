@@ -61,3 +61,11 @@ hybrid模式依赖cube的创建的时间不重复性,即本身hybrid不做处理
 暂时不支持,也没发现这样的demo,目前子类都是具体的cube
 5.如果一个cube变成disabled了,hybrid会扫描该cube吗
 不会扫描的,因为在query之前,hybrid会检查每一个子cube的状态,如果是disabled,则不会扫描该cube
+
+五、使用kylin提供的命令行去添加hybrid--1.5.4以上更高级版本才有
+1. Create new HybridCube
+bin/kylin.sh org.apache.kylin.tool.HybridCubeCLI -action create -name hybrid_name -project project_name -model model_name -cubes cube1,cube2
+2. Update existing HybridCube
+bin/kylin.sh org.apache.kylin.tool.HybridCubeCLI -action update -name hybrid_name -project project_name -model model_name -cubes cube1,cube2,cube3
+3. Delete the HybridCube
+bin/kylin.sh org.apache.kylin.tool.HybridCubeCLI -action delete -name hybrid_name -project project_name -model model_name
