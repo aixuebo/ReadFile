@@ -23,12 +23,32 @@ System.out.println(3<<6);//64*3=192 表示3*(2^6)
 System.out.println(64 >> 3); 表示64 / 2^3 = 8
 192 >> 6 表示 192 / 2^6 = 3  即表示 192的二进制的最后6位删除掉
 
-
+j>>>i 也是右移,与>>一样,都是删除后面的i个位置,但是>>>表示无符号的右移操作
 j>>>i 与 j/(int)(Math.pow(2,i))的结果相同，其中i和j是整形。即J与2的i次方去整除
 比如10100  101 一个代表20,一个代表5,而结果20 >>> 2 = 5,即20的二进制取消后两个位置得到的结果
 比如Integer.toBinaryString((102627293 >>> 6)&0x03) 表示整数102627293丢弃后面6位,然后再获取最后两位,即获取最低位置的8个bit的前两位
 
 
+特别举例
+左移<<操作  增加0
+		System.out.println(Integer.toBinaryString(-20));//产生32位的11111111111111111111111111101100
+		System.out.println(Integer.toBinaryString(-20 << 2));//追加2个0  变成34位1111111111111111111111111110110000  然后保持32位,因此移除前面的2个0,即最终结果为11111111111111111111111110110000
+有符号右移>>操作  减少最后位置
+        System.out.println(Integer.toBinaryString(20));//10100  主要是正数,因此最前面都是0,可以忽略
+		System.out.println(Integer.toBinaryString(20 >> 2));//减少2位,变成101,因为是有符号的,又是正数,因此在前面追加0
+
+		System.out.println(Integer.toBinaryString(-20));//产生32位的11111111111111111111111111101100
+		System.out.println(Integer.toBinaryString(-20 >> 2));//减少2个位111111111111111111111111111011变成30位,因此最前面增加2个1,因为此时是有符号的负数,因此在前面追加1
+
+无符号右移>>操作  减少最后位置
+
+        因为是正数,>>>与>>是一样的逻辑,因此结果一样
+		System.out.println(Integer.toBinaryString(20));//10100  主要是正数,因此最前面都是0,可以忽略
+		System.out.println(Integer.toBinaryString(20 >> 2));//减少2位,变成101,因为是有符号的,又是正数,因此在前面追加0
+
+        负数
+        System.out.println(Integer.toBinaryString(-20));//产生32位的11111111111111111111111111101100
+        System.out.println(Integer.toBinaryString(-20 >>> 2));//减少最后2个位,因此变成111111111111111111111111111011,此时30位,需要前面追加2位,但是由于此时是无符号操作,因此前面追加的是0,而不是1,因此0是可以被忽略的
 三、应用
 1.long leftover = partialCubeFullMask & ~mandatoryColumnMask;
 a.~mandatoryColumnMask;表示反转,即1转换成0,0转换成1

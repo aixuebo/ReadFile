@@ -1,3 +1,9 @@
+一、窗口函数的实现流程
+扫描一个表,因为已经扫描一个表了,因此可以对这个表的数据进行计数,因此就可以对经过计数的数据做一些运算，比如设置rownum,或者对若干连续的行进行sum、平均值等计算。
+这些都是一次性扫描一次表就可以解决的,因此窗口函数很有用。
+
+
+二、
 如果查询历史上一个user,第一个购买时间、购买金额、第二次购买时间、购买金额、最后一次购买时间、购买金额、总购买次数、总购买金额
 
 优化方式:
@@ -58,3 +64,139 @@ from
 	where substr(investtime,1,10) = '2016-05-09'
 	GROUP BY userId
 ) collect on first.userId = collect.userId
+
+
+3.窗口函数关于rownum相关的总结
+--ROW_NUMBER() –从1开始，按照顺序，生成分组内记录的序列 –比如，按照pv降序排列，生成分组内每天的pv名次
+—RANK() 生成数据项在分组中的排名，排名相等会在名次中留下空位
+—DENSE_RANK() 生成数据项在分组中的排名，排名相等会在名次中不会留下空位
+--NTILE(3) 将同一组下的数据分成3份
+总结:RANK和DENSE_RANK都会设置排名,key相同的排名都会相同。但是一个会继续接着按排名序号连续走,一个会跳跃排序编号
+
+SELECT
+cookieid,
+createtime,
+pv,
+RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn1,
+DENSE_RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn2,
+ROW_NUMBER() OVER(PARTITION BY cookieid ORDER BY pv DESC) AS rn3
+FROM lxw1234
+WHERE cookieid = 'cookie1';
+
+cookieid day           pv       rn1     rn2     rn3
+--------------------------------------------------
+cookie1 2015-04-12      7       1       1       1
+cookie1 2015-04-11      5       2       2       2
+cookie1 2015-04-15      4       3       3       3
+cookie1 2015-04-16      4       3       3       4
+cookie1 2015-04-13      3       5       4       5
+cookie1 2015-04-14      2       6       5       6
+cookie1 2015-04-10      1       7       6       7
+
+rn1: 15号和16号并列第3, 13号排第5
+rn2: 15号和16号并列第3, 13号排第4
+rn3: 如果相等，则按记录值排序，生成唯一的次序，如果所有记录值都相等，或许会随机排吧。
+
+
+以下sql,将同一个userid分组下的数据,分成3个分组,实现逻辑是group by userid后,得到该userid下有20个数据.又已知分成3组.因此第一组和第二组分配7条数据,第三组内分配6条数据
+NTILE(3) OVER(PARTITION BY userid ORDER BY createtime) AS rn2,  --分组内将数据分成3片
+
+注意:
+可以通过NULLS LAST、NULLS FIRST 控制NULL值在最前面 还是最后面
+RANK() OVER (ORDER BY column_name DESC NULLS LAST)
+
+
+4.窗口函数选择任意若干行进行操作的语法
+ROWS BETWEEN xxxx AND xxxx 也叫做WINDOW子句,支持的语法表示行数范围,支持以下几个方式:
+x PRECEDING 往前x行
+x FOLLOWING 往后x行
+UNBOUNDED 表示起点
+UNBOUNDED PRECEDING 开始起点
+UNBOUNDED FOLLOWING 结束起点
+CURRENT ROW 当前行
+
+比如
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) 表示当前行+往前3行的值进行sum
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 表示 当前行+往后所有行的值进行sum
+
+
+5.窗口函数对若干行进行操作---sum,AVG，MIN，MAX，COUNT,COUNT(DISTINCT a)
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) 表示当前行+往前3行的值进行sum
+将sum替换成其他语法即可
+
+注意:
+a.可以省略ROWS BETWEEN 3 PRECEDING AND CURRENT ROW语法,
+如果有order by的时候,省略,则默认会添加ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),即从开始到当前行
+如果没有orderby by的时候,省略,则默认会添加ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING,即表内全部数据一起处理,因为不涉及order by排序
+b.sum里面填写的可以不仅仅是字段,也可以是常数,比如填写1,表示每次增加1个单位
+
+5.计算占比
+a.定义
+–CUME_DIST 小于等于当前值的行数/分组内总行数
+例如 CUME_DIST() OVER(PARTITION BY userid ORDER BY 薪水) AS rn2
+表示按照userid分组,计算每一行数据的结果为 小于等于当前行薪水的行数/总行数,即用于获取比当前行对应的值小的比例
+CUME_DIST() OVER(ORDER BY 薪水) AS rn2 此时没有PARTITION BY,因此表示分组是整个数据
+b.实现逻辑推测
+因为已经分组后按照某个字段排序了,因此只要计算group组内一共多少条数据即可,即分母需要计算,至于分子 就不断累加即可。因为已经排序好了,不需要额外的计算,
+而组内有多少条数据,其实在迭代一圈后就可以知道多少行数据了,因此先临时存储每一个分子,等待分母都计算好后,统一计算也可以,这样就可以扫描一次表,或者组内麻烦点,先扫描一下,确定count也可以
+
+b.PERCENT_RANK 百分比排名
+dept    userid   sal    rn1    当前行序号  总行数
+---------------------------------------------
+d1      user1   1000    0.0     1       5
+d1      user2   2000    0.25    2       5
+d1      user3   2000    0.25    2       5
+d2      user4   4000    0.75    4       5
+d2      user5   5000    1.0     5       5
+
+PERCENT_RANK 百分比排名
+计算公式为(当前行rank序号-1)/(总行数-1)
+该方法可以用于计算一个组内最后一条数据
+使用语法:
+PERCENT_RANK() OVER(PARTITION BY dept ORDER BY sal) AS rn2
+
+c.记得有一个需求,要求计算第一笔投资、第二笔投资、第三笔投资 以及最后一笔投资
+我当时是使用rownum计算出来的,但是要计算两次,因为最后一笔没办法算,因此可以使用该PERCENT_RANK算法获取结果为1.0的记录就是最后一条。
+或者使用FIRST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime DESC) AS last2 方法获取最后一条数据
+继续扩展,如果要倒数第二条怎么办?
+可以用rownum计算当前行号以及使用SUM(1)计算总行数,然后根据rownum = 总行数-1,就可以算出来倒数第二笔订单
+
+6.LAG 表示落后,即后面的可以获取前面的数据  LEAD表示超前,即前面的用户可以获取后面的数据
+a.
+LAG(col,n,DEFAULT) 用于统计窗口内往上第n行值
+参数说明:
+第一个参数为列名
+第二个参数为往上第n行（可选，默认为1）
+第三个参数为默认值（当往上第n行为NULL时候，取默认值，如不指定，则为NULL）
+比如:
+LAG(createtime,1,'1970-01-01 00:00:00') OVER(PARTITION BY userid ORDER BY createtime) AS last_1_time
+
+该函数的目的是让同一个分组下不同行的数据进行关联到一行里面,比如想获取连续两行的时间,然后进行比较,因此就可以将上一行的时间拿到下一行的一个列里面来,因此就可以在当前行进行比较了
+
+b.
+LEAD(col,n,DEFAULT) 用于统计窗口内往下第n行值
+参数说明:
+第一个参数为列名
+第二个参数为往下第n行（可选，默认为1）
+第三个参数为默认值（当往下第n行为NULL时候，取默认值，如不指定，则为NULL）
+比如:
+LEAD(createtime,1,'1970-01-01 00:00:00') OVER(PARTITION BY cookieid ORDER BY createtime)
+
+该方式实现可能确实有些难度,我想的有点复杂,是需要先读取一遍组内数据的,或者组内数据先进行倒排序,又或者游标移动后N行,先取出一次数据。如果方便的话应该读取一下源代码,进行学习
+
+c.
+FIRST_VALUE 取分组内排序后，截止到当前行，第一个值
+比如
+FIRST_VALUE(url) OVER(PARTITION BY userid ORDER BY createtime) AS first1 此时返回的都是userid的第一个数据值
+
+d.注意:这个LAST_VALUE函数具体意义还不太清楚,需要结合代码或者demo去实地查看是否是组内最后一条数据,还是截止到当前行最后一条数据,如果是后者,那不就是数据本身么,有什么意义?难道是除了当前行之外的最后一条数据.那不就是和LAG函数一样了么?
+LAST_VALUE 取分组内排序后，截止到当前行，最后一个值
+比如
+LAST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime)
+
+注意:LAST_VALUE必须使用order by,否则结果出现的值可能顺序有问题,是错误的数据
+
+7.GROUPING SETS,GROUPING__ID,CUBE,ROLLUP
+这几个分析函数通常用于OLAP中，不能累加，而且需要根据不同维度上钻和下钻的指标统计，比如，分小时、天、月的UV数。
+
+后续详细了解

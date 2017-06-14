@@ -79,3 +79,13 @@ alter table xxxx.xxx add partition(log_create_date='${d}') location '${hdfs_file
 quit;
 
 EOF
+
+三、时间没到04-01,则就不断循环
+d=`date -d "-1 day" +%H-%M`
+echo ${d}
+while [[ "${d}" < "04-01" ]]
+do
+     echo ${d}
+     sleep 10s
+     d=`date -d "-1 day" +%H-%M`
+done

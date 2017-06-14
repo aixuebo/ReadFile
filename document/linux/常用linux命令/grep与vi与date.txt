@@ -57,3 +57,6 @@ grep -a online /usr/bin/ls
 查看二进制
 vi -b 文件名
 
+
+三、date
+echo `date -d "-1 day" +%Y-%m-%d-%H-%M` 表示前天时间2017-06-12-15-19

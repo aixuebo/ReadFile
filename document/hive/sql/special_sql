@@ -230,3 +230,11 @@ date	user	class	yes_class	class_flag
 比如
 select a.value-b.value
 from biao a join biao b on a.id = b.id and a.row_num = b.row_num +1
+
+13.自关联查询,查询第5次出现的位置。。类似ROW_NUMBER操作,但是需要两个表自关联,而且差不多快笛卡尔了,因此效率有问题
+select reg1.userid,  to_date(create_time ) as regulartime ,  sum(reg2.num) as num_total
+from xxx.regular_info reg1
+join xxx.regular_info reg2 on reg1.userid = reg2.userid
+where  to_date(reg2.create_time) <= to_date(reg1.create_time)
+group by userid , to_date(create_time)
+having num_total >= 5
