@@ -15,6 +15,10 @@ hive这边是这样的,如果设置了一个分区后,该分区已经存在数�
 
 insert overwrite table database.topic_payment partition(log_period={{period}},log_create_date='{{create_time}}')
 
+删除一个视图表
+drop view 视图Name
+
+
 二、修改一个列
 更改一个列名字和类型
 alter table database.user_info change `last_update_time` open_time STRING COMMENT '首次赎回金额';
@@ -29,6 +33,7 @@ load data local inpath '/home/xxxx' into table summary.cash_ba partition(log_day
 ALTER TABLE table_name RENAME TO new_table_name;
 
 五、创建表
+内部表
 CREATE TABLE IF NOT EXISTS fact.premium_record (
 userid STRING,
 max_create_date STRING COMMENT '最高存量时间',
@@ -48,6 +53,16 @@ PARTITIONED BY (log_day STRING)
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
 LOCATION '/log/statistics/etl/mobile_region';
 
+通过sql创建一个与原来表一样的schema,但是表名字不同的表
+create table database.table like tmp.leave_user_period;
+
+通过sql自动创建表
+CREATE TABLE tmp.leave_user_period1 AS SELECT userid,period FROM tmp.leave_user_period limit 10;
+
+创建视图 view----Table Type是VIRTUAL_VIEW类型的表示视图view
+CREATE VIEW database.viewName AS SELECT * FROM tmp.leave_user_period where ...;
+
+
 六、创建数据库
 create database if not exists databaseName location 'path';
 
@@ -63,3 +78,12 @@ row format delimited
 fields terminated by ','
 
 cat * | iconv -f utf-8 -c -t gb18030 >xxxx.csv
+
+
+九、插入到hive表中
+set hive.auto.convert.join=false;
+set mapred.reduce.tasks = 1;
+set mapred.job.name='dim_te@us_log-{{create_time}}';
+set hive.output.file.extension=.c1;
+
+insert overwrite table dim_te.us_log partition(log_day='{{create_time}}')
