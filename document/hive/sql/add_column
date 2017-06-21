@@ -58,6 +58,10 @@ create table database.table like tmp.leave_user_period;
 
 通过sql自动创建表
 CREATE TABLE tmp.leave_user_period1 AS SELECT userid,period FROM tmp.leave_user_period limit 10;
+比如:
+create table studentORC
+stored as orc
+as select * from student
 
 创建视图 view----Table Type是VIRTUAL_VIEW类型的表示视图view
 CREATE VIEW database.viewName AS SELECT * FROM tmp.leave_user_period where ...;

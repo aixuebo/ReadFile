@@ -92,10 +92,14 @@ setting--keyboard--shortname--取消使用back space+空格
 10.scala2.10版本要跟jdk7匹配,跟jdp8匹配有问题
 
 
+11.idea设置项目的编码
+setting---File Encodings---找到src等位置,设置编码
 
 
 三、SecureCRT
 1.设置背景颜色
 选项 --> 会话选项 --> 终端 --> 仿真 -->  勾选“ANSI 颜色” 以及勾选”使用颜色方案“
 选项 --> 会话选项 --> 终端 --> 外观 -->  设置颜色为Floral white/dark cyan 或者中文的 花白/暗青,以及设置字体为consolas 12号字体
+
+
 

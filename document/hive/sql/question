@@ -22,4 +22,6 @@ sum(case when invre_amount > 0 then invre_freq - COALESCE(invre_freq_1st_freq,0)
 2.使用一个大sql,将10个sql进行union all操作.但是缺点是每一个sql对应的字段数量都得一致,不足的用0补充.而且还要写别名,非常不好维护
 3.最终使用一个sql,做left join,将10个表结果进行left join,但是前提是有一个基本表,可以将10个sql中都可以跟基本表关联,比如user_info表,
 由于user_info表很大,因此left join后还要将100个字段求和后依然=0的数据,要过滤掉即可。
+五、尽量不要使用insert into语法,因为这样做如果当天数据跑失败了,重新跑数据是很麻烦的,必须用override
+因此就尽量使用分区操作,即使过去的分区都不用了,也要用分区保持最新的数据,写一个脚本定期删除以前的分区即可
 
