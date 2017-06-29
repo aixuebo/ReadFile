@@ -36,8 +36,8 @@ h.--hive-database xxx指定sqoop抓去后存储在哪个hive中
 i.--hive-import 说明该sqoop输出的内容是要到hive中的
 j.--driver com.mysql.jdbc.Driver 有时候报错,需要加入这个
 k.写成配置文件形式
-sqoop  --options-file /var/sqoop/ljc_import_hive.txt --delete-target-dir -m 10 --table regular_info
-其中ljc_import_hive.txt内容
+sqoop  --options-file /var/sqoop/import_hive.txt --delete-target-dir -m 10 --table regular_info
+其中import_hive.txt内容
 import
 --connect
 jdbc:mysql://host:port/xxxx?useCursorFetch=true&dontTrackOpenResources=true&defaultFetchSize=2000&useCursorFetch=true&autoReconnect=true&tinyInt1isBit=false

@@ -85,6 +85,8 @@ UDFOPBitAnd 表示 a & b 按位与操作,例如3 & 5 = 1
 UDFOPBitNot 表示按位的非操作,即~0 = -1
 UDFOPBitXor 表示3^5 = 2
 
+GenericUDAFComputeStats和StringNumDistinctValueEstimator 用于distinct语法实现
+
 19.substr(String,int pos,int lenth) 截取字符串
   例如:substr("abcd",1,2) 返回ab
     substr("abcd",2) 返回bcd,表示从2开始一直到结尾
@@ -126,6 +128,8 @@ select percentile_approx(id, array(0.03,0.3,0.5), 10) from dim_temporary.test;
 25.时间函数
 输入20160613 输出 2016-06-13
 strDateFormat('20160613','yyyyMMdd','yyyy-MM-dd')
+
+select date_format('2017-05-06','yyyy'); 返回2017
 
 输入2016-06-14 输出 2016-06-13
 select date_add('2016-06-14',-1)

@@ -1,0 +1,40 @@
+一、hcatalog
+用于使用api的方式调用hive的数据。
+比如hive存储的是orc文件格式,但是外部想使用该数据的时候,必须解析orc文件,那就比较麻烦了
+
+因此可以使用hcatalog的方式,读取hive,hive会内部转换成HCatRecord对象表示一行数据。。
+
+同理向hive中写入数据也是可以将一行数据转换成HCatRecord对象,然后该对象调用hcatalog的api,写入到hive中。
+
+二、sqoop中实现hcat功能的代码在org.apache.sqoop.mapreduce.hcat包下
+
+三、export 已经测试完成
+sqoop export -Dmapreduce.job.queuename=xstorm \
+--input-fields-terminated-by "\001" \
+--columns create_time,end_time,\
+--table xxxxx \
+--hcatalog-database xxx --hcatalog-table credit_card_statistics_orc \
+--hcatalog-partition-keys log_period,log_create_time --hcatalog-partition-values 1,2017-06-27 \
+--verbose -m 1
+
+注意:
+1.以下两个命令如果添加的话,则会出现
+2016-06-04 00:15:52,070 ERROR sqoop.Sqoop: Got exception running Sqoop: java.lang.NullPointerException
+java.lang.NullPointerException
+at org.apache.sqoop.mapreduce.ExportJobBase.getFileType(ExportJobBase.java:127)异常
+
+--update-key create_time,end_time,period
+--update-mode allowinsert
+
+2.hive表字段和mysql中定义的字段必须名字相同,否则也报错
+
+四、import 尚未测试
+sqoop import
+--connect jdbc:mysql://127.0.0.1:3306/test
+--username your_user_name --password your_passwd
+--table table_name --driver com.mysql.jdbc.Driver
+--create-hcatalog-table
+--hcatalog-table table_name
+--hcatalog-partition-keys month,day
+--hcatalog-partition-values 12,09
+--hcatalog-storage-stanza 'stored as orc tblproperties ("orc.compress"="SNAPPY")'
