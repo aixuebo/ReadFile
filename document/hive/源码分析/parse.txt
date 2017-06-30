@@ -1,0 +1,59 @@
+Operator genPlan(QB qb)
+1.每一个select from 等语法就会调用一个该方法,产生一个Operator
+2.如果有子查询的,就不断递归找到一个select子查询,然后调用产生Operator
+3.Map<String, Operator> aliasToOpInfo = new HashMap<String, Operator>(); 存储每一个子查询对应的Operator,
+子查询其实也相当于一个表,因为子查询的结果就是一个表
+4.循环每一个用到的table表,获取该表的对应的Operator,即每一个表都有一个Operator
+
+
+Operator genTablePlan(String alias, QB qb)
+
+
+org.apache.hadoop.hive.ql.exec.OperatorFactory定义了什么操作对象对应什么操作类型
+
+
+  public static ArrayList<OpTuple> opvec;
+  static {
+    opvec = new ArrayList<OpTuple>();
+    opvec.add(new OpTuple<FilterDesc>(FilterDesc.class, FilterOperator.class));
+    opvec.add(new OpTuple<SelectDesc>(SelectDesc.class, SelectOperator.class));
+    opvec.add(new OpTuple<ForwardDesc>(ForwardDesc.class, ForwardOperator.class));
+    opvec.add(new OpTuple<FileSinkDesc>(FileSinkDesc.class, FileSinkOperator.class));
+    opvec.add(new OpTuple<CollectDesc>(CollectDesc.class, CollectOperator.class));
+    opvec.add(new OpTuple<ScriptDesc>(ScriptDesc.class, ScriptOperator.class));
+    opvec.add(new OpTuple<PTFDesc>(PTFDesc.class, PTFOperator.class));
+    opvec.add(new OpTuple<ReduceSinkDesc>(ReduceSinkDesc.class, ReduceSinkOperator.class));
+    opvec.add(new OpTuple<ExtractDesc>(ExtractDesc.class, ExtractOperator.class));
+    opvec.add(new OpTuple<GroupByDesc>(GroupByDesc.class, GroupByOperator.class));
+    opvec.add(new OpTuple<JoinDesc>(JoinDesc.class, JoinOperator.class));
+    opvec.add(new OpTuple<MapJoinDesc>(MapJoinDesc.class, MapJoinOperator.class));
+    opvec.add(new OpTuple<SMBJoinDesc>(SMBJoinDesc.class, SMBMapJoinOperator.class));
+    opvec.add(new OpTuple<LimitDesc>(LimitDesc.class, LimitOperator.class));
+    opvec.add(new OpTuple<TableScanDesc>(TableScanDesc.class, TableScanOperator.class));//扫描表操作
+    opvec.add(new OpTuple<UnionDesc>(UnionDesc.class, UnionOperator.class));
+    opvec.add(new OpTuple<UDTFDesc>(UDTFDesc.class, UDTFOperator.class));
+    opvec.add(new OpTuple<LateralViewJoinDesc>(LateralViewJoinDesc.class,
+        LateralViewJoinOperator.class));
+    opvec.add(new OpTuple<LateralViewForwardDesc>(LateralViewForwardDesc.class,
+        LateralViewForwardOperator.class));
+    opvec.add(new OpTuple<HashTableDummyDesc>(HashTableDummyDesc.class,
+        HashTableDummyOperator.class));
+    opvec.add(new OpTuple<HashTableSinkDesc>(HashTableSinkDesc.class,
+        HashTableSinkOperator.class));
+    opvec.add(new OpTuple<DummyStoreDesc>(DummyStoreDesc.class,
+        DummyStoreOperator.class));
+    opvec.add(new OpTuple<DemuxDesc>(DemuxDesc.class,
+        DemuxOperator.class));
+    opvec.add(new OpTuple<MuxDesc>(MuxDesc.class,
+        MuxOperator.class));
+  }
+
+对join的时候on进行条件过滤,比如命名扫描的是user表,但是因为使用了on,因此可以对scan表创建父操作FilterDesc
+Operator output = putOpInsertMap(OperatorFactory.getAndMakeChild(
+        new FilterDesc(genExprNodeDesc(condn, inputRR), false), new RowSchema(
+            inputRR.getColumnInfos()), input), inputRR);
+
+
+  private Operator genFilterPlan(QB qb, ASTNode condn, Operator input)
+
+  private Operator genBodyPlan(QB qb, Operator input) throws SemanticException {
