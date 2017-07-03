@@ -1,3 +1,86 @@
+  public void analyzeInternal(ASTNode ast) throws SemanticException {
+1.先将非select *的sql进行处理,因为order by和group by中可以存储name也可以存储序号,序号指代的是select中的列,因此第一个将序号替换成具体的列对象
+processPositionAlias(ASTNode ast)
+2.analyzeCreateTable 处理创建表的语法---如果是带有select方式的insert,因此返回值是select节点,因为该select节点要继续解析
+createTableStatement 创建表语法汇总
+格式:
+a.CREATE [EXTERNAL] TABLE [IF NOT Exists] tableName LIKE tableName [LOCATION xxx] [TBLPROPERTIES (keyValueProperty,keyValueProperty,keyProperty,keyProperty)]
+b.CREATE [EXTERNAL] TABLE [IF NOT Exists] tableName [(columnNameTypeList)]
+  [COMMENT String] //备注
+  [PARTITIONED BY (xxx colType COMMENT xxx,xxx colType COMMENT xxx)] //分区
+  [CLUSTERED BY (column1,column2) [SORTED BY (column1 desc,column2 desc)] into Number BUCKETS]
+  [tableSkewed] //为表设置偏斜属性
+  [tableRowFormat] //解析一行信息
+  [tableFileFormat] //数据表的存储方式
+  [LOCATION xxx] //存储在HDFS什么路径下
+  [TBLPROPERTIES (keyValueProperty,keyValueProperty,keyProperty,keyProperty)] //设置table的属性信息
+  [AS    selectClause
+   fromClause
+   whereClause?
+   groupByClause?
+   havingClause?
+   orderByClause?
+   clusterByClause?
+   distributeByClause?
+   sortByClause?
+   window_clause?] //写入sql查询语句,用于创建表
+
+a.基础解析:解析Exists、EXTERNAL(外部表)、表名字、解析备注、解析属性FieldSchema对象(列名字、类型、备注)、解析分区字段(列名、类型、备注)、解析location
+b.like解析:like 的表名字
+c.解析CLUSTERED BY (column1,column2) [SORTED BY (column1 desc,column2 desc)] into Number BUCKETS]
+表示为表进行分桶,即设置hadoop的partition类,以及设置每一个reduce中的排序方式
+主要解析三个属性:
+解析bucketCols 表示CLUSTERED BY (column1,column2)的列集合
+解析sortCols 表示SORTED BY用到了哪些属性以及每一个属性是如何排序的---存储的对象是Order类型的对象
+解析 numBuckets 表示分成多少个BUCKETS
+
+d.解析SKEWED BY语法  用于解决数据偏移问题
+主要解决一个或者多个列的某些值存在数据倾斜的时候,使用该语法创建的表有优化
+SKEWED BY (属性字符串,属性字符串) on (属性值集合xxx,xxx) [STORED AS DIRECTORIES]
+或者SKEWED BY (属性字符串,属性字符串) on (多组属性值集合 (xxx,xxx),(xxx,xxx),(xxx,xxx) ) [STORED AS DIRECTORIES]
+
+说明:
+SKEWED BY 表示哪些属性上可以有优化的可能,即哪些属性上有数据偏移的可能,解析SKEWED BY (属性字符串,属性字符串),存储方式是List<String> skewedColNames
+ON 语法使用存储方式为List<List<String>> skewedValues
+STORED AS DIRECTORIES 表示是否存储skewed by相关语句被设置,存储方式为 boolean storedAsDirs = false;
+
+例如
+      //create table T (c1 string, c2 string) skewed by (c1) on ('x1')
+	  表示在c1属性的值为x1的时候可能会数据发生偏移,因此在join的时候要先预估一下是否一个表的c1=x1的值能否很少,并且存储在内存中,如果是,则可以进行优化
+      //create table T (c1 string, c2 string) skewed by (c1,c2) on (('x11','x21'),('x12','x22')) 表示在c1,c2属性的值为(x11,x21),或者(x21,x22)的时候可能会数据发生偏移,因此在join的时候要先预估一下是否一个表的(x11,x21),或者(x21,x22)的值能否很少,并且存储在内存中,如果是,则可以进行优化
+
+如何具体生产中使用该语法,尚未清楚了解
+
+e.tableRowFormat 表示 如何拆分一行数据、以及一行数据中的列用什么划分、list、map用什么划分、转义字符是什么
+每一个拆分方式对应了一组key value的配置
+f.tableFileFormat 数据表的存储方式
+解析以下内容:
+//STORED as SEQUENCEFILE |
+//STORED as TEXTFILE |
+//STORED as RCFILE |
+//STORED as ORCFILE |
+//STORED as INPUTFORMAT xxx OUTPUTFORMAT xxx [INPUTDRIVER xxx OUTPUTDRIVER xxx]
+//STORED BY handler, WITH SERDEPROPERTIES (key=value,key=value,key) ,注意key=value集合是为xxx存储引擎提供的参数集合
+  /**
+   * 比如
+   CREATE TABLE dim_temp.hbase_hive_1(key int, value string)
+   STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
+   WITH SERDEPROPERTIES ("hbase.columns.mapping" = ":key,cf1:val")
+   TBLPROPERTIES ("hbase.table.name" = "xyz");
+   插入hbase中,不需要指定inputFormat和outputFormat,因为这两个是hbase决定的,只需要最终序列化的是writable即可,而PUT的返回值就是writable类型的
+   */
+String storageHandler = null;//一旦handler存在,则有可能不需要inputFormat和outputFormat,因为handler里面包含了inputFormat和outputFormat等信息
+g.创建crtTblDesc = new CreateTableDesc对象
+h.创建DDLWork任务去创建表
+i.如果是insert...select方式创建的表,因此不会生成DDLWork任务去创建表,而是继续解析select语法块,并且在QB中添加该crtTblDesc对象,用于后续select后如何插入数据库使用
+  private CreateTableDesc tblDesc = null; // table descriptor of the final,create table as select 此语法创建的表对象,即使用insert  ...seletc 方式创建的表,因此查询块里面要保留该创建表对象
+
+3.解析view
+4.具体解析sql
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
 Operator genPlan(QB qb)
 1.每一个select from 等语法就会调用一个该方法,产生一个Operator
 2.如果有子查询的,就不断递归找到一个select子查询,然后调用产生Operator
