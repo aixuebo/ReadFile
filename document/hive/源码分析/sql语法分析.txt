@@ -1,0 +1,108 @@
+ 一、解析join 以及select *
+
+ select b1.id,b1.name from biao1 b1 left join biao2 b2 on b1.id = b2.id and b.name = b2.name and b.age=20 full join (select * from biao3) b3 on b1.id = b3.id and b1.name = b3.name
+
+nil
+   TOK_QUERY
+      TOK_FROM
+         TOK_FULLOUTERJOIN
+            TOK_LEFTOUTERJOIN
+               TOK_TABREF
+                  TOK_TABNAME
+                     biao1
+                  b1
+               TOK_TABREF
+                  TOK_TABNAME
+                     biao2
+                  b2
+               and
+                  and
+                     =
+                        .
+                           TOK_TABLE_OR_COL
+                              b1
+                           id
+                        .
+                           TOK_TABLE_OR_COL
+                              b2
+                           id
+                     =
+                        .
+                           TOK_TABLE_OR_COL
+                              b
+                           name
+                        .
+                           TOK_TABLE_OR_COL
+                              b2
+                           name
+                  =
+                     .
+                        TOK_TABLE_OR_COL
+                           b
+                        age
+                     20
+            TOK_SUBQUERY
+               TOK_QUERY
+                  TOK_FROM
+                     TOK_TABREF
+                        TOK_TABNAME
+                           biao3
+                  TOK_INSERT
+                     TOK_DESTINATION
+                        TOK_DIR
+                           TOK_TMP_FILE
+                     TOK_SELECT
+                        TOK_SELEXPR
+                           TOK_ALLCOLREF
+               b3
+            and
+               =
+                  .
+                     TOK_TABLE_OR_COL
+                        b1
+                     id
+                  .
+                     TOK_TABLE_OR_COL
+                        b3
+                     id
+               =
+                  .
+                     TOK_TABLE_OR_COL
+                        b1
+                     name
+                  .
+                     TOK_TABLE_OR_COL
+                        b3
+                     name
+      TOK_INSERT
+         TOK_DESTINATION
+            TOK_DIR
+               TOK_TMP_FILE
+         TOK_SELECT
+            TOK_SELEXPR
+               .
+                  TOK_TABLE_OR_COL
+                     b1
+                  id
+            TOK_SELEXPR
+               .
+                  TOK_TABLE_OR_COL
+                     b1
+                  name
+   <EOF>
+
+nil
+
+
+ 分析:
+ 1.可以看到先前面两个表先进行TOK_LEFTOUTERJOIN,然后结果在于第三个表进行TOK_FULLOUTERJOIN操作
+ 2.b1.id = b2.id and b.name = b2.name and b.age=20 表达式解析后的格式顺序是:
+ 先and,然后=,然后=号的左右两部分,然后在=号,在=号左右两部分,计算的结果再与下一个表达式进行and操作
+ 3.from之后,在进行TOK_INSERT处理
+ TOK_INSERT处理流程是两部分
+ a.将其插入到临时文件中,
+ b.查询的结果表达式是具体的字段内容 ,即select b1.id,b1.name
+ 4.中间b3是一个临时表,临时表里面依然是一套sql的解析
+
+
+

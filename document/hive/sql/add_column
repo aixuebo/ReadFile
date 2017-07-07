@@ -72,6 +72,18 @@ STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
 WITH SERDEPROPERTIES ("hbase.columns.mapping" = ":key,cf1:val")
 TBLPROPERTIES ("hbase.table.name" = "xyz");
 
+例子2,说明hive表中key是hbase的rowkey,value1和value2来自于列族a的b和c列,value3来自于列族d的e列
+CREATE TABLE hbase_table_1(key int, value1 string, value2 int, value3 int)
+STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
+WITH SERDEPROPERTIES (
+"hbase.columns.mapping" = ":key,a:b,a:c,d:e"
+);
+
+如果hbase已经存在,向使用hive用select查询hbase内容,则需要使用外部表即可,因为可以保证hive删除该表后,hbase还存在
+
+因为hbase都是key,value结构,因此hive读取的都是字符串形式,包含hive的map数据结构存储在hbase中也是字符串形式存储的,只是字符串包含了ascii码的2和3而已
+
+
 六、创建数据库
 create database if not exists databaseName location 'path';
 
@@ -96,3 +108,6 @@ set mapred.job.name='dim_te@us_log-{{create_time}}';
 set hive.output.file.extension=.c1;
 
 insert overwrite table dim_te.us_log partition(log_day='{{create_time}}')
+
+十、加载数据到hive
+load data local inpath 'wyp.txt' into table wyp;

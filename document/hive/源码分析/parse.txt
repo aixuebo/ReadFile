@@ -77,16 +77,229 @@ i.如果是insert...select方式创建的表,因此不会生成DDLWork任务去�
 
 3.解析view
 4.具体解析sql
+5.getMetaData 获取hive的元数据信息
+6.Operator sinkOp = genPlan(qb);执行计划,转换成执行操作
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+如何解析一个 select
+一、几个总体的对象
+QB:该实体表示针对sql总体上的一个统计信息
+QBParseInfo:用于记录sql的解析过程
+因为可能存在多个子查询等,因此每一个查询都有一个唯一的目标,因此该对象有很多Map操作,即针对每一个目标的where 、select、group by等节点信息的映射
+
+二、如果遇见select distinct 或者select
+1.要在QB中记录出现的select语法的次数,即可以知道有多少个查询
+2.qbp.setSelExprForClause(ctx_1.dest, ast);设置该select的语法节点
+3.如果select中有hints节点
+  qbp.setHints((ASTNode) ast.getChild(0)); 说明一个简单的sql中只能有一个hint出现
+4.收集每一个select中的函数以及函数嵌套的聚合函数，以及窗口window函数
+即测试收集的仅仅是聚合表达式,即UDAF函数,因为普通的UDF函数是不需要这样处理的，在接收每一行数据的时候就可以转换,维度聚合函数是没办法的。
+qbp.setAggregationExprsForClause(ctx_1.dest, aggregations);存储聚合函数
+qbp.getWindowingExprsForClause(dest);然后存储窗口函数
+5.为select中每一个属性设置别名,即如果表达式有别名,则设置别名和表达式语法节点的映射
+qbp.setExprToColumnAlias((ASTNode) selExpr.getChild(0), columnAlias);
+6.在聚合函数中进行过滤,只要distinct函数的语法块
+qbp.setDistinctFuncExprsForClause(ctx_1.dest,doPhase1GetDistinctFuncExprs(aggregations));
+
+三、如果遇见from---分别介绍三个主流from方式,2个非主流from方式
+1.直接接入一个表名,或者表的抽样数据,比如tableName [(keyValueProperty,keyValueProperty,keyProperty,keyProperty)] [tableSample] [ [AS] Identifier ]
+//[dbName.] tableName [(key=value,key=value,key)] [tableSample] [ as Identifier ]
+//注意:
+//1.(此时认为解析成key=null,即不需要value属性值)
+//tableSample函数解析如下
+//1.TABLESAMPLE(数字    PERCENT)
+//2.TABLESAMPLE(数字    ROWS)
+//3.TABLESAMPLE(ByteLengthLiteral)
+//4.TABLESAMPLE(BUCKET 数字    OUT OF 数字  [ ON expression,expression ] )
+1.解析from的表名字 以及 别名
+2.如果有配置信息,则要解析配置信息为Map<String,String>,并且设置qb.setTabProps(alias, props);
+3.解析抽样信息
+4.添加映射信息
+    // Insert this map into the stats 设置别名的映射关系
+    qb.setTabAlias(alias, tabIdName);
+    qb.addAlias(alias);
+    qb.getParseInfo().setSrcForAlias(alias, tableTree);
 
 
+2.接入一个子查询,比如from (select..) alias
+a.一个别名,以及一个单独的sql,别名设置为字符串,单独的sql定义为QBExpr qbexpr = new QBExpr(alias)对象
+b.解析该单独的sql,将单独的sql的结果存储到QBExpr qbexpr中
+因为是单独的sql,而完整的sql有两种方式
+一种是select * from biao where等等
+以各种select * from biao where union all select * from biao where这样形式
+因此要单独考虑
+c.第一种
+直接创建一个新的QB,对sql进行正常解析
+QB qb = new QB(id, alias, true);
+Phase1Ctx ctx_1 = initPhase1Ctx();
+doPhase1(ast, qb, ctx_1);
+让qbexpr表达式持有内部的sql对应的QB即可
+qbexpr.setOpcode(QBExpr.Opcode.NULLOP);//设置子查询之间的关系--即表示就是一个正常的sql,不是union的sql
+qbexpr.setQB(qb);
+d.第二种
+每一个单独的union中的sql都是一个单独的sql,因此又要创建2个QBExpr对象
+      QBExpr qbexpr1 = new QBExpr(alias + "-subquery1");
+      doPhase1QBExpr((ASTNode) ast.getChild(0), qbexpr1, id + "-subquery1",
+          alias + "-subquery1");
+      qbexpr.setQBExpr1(qbexpr1);
+
+      QBExpr qbexpr2 = new QBExpr(alias + "-subquery2");
+      doPhase1QBExpr((ASTNode) ast.getChild(1), qbexpr2, id + "-subquery2",
+          alias + "-subquery2");
+      qbexpr.setQBExpr2(qbexpr2);
+将新的两个union单独的sql设置给qbexpr
+qbexpr.setOpcode(QBExpr.Opcode.UNION);同时声明该解析是union解析方式
+
+有一个问题:如果是三个sql进行union如何处理呢?
+select *
+from
+(
+ select *
+ from biao1
+ union all
+ select *
+ from biao2
+ union all
+ select *
+ from biao3
+)a
+我在想可能第一个表达式就是第一个sql,第二个表达式是带union的表达式.而sql本身也是有处理union操作的地方。
+但是说不通为什么这部分操作就不能归纳到一个sql执行呢，为什么要区分union呢。好奇怪
+
+e.设置子查询对象与别名之间的关系
+    qb.setSubqAlias(alias, qbexpr);//添加别名与自查询表表达式映射
+    qb.addAlias(alias);//子查询相当于多了一个表,因此添加别名表
+
+3.通过join ..on..的方式连接若干个表
+a.根据join的表形式,比如是from 还是子查询 还是PTF、还是LATERAL、还是join操作进行不断递归的过程
+b.确定是各种join节点,因此表示要继续进行关联表查询,属于递归操作
+c.设置配置信息
+	  queryProperties.setHasJoin(true);
+          qbp.setJoinExpr(frm);设置join的语法节点
+
+4.HiveParser.TOK_LATERAL_VIEW || HiveParser.TOK_LATERAL_VIEW_OUTER)
+比如 from中带有 LATERAL VIEW [OUTER] function "tableAlias" [AS identifier,identifier..]
+processLateralView(qb, frm);
+
+5.frm.getToken().getType() == HiveParser.TOK_PTBLFUNCTION
+queryProperties.setHasPTF(true);
+processPTF(qb, frm);
+
+四、如果遇见where
+qbp.setWhrExprForClause(ctx_1.dest, ast);设置where条件节点
+五、如果遇见group by
+格式:GROUP BY expression,expression...[WITH ROLLUP | WITH CUBE] [GROUPING SETS (groupingSetExpression,groupingSetExpression..)]
+1.queryProperties.setHasGroupBy(true);
+2.qbp.setGroupByExprForClause(ctx_1.dest, ast);
+3.设置窗口函数,三选一的方式设置
+qbp.getDestRollups().add(ctx_1.dest);
+qbp.getDestCubes().add(ctx_1.dest);
+qbp.getDestGroupingSets().add(ctx_1.dest);
+六、如果遇见having
+	qbp.setHavingExprForClause(ctx_1.dest, ast);
+        //参数表示为QB对象的目标desc添加聚类函数,解析having所用到的聚合函数
+        qbp.addAggregationExprsForClause(ctx_1.dest,doPhase1GetAggregationsFromSelect(ast, qb, ctx_1.dest));//having中的表达式与select中一样逻辑处理
+七、如果遇见order by
+        queryProperties.setHasOrderBy(true);
+        qbp.setOrderByExprForClause(ctx_1.dest, ast);
+八、如果遇见cluster By
+        queryProperties.setHasClusterBy(true);
+        qbp.setClusterByExprForClause(ctx_1.dest, ast);
+九、如果遇见sort By
+	queryProperties.setHasSortBy(true);
+	qbp.setSortByExprForClause(ctx_1.dest, ast);
+十、如果遇见Distribute by
+        queryProperties.setHasDistributeBy(true);
+        qbp.setDistributeByExprForClause(ctx_1.dest, ast);
+十一、如果遇见Limit
+        qbp.setDestLimit(ctx_1.dest, new Integer(ast.getChild(0).getText()));
+十二、如果遇见Insert
+1.insert into
+qbp.addInsertIntoTable(tab_name);设置插入哪个表
+重新设置新的目标路径
+        ctx_1.dest = "insclause-" + ctx_1.nextNum;
+        ctx_1.nextNum++;
+qbp.setDestForClause(ctx_1.dest, (ASTNode) ast.getChild(0));//设置插入哪个路径的节点对象,比如是具体的路径 或者partition等信息
+
+2.insert
+解析要插入的table 以及 partition信息
+String tableName = tab.getChild(0).getChild(0).getText();
+HashMap<String, String> partition = new HashMap<String, String>();
+不做任何设定,仅仅校验分区必须在table中存在,并且不是动态分区
+
+
+十三、如果遇见window_clause---HiveParser.KW_WINDOW
+1.校验,出现该语法的时候,必须查询的select或者having中有聚合函数存在
+2.handleQueryWindowClauses(qb, ctx_1, ast);
+
+SELECT a, SUM(b) OVER w
+FROM T
+WINDOW w AS (PARTITION BY c ORDER BY d ROWS UNBOUNDED PRECEDING);
+
+相当于
+SELECT a, SUM(b) OVER (PARTITION BY c ORDER BY d ROWS UNBOUNDED PRECEDING);
+FROM T
+前者定义了一个别名w
+
+十四、如果遇见ANALYZE
+ANALYZE TABLE tableName [ PARTITION (name=value,name=value,name) ] COMPUTE STATISTICS [NOSCAN]  [PARTIALSCAN]  [FOR COLUMNS "column1","column2"]
+1.解析表名字,并且将其表名字和别名字设置一样的
+        qb.setTabAlias(table_name, table_name);
+        qb.addAlias(table_name);
+        qb.getParseInfo().setIsAnalyzeCommand(true);
+        qb.getParseInfo().setNoScanAnalyzeCommand(this.noscan);
+        qb.getParseInfo().setPartialScanAnalyzeCommand(this.partialscan);
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+getMetaData 获取hive的元数据信息
+1.根据from表的别名,找到所有的需要的表,不包含子查询的结果表别名,因此可以根据表名字查询table元数据
+2.校验table表的InputFormatClass读取格式一定是InputFormat的子类,
+3.qb.getMetaData().setSrcForAlias(alias, tab);//设置一个别名和具体的table表对象
+4.子查询中涉及到的表元数据的校验,采用递归的方式进行
+5.循环每一个目标,对每一个目标进行处理
+设置输出的path路径等信息
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-Operator genPlan(QB qb)
+Operator sinkOp = genPlan(qb);执行计划,转换成执行操作
+一、
 1.每一个select from 等语法就会调用一个该方法,产生一个Operator
 2.如果有子查询的,就不断递归找到一个select子查询,然后调用产生Operator
 3.Map<String, Operator> aliasToOpInfo = new HashMap<String, Operator>(); 存储每一个子查询对应的Operator,
 子查询其实也相当于一个表,因为子查询的结果就是一个表
 4.循环每一个用到的table表,获取该表的对应的Operator,即每一个表都有一个Operator
+
+二、
+1.循环所有的子查询或者视图view,优先对每一个子查询或者视图view进行任务计划转换,将每一个子查询转换成Operator
+存储在Map<String, Operator> aliasToOpInfo = new HashMap<String, Operator>();中,key是子查询表的别名,value是子查询的执行计划
+2.对非子查询,即直接from biao的集合进行任务计划转换
+循环所有的表别名,调用Operator op = genTablePlan(alias, qb);产生该表的任务计划.添加到aliasToOpInfo.put(alias, op);中
+此时产生的是一个表的scan操作,以及如果改变是抽样表,则是在scan操作基础上对其进行filter操作包装
+3.处理PTF和LateralViewPlan
+4.如果有join操作,因此要对on进行过考虑,可以对scan table转换成filter
+道理也很简单,因为每一个表以及子查询等都已经有了对应的Operator了,但是如果两个表之间有关联,因此可以通过on进行filter岂不是更好。按道理也应该如此
+以下是join的几种情况
+a.select * from biao1 b1 left join biao2 b2 on b1.id = b2.id
+该方式比较简单,只需要一层join,因此分别获取join的左边表达式和右边表达式即可
+b.select * from biao1 b1 left join biao2 b2 on b1.id = b2.id left join biao3 b3 on b1.id = b3.id
+该方式比较复杂一些,先拿到前两个表达式聚集.产生一个结果集,该结果集依然是QBJoinTree返回值,然后在与第三个表进行join操作,最终依然返回QBJoinTree对象
+c.因为复杂的对象也是由简单的对象组成,因此我们在简单的对象基础上进行复杂化
+select * from biao1 b1 left join biao2 b2 on b1.id = b2.id and b1.age = 20 and b1.name like '%xxx%'
+此时虽然加载两个表进行join,获取左右两部分,但是在解析on的时候,有多个条件,因此是先比较前两个条件,然后比较的结果在和第三个条件比较。
+而在两两比较的时候,即b1.id = b2.id and b1.age = 20,要分别比较每一个表达式,即最终拆分成最小单位为 b1.age = 20,去解析这个最小单位即可,然后以此拼接组装。
+特别的:b1.name like 的方式也是最小单元,即最小单位不仅仅只有!= 和=
+
+解析左右两边的某一边
+该边可能的内容有以下类型
+1).表别名,比如table1.id
+因此看看该表属于join的哪部分,左边还是右边,分别加入到leftAliases或者rightAliases中,表示从左边还是右边获取该表
+2).常数
+3).属性比如id,用于函数中的某一个字段
+4).函数,解析每一个函数的参数
+5).一个额外的参数,比如id   会当作一个属性处理
+6).两个额外的参数
+
+d.设置filter条件和filter下推条件等信息
+5.解析hint ,比如 MAPJOIN(time_dim),其中time_dim表示小表,要加入内存的表
 
 
 Operator genTablePlan(String alias, QB qb)

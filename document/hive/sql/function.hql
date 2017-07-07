@@ -163,6 +163,39 @@ hive> SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"
 打印 {"weight":8,"type":"apple"}
 
 27.sort_array(array(1, 2, 2,5, 3, 3)); 对数据排序,大多数情况下使用在group by中
+
+28.str_to_map  将一个字符串转换成map字段类型
+例如:str_to_map('a=b c=d f=e',' ','=')
+解释:空格拆分成一个key=value,然后=号拆分key和value
+
+demo:
+insert overwrite table dim_temp.temp_user
+select fu.user_mobile ,rp.userid ,  str_to_map(concat_ws(',',collect_set(concat( starttime,"#", endtime)) ),',','#') wfre
+from database.preference_hour rp
+left join database.user_info fu on rp.userid = fu.userid and length(user_mobile) = 11
+where  rp.log_type='invest'
+group by user_mobile,rp.userid
+需求说明:查询每一个用户手机号码 以及 用户在一天内哪些小时是有投资偏好的
+因为投资偏好是一个用户多条数据,比如
+userid1  20:25-22:15
+userid1  23:25-23:45
+因此需要整合一个user对应的偏好变成map,key是开始时间,value是结束时间
+
+sql说明:
+a.collect_set(concat( starttime,"#", endtime))
+按照userid分组,收集所有的开始时间和结束时间,用#代替key与value的分隔符
+b.将用户的所有信息集合拼接成字符串,每一组用,号分割,即concat_ws(',', collect_set)
+c.对集合进行拆分成map
+str_to_map(map字符串,',','#'),即字符串使用,号进行拆分每一个key=value,然后key=value用#拆分
+
+具体查询sql需求:查询属于某一个时间段内满足条件的用户
+select *
+from dim_temp.temp_user
+LATERAL VIEW explode(preference_hour) et as k,v
+where k<='21:00' and v>='21:00'
+即将一个user的所有时间map进行拆分,获取k和v表示开始时间和结束时间.然后分别过滤k和v,有一组满足条件的,则都被返回该数据
+
+
 二、generic
 1.对case column when a then b else c end 形式进行处理
  注意:
