@@ -83,6 +83,9 @@ WITH SERDEPROPERTIES (
 
 因为hbase都是key,value结构,因此hive读取的都是字符串形式,包含hive的map数据结构存储在hbase中也是字符串形式存储的,只是字符串包含了ascii码的2和3而已
 
+该方式有时候会产生bug,比如hive的map结果存储到hbase中,hbase的一个列族里面所有的元素都是map的元素,这个时候map只有update和put功能,没有delete功能,因此如果需要delete功能的需求时,该问题是会出逻辑bug的,
+解决方式是采用一个key=value方式,将map的结果存储到value中,前端用户去解析该value成map对象即可
+
 
 六、创建数据库
 create database if not exists databaseName location 'path';
