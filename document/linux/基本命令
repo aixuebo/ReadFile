@@ -67,3 +67,6 @@ scp user@远程ip:/source路径 本地target路径
 2.如果远程服务器防火墙有特殊限制，scp便要走特殊端口，具体用什么端口视情况而定，命令格式如下
 scp -p 4588 remote@www.abc.com:/usr/local/sin.sh /home/administrator
 3.scp使用的user要有远程服务器相关文件的权限
+
+五、crontab
+40 7 * * * source /home/xxxx/.bashrc && cd /data11/xxxx/app/fixJob && sh fixdb.sh 2>>/data11/xxxxx/logs/fixJob/log/error.log 1>>/data11/xxxx/logs/fixJob/log/out.log

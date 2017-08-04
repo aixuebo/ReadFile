@@ -16,3 +16,54 @@ val premiumRawData = sqlContext.read.format("com.databricks.spark.csv").option("
   val sqlContext = new SQLContext(sc)
   val hiveSqlContext = new HiveContext(sc) //执行hive
   import sqlContext.implicits._ //可以隐式转换$("属性")
+四、spark sql在执行hiveContext环境中,总是提示无法连接到hive表,前提是集群模式下启动,而不是client模式下启动
+问题产生的现象
+1.一开始是说找不到hive相关的包
+2.然后添加hive相关的包后,依然说
+报错 Unable to instantiate org.apache.hadoop.hive.ql.metadata.SessionHiveMetaStore
+再看详细的yarn上日志,发现是 Retrying creating default database after error: Class org.datanucleus.api.jdo.JDOPersistenceManagerFactory was not found.即找不到这个包
+那么再添加这个包
+
+解决该问题:
+1.将job启动的lib包,增加若干个jar
+-rw-r--r-- 1 root root   297982 Aug  4 15:04 hive-common-1.2.1000.2.4.2.0-258.jar
+-rw-r--r-- 1 root root 20755003 Aug  4 15:04 hive-exec-1.2.1000.2.4.2.0-258.jar
+-rw-r--r-- 1 root root  5917119 Aug  4 15:03 hive-metastore-1.2.1000.2.4.2.0-258.jar
+-rw-r--r-- 1 root root   918379 Aug  4 15:03 hive-serde-1.2.1000.2.4.2.0-258.jar
+-rw-r--r-- 1 root root   339666 Aug  4 15:44 datanucleus-api-jdo-3.2.6.jar
+-rw-r--r-- 1 root root  1890075 Aug  4 15:44 datanucleus-core-3.2.10.jar
+-rw-r--r-- 1 root root  1809447 Aug  4 15:44 datanucleus-rdbms-3.2.9.jar
+2.增加hive的配置文件
+3.最终配置脚本如下:注意关键参数--master yarn_cluster --deploy-mode cluster   --files /usr/hdp/current/spark-client/conf/hive-site.xml
+#!/bin/bash
+
+now=`date "+%G-%m-%d %H:%M:%S"`
+d=`date -d "-1 day" +%Y%m%d`
+d_=`date -d "-1 day" +%Y-%m-%d`
+echo $d
+
+statisticsPath=/server/app/spark_statistic/lib
+logPath=/server/logs/spark_statistic
+
+export LIB_PATH=$statisticsPath/*.jar
+
+
+jarpaths=`echo $LIB_PATH | sed -e 's/ /,/g'`
+
+##echo ---------------------
+##echo $jarpaths
+spark-submit --name InvestPreferenceHour \
+--master yarn_cluster --deploy-mode cluster --class com.datacenter.machineLearning.ai.InvestPreferenceHour \
+--jars $jarpaths \
+--queue xstorm \
+--files /usr/hdp/current/spark-client/conf/hive-site.xml \
+--verbose \
+/server/app/spark_statistic/job/spark_project.jar redeem $* 1>>$logPath/appout.log 2>>$logPath/apperr.log
+
+4.脚本说明
+--master 表示提交方式是yarn集群上提交任务
+--deploy-mode cluster 表示driver在cluster集群上任意一个节点上启动,而不是本地节点
+--files /usr/hdp/current/spark-client/conf/hive-site.xml 表示通知driver节点下载对应的hive配置文件 以及--jars参数对应的jar包
+
+5.启动后在yarn的job上,查看executors这个页面,可以看到driver的节点就不是提交任务的节点了
+

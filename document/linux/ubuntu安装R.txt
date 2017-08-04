@@ -28,3 +28,7 @@ make install
 但安装完的包全部位于 /home/neten/R/x86_64-pc-linux-gnu-library/2.12 目录下，
 我想改变用户根目录下R文件夹的位置， google一番后， 发现变量在这里设置的：
 /etc/R/Renviron
+
+
+2.centos安装软件
+yum -y install tcpdump

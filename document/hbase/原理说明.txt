@@ -29,3 +29,40 @@
 2.最小版本数
 和行的最大版本数一样，最小版本数也是通过HColumnDescriptor 在每个列族中设置的。最小版本数缺省值是0，表示该特性禁用。
 最小版本数参数和存活时间一起使用，允许配置如“保存最后T秒有价值数据，最多N个版本，但最少约M个版本”(M是最小版本数，M<N)。 该参数仅在存活时间对列族启用，且必须小于行版本数
+
+六、hbase的API读写交互流程
+1.系统表
+　　hbase：namespace
+　　　　存储hbase中所有的namespace的信息
+　　hbase：meta　　　
+　　　　rowkey:hbase中所有表的region的名称
+　　　　column：regioninfo：region的名称，region的范围
+　　　　server：该region在哪台regionserver上
+
+2.读写流程
+　　tbname,rowkey  ->   region  ->  regionserver  ->  store ->  storefile
+　　但是这些都是加载过meta表之后，然后meta表如何寻找？
+
+3.读的流程　　
+　　-》根据表名和rowkey找到对应的region
+　　-》zookeeper中存储了meta表的region信息
+　　-》从meta表中获取相应的region的信息
+　　-》找到对应的regionserver
+　　-》查找对应的region
+　　-》读memstore
+　　-》storefile
+
+4.写的流程　　
+　　-》根据表名和rowkey找到对应的region
+　　-》zookeeper中存储了meta表的region信息
+　　-》从meta表中获取相应的region的信息
+　　-》找到对应的regionserver
+　　-》正常情况
+　　-》WAL（write ahead log预写日志），一个regionserver维护一个hlog
+　　-》memstore (达到一定大小，flush到磁盘)
+　　-》当多个storefile达到一定大小以后，会进行compact，合并成一个storefile
+　　-》当单个storefile达到一定大小以后，会进行split操作，等分割region
+
+5.注意点
+　　关于版本的合并和删除是在compact阶段完成的。hbase只负责数据的增加存储
+　　hmaster短暂的不参与实际的读写

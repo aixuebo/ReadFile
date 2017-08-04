@@ -1,0 +1,23 @@
+一、客户端请求hbase的时候,必须要包含hbase集群所有的host和ip的映射,即配置/ect/hosts文件
+否则有时候会获取不到数据
+
+疑问:为什么客户端要需要知道全部集群的信息,这样会失去透明性的
+可能是配置dns,让客户端可以通过域名获取到ip,这样本地就不需要配置host
+
+而且很多服务对外是提供api的方式，而服务本身是在公司环境内的,因此公司环境内是可以知道每一个域名对应的ip的,也可以共享内部的dns,因此不会有这样情况发生
+
+二、java获取连接
+    //生产环境
+    //private static String hbase_zkper="10.5.19.222:2181";
+    //private static String hbase_master="10.5.19.222:16000";
+
+    // 声明静态配置
+    static Configuration conf = null;
+    static final HTablePool tablePool;
+    static {
+        conf = HBaseConfiguration.create();
+        conf.set("hbase.zookeeper.quorum", hbase_zkper);
+        conf.set("hbase.master", hbase_master);
+        conf.set("zookeeper.znode.parent","/hbase-unsecure");
+        tablePool = new HTablePool(conf, 20);
+    }
