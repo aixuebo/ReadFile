@@ -81,7 +81,8 @@ curl -O(大写) url下载jdk和hadoop的tar包
 13.其他命令
 sudo apt-get install zip
 sudo apt-get install flashplugin-installer
-
+14.centos安装软件
+yum -y install tcpdump
 
 ubuntu 16.04 使用的是ibus输入系统，没有预装中文输入法，你要自己安装一下。
 以中文拼音输入法为例：

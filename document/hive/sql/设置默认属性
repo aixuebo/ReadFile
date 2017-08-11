@@ -42,4 +42,4 @@ c.select的最后几个字段的值就是分区的值
 七、set hive.mapred.mode=nostrict; 取消hive的约束,即查询分区表的时候,如果不写分区字段,也是允许执行的
 
 八、更换队列
-mapreduce.job.queuename=queue1
+set mapreduce.job.queuename=xstorm;
