@@ -1,0 +1,230 @@
+一、OutputStream 抽象类
+public abstract class OutputStream implements Closeable, Flushable
+1.public abstract void write(int b) throws IOException;
+每次写一个int到输出流中
+2.public void write(byte b[]) throws IOException {
+  write(b, 0, b.length);
+}
+3.public void write(byte b[], int off, int len) throws IOException
+将b字节数组中从off位置开始写,写len个长度字节,循环中每一个int都调用write(int b)方法
+for (int i = 0 ; i < len ; i++) {
+            write(b[off + i]);
+}
+4.public void flush()
+5.public void close()
+
+二、public class ByteArrayOutputStream extends OutputStream
+a.数据写入到字节数组中,临时缓存一下.
+b.缓冲字节数组支持自动扩容功能.
+c.close方法调用没有任何影响,什么也没有做,流即使close了,再次调用该对象依然不会有IOException异常,同时可以获取到原来的输出流buff内容
+
+1.内部有一个字节数组,存储字节内容
+protected byte buf[];
+2.字节数组会自动扩容,让足够多的字节被存储到字节数组中,但是有一个上限,即Integer.MAX_VALUE - 8,即存储的字节内容不允许超过该值.超过该值后可能会丢弃多余的数据。代码要详细看一下。
+因此如果使用该ByteArrayOutputStream包装的时候,要确保里面的内容不会字节太多,如果有可能太多的时候,要进行一些特殊的日志处理,防止丢数据。
+3.protected int count; 记录buf中真正有效的字节数
+因为buf可能不断扩容,导致很多位置的字节是空的,是没有意义的。
+4.synchronized void write(int b)
+buf[count] = (byte) b;count += 1;
+5.public synchronized void write(byte b[], int off, int len)
+ystem.arraycopy(b, off, buf, count, len);count += len; 将b的内容直接copy到字节缓冲区里面,没有走父类实现逻辑,一个字节一个字节添加
+6.synchronized void reset()
+count = 0;
+说明此时buf内容虽然不清空,但是count位置已经重置,即以前存储的内容已经没用了,此时清空输出流的效率非常高。
+7.public synchronized int size() return count;
+返回真正意义的字节数
+8.synchronized void writeTo(OutputStream out)
+out.write(buf, 0, count);
+将buf缓冲的全部内容,写入到参数out中
+9.用于外界想获取字节数组的内容--创建新的缓冲区返回给客户,可能以字节数组返回,也可能转换成字符串
+synchronized byte toByteArray()[]  return Arrays.copyOf(buf, count);
+synchronized String toString() return new String(buf, 0, count);
+synchronized String toString(String charsetName) return new String(buf, 0, count, charsetName);
+synchronized String toString(int hibyte) return new String(buf, hibyte, 0, count); 用处不大
+10.public void close() throws IOException {}
+没有实现,即无论对方关不关闭该流,字节数组的内容都会被保留,只要对象不被回收,随时都可以获取到内容。
+同时该方法在流被关闭之后调用,依然不会抛IOException异常
+
+
+三、public class FileOutputStream extends OutputStream
+a.向文件或者文件描述符里面写入信息
+b.FileOutputStream 意味着写入的信息是原生的byte字节流,比如图片数据,如果写入的是字符信息,而非byte信息.比如汉字,则考虑使用FileWriter
+
+1.属性
+private final String path;表示文件的全路径
+private final boolean append; 表示文件是否是追加写入
+private final FileDescriptor fd; 表示文件对象的描述符
+private FileChannel channel;返回与该fd描述符通道相关联的NIO的通道
+private volatile boolean closed = false;表示该文件是否已经被关闭了
+
+2.构造函数
+public FileOutputStream(File file, boolean append) throws FileNotFoundException
+a.传文件路径 或者File对象  以及是否追加写boolean值
+b.创建文件描述符对象,并且设置fd变量,以及设置path和append属性
+c.open(name, append);打开文件的描述符
+该方法是native的方法,因此忽略
+
+FileOutputStream(FileDescriptor fdObj)
+不用open(name, append);方法打开描述符了
+
+3.void write(int b) 、void write(byte b[]) 、void write(byte b[], int off, int len)
+三个方法调用都会追加append参数,然后调用native的方法
+private native void write(int b, boolean append) throws IOException;
+private native void writeBytes(byte b[], int off, int len, boolean append)  throws IOException;
+
+4.FileDescriptor getFD() 返回fd,即文件流相关的文件描述符
+
+5.public FileChannel getChannel()
+channel = FileChannelImpl.open(fd, path, false, true, append, this);
+调用sun下的方法打开nio下的FileChannel文件通道。
+此方法是文件流与NIO的交互时候使用的,具体代码实现暂时没办法知道
+
+6.void close()
+此方法关闭输出流、释放系统资源、一旦关闭,则该输出流将不会在被用于写入字节了.必须再次打开才能使用
+a.设置closed = true;
+b.if (channel != null) {channel.close();} 如果NIO也打开了,则先关闭NIO
+c.调用native的close0()方法关闭输出流,释放资源
+
+四、public class FilterOutputStream extends OutputStream
+a.过滤器流,可以用于对流的各种包装
+b.该流必须在最顶层有一个真实存在的输出流,然后对该流进行不断的包装,过滤等附加处理。
+
+1.protected OutputStream out; 属性是构造函数传递过来的具体的流,或者含有具体流的包装流
+2.write(int b)、write(byte b[])、write(byte b[], int off, int len)、flush()方法都是调用的out的原始方法,没有做任何修改,目的是子类可以去修改
+3.public void close()
+该方法调用flush(),而不是执行真正的关闭方法,因为过滤器流不应该去真正关闭流,真正关闭流的方法应该有原生流来控制。
+
+五、public class BufferedOutputStream extends FilterOutputStream
+a.一种过滤器流,用于缓冲数据,不需要立刻系统调用,写入数据到文件的情况,避免系统性能瓶颈
+b.提供一个字节数组,缓冲要输出的数据,而不是直接写入到文件,是先保存到缓冲区一下。
+
+1.属性
+protected byte buf[];内部存储流的缓冲区---该缓冲区不需要扩容,达到一定程度就flush到输出流中
+protected int count;缓冲区内有效字节数
+
+2.构造函数提供原始流 以及 字节缓冲区大小
+BufferedOutputStream(OutputStream out, int size)
+
+3.synchronized void write(int b)
+buf[count++] = (byte)b; 将b添加到字节数组中
+如果count超过了buf大小,因此进行flushBuffer();操作
+
+4.synchronized void write(byte b[], int off, int len)
+System.arraycopy(b, off, buf, count, len);采用这种方式将内容写入到本地buff
+期间判断是否要将buff内容进行flushBuffer();操作
+
+5.void flushBuffer()
+out.write(buf, 0, count); count = 0;
+将缓存内容传递给下一个过滤器流,进一步过滤,或者直接传递给文件输出流,进行write系统调用。
+
+6.synchronized void flush()
+flushBuffer();先将文件缓冲的内容写入到下一个过滤器流,进一步过滤,或者直接传递给文件输出流,进行write系统调用。
+然后进行out.flush();处理,即系统调用flush
+
+六、public interface DataOutput
+a.该接口提供了转换java类型到字节数组的转换,以及写这些二进制到输出流中
+
+1.void write(int b) throws IOException;即写入一个字节,虽然传入的是int,但是只要一个byte
+写入一个8个bit到输出流中,丢弃24个更高的bit
+
+2.void write(byte b[]) throws IOException;
+将所有的字节数组都写到输出流中
+
+3.void write(byte b[], int off, int len)
+将b数组中从off位置开始写到输出流中,写出len个字节
+
+4.void writeBoolean(boolean v)
+将boolean值转换后写到输出流中
+true写(byte)1,false写(byte)0
+
+5.void writeByte(int v)
+将最低的8bit写到输出流,剩余24个bit丢弃
+
+6.void writeShort(int v)
+写2个字节到输出流中,只看前16bit,剩余的丢弃
+
+7.void writeChar(int v)
+写2个字节到输出流中,只看前16bit,剩余的丢弃
+
+8.void void writeInt(int v)
+将int转换成4个字节,写到输出流中
+
+9.void writeLong(long v)
+将long转换成8个字节,写到输出流中
+
+10.void writeFloat(float v)
+将float写到输出流中,主要写出4个字节
+Float.floatToIntBits(v)将其转换成int,然后调用writeInt方法,将int的4个字节写到输出流
+
+11.void writeDouble(double v)
+将double写到输出流中,主要写出8个字节
+Double.doubleToLongBits(v)将其转换成long,然后调用writeLong方法,将long的8个字节写到输出流
+
+12.void writeBytes(String s)
+将字符串转换成字节数组,写到输出流中,
+注意:String字符串中每一个字符都有一个byte组成,如果有多于1个字符,则只要前8bit。
+
+13.void writeChars(String s)
+将字符串转换成字节数组,写到输出流中,
+注意:String字符串中每一个字符都有2个byte组成,如果有多于2个字符,则只要前16bit。
+
+14.void writeUTF(String s)
+将字符串转换成字节数组,写到输出流中,
+注意:String字符串中每一个字符都会被转换成1或者2或者3个字节。主要取决于字符
+首先调用writeShort,写入2个字节组成的所有字节长度的short值,如果字节长度超过65535,则抛出UTFDataFormatException异常。
+然后对每一个字符转换成1或者2或者3个字节后,写出到输出流中。
+
+
+七、public class DataOutputStream extends FilterOutputStream implements DataOutput
+对DataOutput流进行过滤流处理,主要目的是将int、long、String等类型转换成byte数组,然后输出到文件流中
+
+1.属性
+protected int written;一共写了多少个字节
+
+2.构造函数 public DataOutputStream(OutputStream out)
+参数out是真实的输出流 或者filter流,out最终一定是file文件输出流或者ByteArrayOutputStream输出流
+
+3.正常调用父类方法,转换后写出字节数据
+synchronized void write(int b) 正常将b写出到父级别的输出流中out.write(b);
+synchronized void write(byte b[], int off, int len)  out.write(b, off, len);
+void writeBoolean(boolean v)  out.write(v ? 1 : 0);
+void writeByte(int v) out.write(v);写入一个字节
+void writeShort(int v)  out.write((v >>> 8) & 0xFF);out.write((v >>> 0) & 0xFF); 写入2个字节
+void writeChar(int v) out.write((v >>> 8) & 0xFF);out.write((v >>> 0) & 0xFF); 写入2个字节
+void writeInt(int v) 转换成4个byte,写入4个字节
+void writeLong(long v) 转换成8个byte,写入8个字节
+writeFloat(float v) writeInt(Float.floatToIntBits(v));写入4个字节
+void writeDouble(double v) writeLong(Double.doubleToLongBits(v));写入8个字节
+writeBytes(String s)
+        int len = s.length();
+        for (int i = 0 ; i < len ; i++) {
+            out.write((byte)s.charAt(i)); //每一个字符只写入一个byte,即第一个byte
+        }
+void writeChars(String s)
+        int len = s.length();
+        for (int i = 0 ; i < len ; i++) {//每一个字符只写入2个byte,即前2个byte
+            int v = s.charAt(i);
+            out.write((v >>> 8) & 0xFF);
+            out.write((v >>> 0) & 0xFF);
+        }
+writeUTF(String str)
+
+4.void flush()  out.flush();
+
+5.void incCount(int value)
+每次写完一个字节后,都要更新 int temp = written + value; written = temp;
+
+6.final int size()   return written;
+返回一共写了多少个字节
+
+
+
+demo:
+1.BufferedOutputStream(new FileOutputStream(""))
+表示对写出的内容先进行缓冲,当达到一定量的时候,再传递给FileOutputStream,进行系统调用存储到文件中
+2.DataOutputStream(BufferedOutputStream(new FileOutputStream("")))
+表示可以先对各自int、long、String等先转换成字节数组,然后调用BufferedOutputStream,存储到缓存中,当达到一定量的时候,再传递给FileOutputStream,进行系统调用存储到文件中
+
+
+
+PipedInputStream 管道 就是一个输出 就是下一个的输入
