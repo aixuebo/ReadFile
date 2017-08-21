@@ -31,3 +31,6 @@ hadoop balancer [-threshold] -setBalancerBandwidth <bandwidth in bytes per secon
 8.yarn logs -applicationId application_1498016758809_49606 >>aaa.log 将一个yarn上的日志打印到本地
 9.设置yarn上的执行队列
 -Dmapreduce.job.queuename=xxx
+
+9.hdfs balancer -threshold 2 为集群做平衡
+遇到的问题是 如果此时正在有大任务在集群执行.平衡效果是不好的,因为将其kill掉

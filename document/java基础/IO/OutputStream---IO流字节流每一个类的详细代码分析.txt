@@ -1,3 +1,8 @@
+ * @see     java.io.FilterOutputStream 过滤器流,用于各自过滤
+ * @see     java.io.BufferedOutputStream 属于一个FilterOutputStream 过滤器流,用于高效的处理,避免每次都调用系统调用,因此将流先缓存起来,达到一定伐值后,进行统一的系统调用
+ * @see     java.io.ByteArrayOutputStream 将最终的字节数组存储到内部的byte数组缓冲区中,提供void writeTo(OutputStream out)方法,将缓冲的所有内容输出到参数的输出流中,因此同一个缓冲区内容可以写入多个不同的OutputStream输出流中
+ * @see     java.io.FileOutputStream 将最终的字节数组存储到文件中
+ * @see     java.io.DataOutputStream 属于一个FilterOutputStream过滤器流,可以将int、long、boolean等数据类型自动转换成字节数组
 一、OutputStream 抽象类
 public abstract class OutputStream implements Closeable, Flushable
 1.public abstract void write(int b) throws IOException;

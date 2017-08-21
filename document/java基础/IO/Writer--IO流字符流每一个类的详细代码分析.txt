@@ -1,15 +1,15 @@
 一、Writer 抽象类
 public abstract class Writer implements Appendable, Closeable, Flushable
 相关子类
- * @see Writer
- * @see   BufferedWriter
- * @see   CharArrayWriter
- * @see   FilterWriter
- * @see   OutputStreamWriter
- * @see     FileWriter
+ * @see Writer  抽象类接口
+ * @see   BufferedWriter 对写入的字符进行缓存,避免每一次都将字符转换成字节,写出到文件中的性能损耗
+ * @see   CharArrayWriter 与StringWrite作用相同,将字符内容存储到字符数组中,只是多提供了writeTo(Writer out)方法, 将缓冲的内容写出到out中,缓冲内容本身依然被缓存
+ * @see   FilterWriter  过滤器类,用于对writer进行各自过滤处理
+ * @see   OutputStreamWriter   用于如何将字符串转换成字节数组的工具类
+ * @see     FileWriter 将最终String字符转换成字节数组--最终存储到文件中
  * @see   PipedWriter
- * @see   PrintWriter
- * @see   StringWriter
+ * @see   PrintWriter-----可以对各自long、int等类型将其转换成String,然后从而达到字符流的目的
+ * @see   StringWriter-----将所有的信息存储到StringBuffer中,最终可以转换成String
 用于写字符串相关的抽象流
 
 1.属性
