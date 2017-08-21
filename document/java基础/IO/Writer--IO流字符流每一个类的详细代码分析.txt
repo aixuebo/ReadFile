@@ -1,0 +1,353 @@
+一、Writer 抽象类
+public abstract class Writer implements Appendable, Closeable, Flushable
+相关子类
+ * @see Writer
+ * @see   BufferedWriter
+ * @see   CharArrayWriter
+ * @see   FilterWriter
+ * @see   OutputStreamWriter
+ * @see     FileWriter
+ * @see   PipedWriter
+ * @see   PrintWriter
+ * @see   StringWriter
+用于写字符串相关的抽象流
+
+1.属性
+private char[] writeBuffer; 临时的缓冲区,存储字符串的每一个字符
+    
+
+2.void write(int c) / Writer append(char c)
+写一个单独的字符-----仅仅使用前16个bit,后面16个bit忽略,因为char只需要2个byte
+writeBuffer[0] = (char) c;将该int转换成char,临时存储
+write(writeBuffer, 0, 1);将该临时缓冲区的1个字符char写出
+
+3.void write(char cbuf[])
+write(cbuf, 0, cbuf.length);直接将字符数组写出
+
+4.abstract public void write(char cbuf[], int off, int len)
+核心类,如何将字符数组输出,由子类实现
+
+5.void write(String str) 将一个字符串作为整体输出
+write(str, 0, str.length());
+
+
+6.void write(String str, int off, int len) 将一个字符串的一部分输出
+a.cbuf = new char[len];创建临时缓冲区
+b.调用字符串的这个方法:"".getChars(srcBegin, srcEnd, dst, dstBegin)
+比如str.getChars(off, (off + len), cbuf, 0);将字符串的off位置 到 off+len位置的内容填充到cbuf这个char的字符数组中,从0位置开始覆盖
+c.write(cbuf, 0, len);真正子类实现如何写出这字符数组
+
+7.Writer append(CharSequence csq) 等同于write(String str) 方法,只是当参数是null的时候,要写入字符串"null"
+if (csq == null) write("null"); else write(csq.toString());
+return this; 返回值还是Writer本身,因此可以支持链式写出字符串内容
+
+8.Writer append(CharSequence csq, int start, int end) 等同于void write(String str, int off, int len) 方法,只是当参数是null的时候,要写入字符串"null"
+CharSequence cs = (csq == null ? "null" : csq);
+write(cs.subSequence(start, end).toString()); //截取一部分字符串数据写出
+return this; 返回值还是Writer本身,因此可以支持链式写出字符串内容
+
+9.abstract public void flush()
+10.abstract public void close()
+
+总结:
+1.子类要具体实现如何将char数组写出到具体文件句柄里面,即abstract public void write(char cbuf[], int off, int len)
+2.子类要实现flush和close功能
+
+
+二、public abstract class FilterWriter extends Writer
+属于一个字符流过滤器,什么也没有做,本来持有一个输出流,然后直接该输出流的方法
+1.属性
+protected Writer out;构造函数传递过来的,底层的输出流
+
+2.构造函数
+protected FilterWriter(Writer out)
+a.super(out);赋予父类该输出流
+b.this.out = out;赋值本来该输出流
+
+3.void write(int c) 、void write(char cbuf[], int off, int len) 、void write(String str, int off, int len)
+什么也没有做,直接调用输出流本身的方法
+out.write(c);或者 out.write(cbuf, off, len);或者out.write(str, off, len);
+
+4.void flush()、void close()
+什么也没有做,直接调用输出流本身的方法
+out.flush(); 或者 out.close();
+
+三、public class OutputStreamWriter extends Writer
+a.该类是桥接类,即实现从字符流到字节流的转换的作用。是所有writer的方法的基类,即所有的字符只要最终到该类了,都会转换成字节
+b.转换后的字节会被存储在默认的一个buffer中
+c.考虑到最高效率,避免频繁的字符转换字节操作,应该使用buffer包装一下
+Writer out = new BufferedWriter(new OutputStreamWriter(System.out));
+此时表示System.out字节输出流被OutputStreamWriter包装,因此可以对字符转换成字节,但是不想每一次字符都转换成字节,因此BufferedWriter包装一层.
+即每次进入的字符都会被缓存,缓存到一定程度后,在BufferedWriter中被调用,然后在OutputStreamWriter中统一被转换成字节,最终再存储到System.out中的过程效率高。
+
+1.属性
+private final StreamEncoder se;该类的意义是持有一个OutputStream字节流 以及 编码方式,然后本类支持写入一个char,然后将char按照编码方式转换成字节数组,然后存储到OutputStream中,
+即真正的字符 转换成字节的操作是该类完成的,而该类相当于native,可以忽略不看。
+
+
+2.构造函数
+OutputStreamWriter(OutputStream out, String charsetName)
+a.super(out);让writer持有该out作为lock对象,防止并发时候可以不出问题
+b.se = StreamEncoder.forOutputStreamWriter(out, this, charsetName);创建字符转换成字节的例子
+
+3.String getEncoding() 获取编码方式
+return se.getEncoding();
+
+4.void write(int c) 、void write(char cbuf[], int off, int len)、void write(String str, int off, int len)
+调用se去真正实现写入char
+se.write(c); 、 se.write(cbuf, off, len);、se.write(str, off, len);
+
+5.void flushBuffer()
+se.flushBuffer();调用se去执行flush,注意此时flush的是se内部的缓冲信息,输出到最底层的字节流OutputStream中,此时并不是顺便也flush OutputStream了,
+
+6.void flush() 、void close()
+se.flush();、se.close();
+
+四、public class BufferedWriter extends Writer
+a.目的是一个缓冲字节的作用,传进来的是字符,缓冲起来,不进行转换，达到一定伐值后,统一调用父类的方法,将字符让父类进行转换成字节操作。
+因此一般父类的writer都是接入的OutputStreamWriter的子类对象,即真正可以将字符转换成字节,并且写入的字节流的操作类。
+b.一个使用缓冲区流的demo
+PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
+
+
+1.属性
+private String lineSeparator;每一行的回车换行字符串,默认是\r\n
+private static int defaultCharBufferSize = 8192;默认缓冲大小
+private Writer out;该缓冲流代理的输出对象,最终字符转换字节等操作还是out来做的
+private char cb[];用于本类缓冲字符使用,即字符缓冲区
+private int nChars;表示cb缓冲区的总大小
+private int nextChar;表示cb缓冲区下一个要写的位置是哪个位置
+
+2.构造函数
+public BufferedWriter(Writer out, int sz)
+super(out);让父类知道监控哪个字节输出流
+this.out = out;本类也持有最终流的代理对象
+cb = new char[sz];创建缓冲字符的缓冲区
+nChars = sz;缓冲区的总大小
+nextChar = 0;下一个要存储缓冲区的哪个位置
+
+3.void write(int c) 写入一个单独的char,占用2个byte
+a.if (nextChar >= nChars) flushBuffer();是否将缓存的字符内容,进行转换成字节操作
+b.cb[nextChar++] = (char) c;内部缓冲该char
+
+4.void write(char cbuf[], int off, int len)
+a.if (len >= nChars) 说明插入的字符长度太大了,则
+flushBuffer();先将缓存的内容转换成字节,插入到最终流中
+out.write(cbuf, off, len); 直接调用父类的方法,不需要缓存了,直接转换成字节,插入到最终流中
+b.将内容缓存到cb字节数组中
+
+5.void write(String s, int off, int len)
+a.不断的将字符串转换成char数组s.getChars(b, b + d, cb, nextChar);,并且将转换的内容存储到cb字符数组中
+b.定期flushBuffer();进行转换、刷新操作
+
+
+6.void newLine()
+write(lineSeparator);向字符数组中写入回车换行对应的字符
+
+7.void flushBuffer()
+out.write(cb, 0, nextChar);调用父类方法,将缓冲的字符写出到下一个流中,下一个流进行转换成字节,输出到字节流中的作用
+注意,此时不代表最终的outputStream也flush了。
+nextChar = 0; 设置下一个数组的位置是0,因为全部都写出了,肯定继续从0开始计数
+
+8.void flush()
+flushBuffer();先进行转换以及输出字节流操作
+out.flush();让最终流也进行flush操作
+
+9.void close()
+flushBuffer();先进行转换以及输出字节流操作
+out = null;
+cb = null;
+后两个只是将其设置成null,并没有真正关闭,因为最终关闭的肯定是字节流outputStream,但是该流是java代码去关闭的。
+
+五、public class FileWriter extends OutputStreamWriter
+a.将字符转换后存储的目的地是文件
+b.OutputStreamWriter父类用于真正将字符转换成字节操作,因此子类只需要提供一个字节输出流目的地即可
+
+
+1.构造函数
+FileWriter(String fileName)  super(new FileOutputStream(fileName)); 即先有一个文件的字节输出流即可
+FileWriter(String fileName, boolean append)  super(new FileOutputStream(fileName, append));
+FileWriter(File file) super(new FileOutputStream(file));
+FileWriter(File file, boolean append) super(new FileOutputStream(file, append));
+FileWriter(FileDescriptor fd) super(new FileOutputStream(fd)
+
+六、public class CharArrayWriter extends Writer
+1.该类与BufferedWriter的区别是,该类缓冲的字节会自动的扩容字节数组,而BufferedWriter是不会自动扩容,达到一定伐值后就进行转换,
+而该类是主动进行转换的时候才进行转换
+2.缓冲的数据内容可以使用toCharArray() and toString()方法进行还原
+3.close方法没有任何意义,即使关闭后,依然可以获取到真实的内容
+
+1.属性
+protected char buf[];用于存储char的缓冲区
+protected int count;缓冲区存储了多少个元素
+
+
+2.构造函数
+public CharArrayWriter(int initialSize)
+buf = new char[initialSize];创建缓冲区
+
+3.void write(int c) 、CharArrayWriter append(char c) 、void write(char c[], int off, int len) 写入一个char,即主要前16个bit 或者写入每一个char
+a.自动扩容
+b.buf[count] = (char)c;将char添加到缓冲区中
+c.count = newcount;更新缓冲区有效字符数量
+
+4.void write(String str, int off, int len)
+a.自动扩容
+b.str.getChars(off, off + len, buf, count);将字符串转换成char数组,然后添加到缓冲区中
+c.count = newcount;更新缓冲区有效字符数量
+
+
+5.void writeTo(Writer out) 将缓冲的内容写出到out中,缓冲内容本身依然被缓存
+out.write(buf, 0, count);
+
+6.CharArrayWriter append(CharSequence csq) 等同于write(String str)方法
+String s = (csq == null ? "null" : csq.toString());如果要输入的是null,则写入"null"字符串
+write(s, 0, s.length());
+return this;
+
+7.CharArrayWriter append(CharSequence csq, int start, int end)  等同于write(String str, int off, int len)方法
+String s = (csq == null ? "null" : csq).subSequence(start, end).toString();如果要输入的是null,则写入"null"字符串
+write(s, 0, s.length());
+return this;
+
+8.public void reset()
+count = 0; 清空缓冲区内的有效内容,此时不是真的清空,因此效率非常高,但是缓冲区内容依然占用空间
+
+9.还原缓冲区内容的方法
+char toCharArray()[] return Arrays.copyOf(buf, count);
+String toString()  return new String(buf, 0, count);
+
+10.int size() 输出缓冲区有效字符个数
+return count;
+
+11.void flush()和void close() 都是空方法,没有任何实现
+
+注意:该类就是将所有的字符都缓冲到字节数组中,不会真正意义的去转换以及输出到其他字节流中,只有调用writeTo(Writer out) 方法,
+才会将缓冲的内容真的输出到参数对应的输出流中.
+因此意义是可以将同一份内容输出到多个输出流中。
+
+
+七、public class StringWriter extends Writer
+a.将字符收集到StringBuffer中,然后可以将其转换成一个字符串.
+b.close方法没有什么意义,因为数据还是被还存在StringBuffer中.
+
+1.属性
+private StringBuffer buf;内部持有的缓冲区
+
+2.void write(int c)、void write(char cbuf[], int off, int len)、void write(String str)、void write(String str, int off, int len)
+buf.append((char) c);、buf.append(cbuf, off, len);、buf.append(str);、buf.append(str.substring(off, off + len));
+
+3.StringWriter append(CharSequence csq)
+if (csq == null) write("null"); else write(csq.toString());
+
+4.StringWriter append(CharSequence csq, int start, int end)
+CharSequence cs = (csq == null ? "null" : csq);
+write(cs.subSequence(start, end).toString());
+
+5.StringWriter append(char c)
+write(c);
+
+6.void flush()和void close() 都是空方法,没有任何实现
+
+7.String toString()
+return buf.toString();
+
+8.StringBuffer getBuffer()
+return buf;
+
+注意:
+该类表示输出的内容都变成字符串了,而没有将其转换成字节,并且与字节输出流没什么关系
+
+八、public class PrintWriter extends Writer
+a.if (autoFlush) out.flush();如果自动刷新,则要调入newLine后进行自动刷新功能
+b.对底层的out对象进行封装,可以对各种int、long等数据类型进行转换成字符串,然后进行输出out中
+c.对输出的String字符串可以进行格式化成新的String,然后进行输出
+1.属性
+private final String lineSeparator;回车换行的字符串
+protected Writer out; 底层的out对象
+private final boolean autoFlush;true表示println、format、printf的时候,可以自动flush操作
+private boolean trouble = false;true表示有异常产生
+private Formatter formatter;表示使出格式化的转换
+private PrintStream psOut = null;底层的字节流
+
+2.构造函数
+a.PrintWriter(Writer out,boolean autoFlush)  //如何处理字符流
+super(out);
+this.out = out;
+this.autoFlush = autoFlush;
+lineSeparator初始化默认的回车换行符
+b.PrintWriter (Writer out) this(out, false);
+c.PrintWriter(OutputStream out, boolean autoFlush)  //如何处理字节流
+this(new BufferedWriter(new OutputStreamWriter(out)), autoFlush);对字节流进行包装,包装成字符流
+if (out instanceof java.io.PrintStream) {
+    psOut = (PrintStream) out;
+}
+d.PrintWriter(OutputStream out) this(out, false);
+e.PrintWriter(String fileName)
+this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName))),false);
+f.PrintWriter(Charset charset, File file)
+this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), charset)),false);
+g.PrintWriter(String fileName, String charset)
+this(toCharset(csn), new File(fileName));
+h.PrintWriter(File file)
+this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file))),false);
+i.public PrintWriter(File file, String charset)
+this(toCharset(csn), file);
+
+3.write方法----直接调用out流直接输出
+a.void write(int c) 写入一个char,即丢弃后16个bit
+out.write(c);
+b.void write(char buf[], int off, int len)
+out.write(buf, off, len);
+c.void write(char buf[])
+write(buf, 0, buf.length);
+d.void write(String s, int off, int len)
+out.write(s, off, len);
+e.void write(String s)
+write(s, 0, s.length());
+
+4.void newLine() 写入回车换行字符串
+out.write(lineSeparator);
+if (autoFlush) out.flush();如果自动刷新,则要调入一行后进行自动刷新功能
+
+5.append方法的实现
+PrintWriter append(char c)  write(c);
+PrintWriter append(CharSequence csq, int start, int end)  write(cs.subSequence(start, end).toString());
+PrintWriter append(CharSequence csq) if (csq == null) write("null"); else write(csq.toString());
+
+6.print方法的实现---用于输出各种数据类型,将其转换成字符串,这样就完成转换了
+void print(boolean b)  write(b ? "true" : "false"); 即将boolean转换成字符串,然后从而就是字符了
+void print(char c) write(c);
+void print(int i) write(String.valueOf(i));将int转换成字符串
+print(long l) write(String.valueOf(l));将long转换成字符串
+void print(float f) write(String.valueOf(f));将float转换成字符串
+void print(double d) write(String.valueOf(d));将double转换成字符串
+void print(char s[]) write(s);
+void print(String s) if (s == null)  s = "null";  write(s);
+void print(Object obj) write(String.valueOf(obj));将obj对象转换成String
+void println() newLine();填写回车换行,并且有flush的可能
+void println(boolean x) print(x); println();
+void println(char x) print(x); println();
+void println(int x) print(x);println();
+void println(long x) print(x);println();
+void println(float x) print(x);println();
+void println(double x) print(x);println();
+void println(char x[]) print(x);println();
+void println(String x) print(x);println();
+void println(Object x) print(x);println();
+
+7.printf和format格式化方法
+PrintWriter printf(String format, Object ... args)  return format(format, args);
+PrintWriter printf(Locale l, String format, Object ... args) return format(l, format, args);
+PrintWriter format(String format, Object ... args)
+PrintWriter format(Locale l, String format, Object ... args)
+
+8.void flush()  直接调用out方法
+out.flush();
+
+9.void close() 直接调用out方法
+out.close();
+out = null;
+
+
+注意:PipedWriter以后自己学习即可,属于管道范畴的研究
