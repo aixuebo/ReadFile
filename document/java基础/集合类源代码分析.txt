@@ -1,0 +1,578 @@
+ * @see     Set
+ * @see     List
+ * @see     Map
+ * @see     SortedSet
+ * @see     SortedMap
+ * @see     HashSet
+ * @see     TreeSet
+ * @see     ArrayList
+ * @see     LinkedList
+ * @see     Vector
+ * @see     Collections
+ * @see     Arrays
+ * @see     AbstractCollection
+ */
+
+一、interface Collection<E> extends Iterable<E> 集合的接口
+a.只能存储一种泛型类型
+b.集合用于存储元素的容器
+1.int size();
+2.boolean isEmpty();
+3.boolean contains(Object o);
+4.Object[] toArray();元素集合转换成数组,因为元素存储的是各种类型,因此返回Object类型
+5.<T> T[] toArray(T[] a); 返回具体类型
+6.boolean add(E e);
+7.boolean remove(Object o);
+8.boolean containsAll(Collection<?> c);
+9.boolean addAll(Collection<? extends E> c);
+10.boolean removeAll(Collection<?> c);
+11.void clear();
+12.boolean retainAll(Collection<?> c) 表示最终集合元素内容只要参数c中包含的内容,不是c的元素都会被删除掉
+13.boolean removeIf(Predicate<? super E> filter)
+循环每一个元素,将filter表达式对每一个元素进行处理,true的要被删除
+14.Iterator<E> iterator();迭代器,返回元素迭代器对象
+
+
+二、public abstract class AbstractCollection<E> implements Collection<E>
+a.只能存储一种泛型类型
+b.提供了基本的实现
+
+1.boolean isEmpty() return size() == 0;
+2.boolean contains(Object o)
+while循环迭代器的每一个元素,找到equals与o相同的元素
+因此效率很低
+3.boolean remove(Object o) 真正删除了才返回true
+while循环迭代器的每一个元素,找到equals与o相同的元素,则删除
+因此效率很低
+4.boolean containsAll(Collection<?> c) 参数集合的元素都存在,则返回true,有一个不存在都返回false
+效率非常低,因为c集合中每一个元素都要单独执行contains方法
+5.boolean removeAll(Collection<?> c) 移除参数中的元素,一旦有一个元素被移除了,都返回true
+效率非常低,因为c集合中每一个元素都要单独执行contains方法,当发现存在,则对其删除
+6.boolean addAll(Collection<? extends E> c) 对参数中的元素都进行添加,有一个添加成功了,都返回true
+for (E e : c)
+            if (add(e))
+                modified = true;
+        return modified;
+7.void clear()
+效率非常低,一个一个迭代元素,然后删除每一个元素
+8.boolean retainAll(Collection<?> c) 一旦有元素被删除了,则就返回true
+效率非常低,因为要先获取原始集合中每一个元素，然后执行!c.contains(it.next())方法,即c中不包含的元素,就要被删除掉
+
+9.String toString() 打印每一个元素内容
+10.Object[] toArray()和<T> T[] toArray(T[] a)实现
+
+三、interface ListIterator<E> extends Iterator<E> 用于List的特殊的迭代器
+允许程序员在迭代集合的时候,可以对其进行元素修改，以及获取当前迭代元素的位置,而不仅仅是元素内容本身。
+ * @see Collection
+ * @see List
+ * @see Iterator
+ * @see Enumeration
+ * @see List#listIterator()
+
+1.boolean hasPrevious(); 表示只要当前位置不是0,即前面就有元素,可以向前迭代,该方法与hasNext相反
+2.E previous();获取前一个元素,并且指针移动到前一个元素上
+3.int previousIndex();获取前一个元素的序号
+4.int nextIndex();获取下一个元素的序号
+6.void set(E e);对本次操作的位置进行更新
+7.void add(E e); 对下一个位置的元素基础上进行添加
+
+四、interface List<E> extends Collection<E>
+ * @see Collection
+ * @see Set
+ * @see ArrayList
+ * @see LinkedList
+ * @see Vector
+ * @see Arrays#asList(Object[])
+ * @see Collections#nCopies(int, Object)
+ * @see Collections#EMPTY_LIST
+ * @see AbstractList
+ * @see AbstractSequentialList
+a.List是一个集合,因为继承自Collection
+
+1.boolean addAll(int index, Collection<? extends E> c);从index位置开始添加元素,集合c的元素都会被依次添加进来
+2.根据位置进行增删改差操作
+E get(int index);
+E set(int index, E element);
+void add(int index, E element);
+E remove(int index);
+3.找到元素的序号位置
+int indexOf(Object o);
+int lastIndexOf(Object o);
+4.迭代器
+ListIterator<E> listIterator();
+ListIterator<E> listIterator(int index);
+5.子集合--返回原来list的从[fromIndex, toIndex)之间这一部分的视图，之所以说是视图，是因为实际上，返回的list是靠原来的list支持的
+即子集合变化了,原始内容也会变化
+List<E> subList(int fromIndex, int toIndex);
+6.void sort(Comparator<? super E> c)  对集合进行参数的排序方式进行排序
+        Arrays.sort(a, (Comparator) c);
+        ListIterator<E> i = this.listIterator();
+
+五、public abstract class AbstractList<E> extends AbstractCollection<E> implements List<E>
+a.因为List也是Collection,因此继承AbstractCollection是为了实现大多数Collection功能
+b.但是他依然要实现List特有功能,因此implements List<E>
+c.实现了一些公共方法
+
+1.boolean add(E e) 向最后一个位置添加元素E
+add(size(), e);即调用的是void add(int index, E element)方法
+
+2.int indexOf(Object o) 和 int lastIndexOf(Object o)
+非常耗费性能,都是一个个迭代元素,找到匹配的元素
+
+3.boolean addAll(int index, Collection<? extends E> c)
+for (E e : c) add(index++, e);
+
+4.内部迭代器类private class Itr implements Iterator<E> 该迭代器属于正常迭代器
+a.用于迭代该list的全部元素,但是要保证迭代过程中外部对象不会对list修改,因此内部持有一个变量int expectedModCount = modCount;让其缓存迭代时候list的modCount属性值
+b.内部有两个属性
+int cursor = 0;记录下一次迭代的对象是哪个位置,用于next()
+int lastRet = -1;记录上一次迭代的对象是哪个位置,用于remove()
+c.切记当remove方法执行后,expectedModCount = modCount;要更新这个值。
+因为真正remove方法也是调用的AbstractList.this.remove(lastRet);方法,本身该方法会更新modCount
+
+5.内部迭代器类 private class ListItr extends Itr implements ListIterator<E>  该迭代器属于List类型的迭代器,有特殊功能
+a.该类用于正常迭代器的代码,继承自Itr
+b.构造函数需要传入一个位置序号 ListItr(int index) cursor = index;即表示从该位置开始迭代
+c.boolean hasPrevious() return cursor != 0; 表示只要当前位置不是0,即前面就有元素,可以向前迭代,该方法与hasNext相反
+d.E previous() 获取前一个元素,并且指针移动到前一个元素上
+int i = cursor - 1;  E previous = get(i);  lastRet = cursor = i;
+e.int previousIndex() return cursor-1; 获取前一个元素的序号
+f.int nextIndex() return cursor; 获取前一个元素的序号
+g.void set(E e) 对本次操作的位置进行更新
+AbstractList.this.set(lastRet, e);对本次操作的位置进行更新
+expectedModCount = modCount;
+h.void add(E e) 对下一个位置的元素基础上进行添加
+int i = cursor; 获取下一个位置
+AbstractList.this.add(i, e);
+cursor = i + 1;
+expectedModCount = modCount;
+
+6.void removeRange(int fromIndex, int toIndex) 删除集合内元素--参数是删除的元素区间
+a.ListIterator<E> it = listIterator(fromIndex);返回从from位置开始元素迭代器
+b.循环toIndex-fromIndex次
+每次调用it.next();it.remove();即删除了元素内容
+c.性能不会太快
+
+7.void clear() removeRange(0, size()); 删除全部元素
+
+8.迭代元素
+Iterator<E> iterator() return new Itr(); 从头开始迭代元素,采用基础迭代器
+ListIterator<E> listIterator() return listIterator(0); 从头开始迭代元素,返回是高级迭代器
+ListIterator<E> listIterator(final int index) return new ListItr(index);从指定位置开始迭代元素,返回是高级迭代器
+
+9.获取子集合
+public List<E> subList(int fromIndex, int toIndex) {
+        return (this instanceof RandomAccess ?
+                new RandomAccessSubList<>(this, fromIndex, toIndex) :
+                new SubList<>(this, fromIndex, toIndex));
+    }
+
+五--一、内部持有一个类 class SubList<E> extends AbstractList<E>
+返回原来list的从[fromIndex, toIndex)之间这一部分的视图，之所以说是视图，是因为实际上，返回的list是靠原来的list支持的
+即子集合变化了,原始内容也会变化
+1.demo
+
+		ArrayList<String> list = new ArrayList<String>();
+		list.add("000");
+		list.add("111");
+		list.add("222");
+		list.add("333");
+		list.add("444");
+		list.add("555");
+		list.add("666");
+		list.add("777");
+
+		List<String> list_cp = list.subList(3, 5);//[start,end)截取区间--因此只有333和444
+		for(String s:list_cp){
+			System.out.println(s);
+		}
+		list_cp.addAll(list);又添加一遍
+		System.out.println("aaaa");//cp的数据被在最后追加了数据
+
+		for(String s:list){
+			System.out.println(s);原始内容也在444和555之间被添加新的数据了
+		}
+2.属性
+    private final AbstractList<E> l; 原有list的引用
+    private final int offset; 从原有list哪个位置开始
+    private int size; 在原有list的offset位置开始算,一共多少个元素是归subList所有
+
+3.E set(int index, E element) return l.set(index+offset, element);
+可以看到是针对原有list进行修改的,修改的序号就是offset+index,因为subList有自己的序号,从0开始基数
+
+4.E get(int index) return l.get(index+offset);
+5.int size()  return size;
+6.void add(int index, E element)  l.add(index+offset, element); size++;
+7.E remove(int index)  E result = l.remove(index+offset); size--;
+8.void removeRange(int fromIndex, int toIndex) l.removeRange(fromIndex+offset, toIndex+offset); size -= (toIndex-fromIndex);
+9.boolean addAll(Collection<? extends E> c) return addAll(size, c);
+10.boolean addAll(int index, Collection<? extends E> c)  l.addAll(offset+index, c); size += cSize;
+11.继续递归获取子集合
+    public List<E> subList(int fromIndex, int toIndex) {
+        return new SubList<>(this, fromIndex, toIndex);
+    }
+五--二、内部持有一个类 class RandomAccessSubList<E> extends SubList<E> implements RandomAccess
+1.构造函数调用父类方法super(list, fromIndex, toIndex);
+2.在查找子集合使用的是RandomAccessSubList方式
+    public List<E> subList(int fromIndex, int toIndex) {
+        return new RandomAccessSubList<>(this, fromIndex, toIndex);
+    }
+
+六、class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable
+a.内部使用数组存储所有元素,因此get、set性能很好,但是添加和删除性能很差。
+b.数组大小会自动扩容,但数组大小最多是 Integer.MAX_VALUE - 8;
+
+
+1.构造函数ArrayList(Collection<? extends E> c)  会将参数集合的元素依次添加到数组中
+2.void trimToSize() 让数组的大小截断,截取到正好size个位置的元素
+3.基于数组的增删改查
+a.E elementData(int index) return (E) elementData[index];
+b.E get(int index) return elementData(index);
+c.E set(int index, E element)  E oldValue = elementData(index);  elementData[index] = element; return oldValue; 返回老元素
+d.boolean add(E e) elementData[size++] = e;
+e.add(int index, E element)  System.arraycopy(elementData, index, elementData, index + 1,size - index);elementData[index] = element;
+将elementData的内容移动,从index开始移动,后面的都移动一遍,然后向index位置添加新的元素,所以该方法很慢
+f.删除
+E remove(int index)
+E oldValue = elementData(index);返回存在的元素
+System.arraycopy(elementData, index+1, elementData, index,numMoved); 将index后面的元素向前提取,因此已经被删除了
+elementData[--size] = null;将最后位置设置为null,因为已经被空出来个该位置
+返回最终原始的内容
+
+
+boolean remove(Object o) 以此迭代所有元素,找到相同的元素所在index位置,然后进行删除
+
+g.void clear() for (int i = 0; i < size; i++)  elementData[i] = null; 效率很慢
+h.addAll
+boolean addAll(Collection<? extends E> c) 在最后面追加集合的内容
+boolean addAll(int index, Collection<? extends E> c) 会有移动.先在index位置移动出c个元素的位置,然后在空出来的位置插入数据
+i.boolean contains(Object o) return indexOf(o) >= 0;
+j.int indexOf(Object o) 和 int lastIndexOf(Object o) 从前向后，或者从后向前以此循环每一个元素,与参数对比,因此性能很慢
+k.void removeRange(int fromIndex, int toIndex) 移除区间内容的元素
+移动数组,即最终剩余的是0到from以及toIndex到最后的内容
+而0到from的位置不变,只要将toIndex后面的数据移动到前面即可。
+
+m.
+boolean removeAll(Collection<?> c) return batchRemove(c, false); 删除集合内的元素
+boolean retainAll(Collection<?> c) return batchRemove(c, true); 只保留集合内的元素
+boolean batchRemove(Collection<?> c, boolean complement)
+一次循环集合中每一个元素,看看是否满足条件,因此速度很慢
+n.void sort(Comparator<? super E> c) 排序 Arrays.sort((E[]) elementData, 0, size, c);
+o.迭代
+ListIterator<E> listIterator(int index)  return new ListItr(index); 从指定位置开始迭代
+ListIterator<E> listIterator() return new ListItr(0);从头位置开始迭代
+Iterator<E> iterator() return new Itr();从头位置开始迭代
+p.List<E> subList(int fromIndex, int toIndex) return new SubList(this, 0, fromIndex, toIndex);
+
+七、public interface Queue<E> extends Collection<E>
+* @see java.util.Collection
+* @see LinkedList
+* @see PriorityQueue
+* @see java.util.concurrent.LinkedBlockingQueue
+* @see java.util.concurrent.BlockingQueue
+* @see java.util.concurrent.ArrayBlockingQueue
+* @see java.util.concurrent.LinkedBlockingQueue
+* @see java.util.concurrent.PriorityBlockingQueue
+a.队列,跟排队一样,先进先出
+b.依然是一个集合,因此有集合的所有方法
+
+1.boolean offer(E e);
+2.E remove();
+3.E poll();
+4.E element();
+5.E peek();
+
+八、public interface Deque<E> extends Queue<E> {
+a.是一个队列,跟站队一样,先进先出
+b.扩展的是一个双向队列,两边都可以进行添加和删除元素
+
+1.void addFirst(E e);
+2.void addLast(E e);
+3.boolean offerFirst(E e);
+4.boolean offerLast(E e);
+5.E removeFirst();
+6.E removeLast();
+7.E pollFirst();
+8.E pollLast();
+9.E getFirst();
+10.E getLast();
+11.E peekFirst();
+12.E peekLast();
+13.boolean removeFirstOccurrence(Object o);
+14.boolean removeLastOccurrence(Object o);
+15.void push(E e);
+16.E pop();
+17.boolean remove(Object o);
+18.boolean contains(Object o);
+19.Iterator<E> iterator();
+20.Iterator<E> descendingIterator();
+
+九、public abstract class AbstractSequentialList<E> extends AbstractList<E> {
+ * @see Collection
+ * @see List
+ * @see AbstractList
+ * @see AbstractCollection
+a.核心实现的方法都是对集合在任意一个位置进行迭代,因此任意位置迭代器是核心方法,子类实现
+b.该类的作用是使用链表的方式去创建集合
+
+1.简单的方法
+E get(int index) return listIterator(index).next();
+E set(int index, E element)  ListIterator<E> e = listIterator(index); e.set(element);
+void add(int index, E element) listIterator(index).add(element);
+E remove(int index)   ListIterator<E> e = listIterator(index); e.remove();
+2.boolean addAll(int index, Collection<? extends E> c) 性能损耗的addAll方法
+ListIterator<E> e1 = listIterator(index);
+循环参数的每一个元素,然后调用e1.add(e2.next());以此添加每一个元素
+
+3.迭代方法
+Iterator<E> iterator() return listIterator();
+abstract ListIterator<E> listIterator(int index);
+
+十、public class LinkedList<E> extends AbstractSequentialList<E> implements List<E>, Deque<E>, Cloneable, java.io.Serializable
+a.一个链表实现组成的集合
+b.Deque 说明他是一个队列,先进先出,并且是双向队列,即两头都可以进 也可以出
+c.正常队列都是先进先出,因此add的方法都是向后面追加,remove方法都是从前面取出
+因此保证了先进的在prev位置，即前面位置,后面追加元素,而remore从first开始删除
+
+1.属性
+int size = 0;总元素数量
+Node<E> first;第一个元素,因此可以从前向后迭代
+Node<E> last;最后一个元素,因此可以从后向前迭代
+
+2.构造函数
+LinkedList(Collection<? extends E> c)  addAll(c);添加集合内全部元素
+
+3.内部核心类Node<E> 表示一个元素
+E item;元素内容
+Node<E> next;下一个元素对象引用
+Node<E> prev;上一个元素对象引用
+
+4.获取头和尾的元素,但是指针不会变化
+E getFirst()  Node<E> f = first; return f.item;
+E getLast()  Node<E> l = last; return l.item;
+
+5.从前添加/删除元素、在后面添加/删除元素
+void addFirst(E e)  linkFirst(e); 在队列最前面添加一个元素
+void addLast(E e)  linkLast(e);在队列最后面添加一个元素
+boolean add(E e) linkLast(e); 在队列最后面添加一个元素
+E removeFirst() Node<E> f = first; return unlinkFirst(f); 删除队列的第一个元素
+E removeLast() Node<E> l = last; return unlinkLast(l); 删除队列的最后一个元素
+
+
+6.真正移动队列元素的方法
+a.void linkFirst(E e) 在队列最前面添加一个元素
+Node<E> f = first;
+final Node<E> newNode = new Node<>(null, e, f);创建一个新的节点,该节点是有节点内容以及下一个节点的(下一个节点就是以前的第一个节点),但是没有prev,因为他此时是头。
+first = newNode;赋值头对象是新创建的对象即可
+if (f == null) 此时说明是第一次添加元素,因此头和尾巴都是同一个对象,即新创建的对象
+    last = newNode;
+else
+    f.prev = newNode;让原来的头对象,因为没有赋予prev属性.现在已经可以赋予prev属性了,prev属性即以前第一个元素现在有上一个元素了,上一个元素就是新创建的
+size++;
+modCount++;
+
+b.void linkLast(E e) 在队列最后面添加一个元素
+Node<E> l = last;先获取最后一个元素
+Node<E> newNode = new Node<>(l, e, null);创建新的元素,因为是最后一个元素,因此他没有next,因为next还尚未被创建呢
+last = newNode;更新此时新创建的就是last
+if (l == null) 说明此时是第一个元素,因此first也是该元素
+    first = newNode;
+else
+    l.next = newNode; //此时说明要更新原来的last的next属性,因为原来的last后面已经有元素了,即新产生的元素
+
+c.E unlinkFirst(Node<E> f) 删除队列的第一个元素
+E element = f.item;用于最终返回该元素
+Node<E> next = f.next;获取下一个元素对象
+f.item = null;f.next = null;对f本身进行设置null,加速gc的垃圾回收,因为第一个元素,所以prev本身是null,因此不用设置
+first = next;因此现在原来的第二个元素就是第一个了
+if (next == null) 说明此时没有元素了,因此设置last也是null
+    last = null;
+else
+    next.prev = null; 因为next已经是第一个了,因此prev是已经被删除了,因此设置为null
+
+d.E unlinkLast(Node<E> l) 删除队列的最后一个元素
+E element = l.item; 用于最终返回该元素
+Node<E> prev = l.prev; 获取倒数第2个元素
+l.item = null;l.prev = null; // 对f本身进行设置null,加速gc的垃圾回收
+last = prev;因此现在原来的倒数第二个元素就是第一个了
+if (prev == null) 说明此时没有元素了,因此设置first也为null
+    first = null;
+else
+    prev.next = null;因为现在prev就是最后一个元素了,next已经被删除了,因此设置其为null
+
+
+e.E unlink(Node<E> x) 删除链表中任意一个元素,是last和first的综合考虑,其实first和last删除的时候也可以调用该方法
+E element = x.item;用于最终返回该元素
+Node<E> next = x.next;获取下一个节点
+Node<E> prev = x.prev;获取前一个节点
+
+if (prev == null) { 说明已经没有prev了,即删除的就是第一个元素,因此第一个元素就变成了待删除对象的next
+    first = next;
+} else {
+    prev.next = next; 让前一个节点的next明明指向要删除的元素,现在要指向要删除的next的元素
+    x.prev = null;为了垃圾回收,将本身的prev设置为null
+
+}
+
+if (next == null) {说明已经没有next了,即删除的就是最后一个元素,因此最后元素就变成了待删除对象的prev
+    last = prev;
+} else {
+    next.prev = prev;让后一个节点的prev明明指向要删除的元素,现在要指向要删除的prev的元素
+    x.next = null;为了垃圾回收,将本身的next设置为null
+}
+
+x.item = null;为了垃圾回收,将本身的元素设置为null
+
+f.linkBefore(E e, Node<E> succ) 在任意节点succ的前面插入新的节点e
+11---22---33 现在要在22的前面插入44,变成11--44--22--33
+
+Node<E> pred = succ.prev;获取22的前一个节点11
+Node<E> newNode = new Node<>(pred, e, succ);创建新的节点,新的节点有元素内容、有前节点和next节点,即分别是11和22
+succ.prev = newNode;让22的前一个节点11改成当前节点
+if (pred == null) 说明前面节点不存在,则说明插入的是第一个元素,因此设置first为当前插入的元素
+    first = newNode;
+else
+    pred.next = newNode;让前一个节点11的后面节点改成当前节点
+
+
+7.队列的特性----先进先出
+a.add
+boolean offer(E e) return add(e);正常队列功能,即在队尾追加元素
+boolean offerLast(E e) addLast(e);正常队列功能,即在队尾追加元素
+boolean offerFirst(E e) 或者 void push(E e)   addFirst(e);反常队列功能,在队头追加元素,因为是双向列表
+b.remove
+E pop() 或者 E remove() 或者 E poll() 或者 E pollFirst() return removeFirst();正常队列功能,即在队头获取元素,保证先进来的先出去,同时获取后删除队列的第一个元素
+E pollLast() 反常队列功能,获取队尾的元素,同时获取后删除队列的最后一个元素
+
+
+c.get
+E element() 或者 E peek() 或者 E peekFirst() return getFirst();正常队列功能,即在队头获取元素,保证先进来的先出去---但是此时只是获取元素.并不会移动指针
+E peekLast() return getLast() 反常队列功能,获取队尾的元素---但是此时只是获取元素.并不会移动指针
+
+区别是有些对null抛异常,有些不会抛异常
+
+
+8.正常方法
+boolean remove(Object o) 从first开始循环,一个一个找,找到后进行删除,性能很慢
+void clear() 从first开始循环,一个一个进行删除,性能很慢
+boolean addAll(Collection<? extends E> c) return addAll(size, c); 从size集合的最后一个位置开始插入一组数据
+boolean addAll(int index, Collection<? extends E> c) 在指定位置后面追加一组数据
+void add(int index, E element)
+if (index == size)
+    linkLast(element);//后面追加
+else
+    linkBefore(element, node(index));//元素前面追加
+boolean contains(Object o) return indexOf(o) != -1;
+int indexOf(Object o) 从前向后,依次循环找,很耗费性能
+int lastIndexOf(Object o) 从后向前,依次循环找,很耗费性能
+Object[] toArray() 从前向后,依次循环找,然后添加到数组中,很耗费性能
+<T> T[] toArray(T[] a) 从前向后,依次循环找,然后添加到数组中,很耗费性能
+ListIterator<E> listIterator(int index) 从任意位置开始迭代
+Iterator<E> descendingIterator() 从后向前迭代
+
+8.按照位置操作集合---因为是链表,因此跟数组不同,他没有位置信息,因此按照位置查询是很耗费性能的
+a.Node<E> node(int index) 查找该位置的元素节点,判断该位置在size总大小的前半部分还是后半部分,然后从first或者last开始循环index个元素,获取该位置值,因此很耗费性能。
+b.E get(int index) node(index).item; 获取该位置的值
+c.E remove(int index) return unlink(node(index)); 删除该位置的元素
+d.E set(int index, E element) Node<E> x = node(index); x.item = element;
+
+十一、interface Map<K,V>
+ * @see HashMap
+ * @see TreeMap
+ * @see Hashtable
+ * @see SortedMap
+ * @see Collection
+ * @see Set
+
+1.int size();
+2.boolean isEmpty();
+3.boolean containsKey(Object key);
+4.boolean containsValue(Object value);
+5.V get(Object key);
+6.V put(K key, V value);
+7.V remove(Object key);
+8.void putAll(Map<? extends K, ? extends V> m);
+9.void clear();
+Views视图操作
+10.Set<K> keySet();
+11.Collection<V> values();
+12.Set<Map.Entry<K, V>> entrySet();
+13.    interface Entry<K,V> { 表示内部每一个元素对象
+        K getKey();
+        V getValue();
+        V setValue(V value);
+        boolean equals(Object o);
+        int hashCode();
+	//按照key进行排序
+        public static <K extends Comparable<? super K>, V> Comparator<Map.Entry<K,V>> comparingByKey() {
+            return (Comparator<Map.Entry<K, V>> & Serializable)
+                (c1, c2) -> c1.getKey().compareTo(c2.getKey());
+        }
+	//按照value进行排序
+        public static <K, V extends Comparable<? super V>> Comparator<Map.Entry<K,V>> comparingByValue() {
+            return (Comparator<Map.Entry<K, V>> & Serializable)
+                (c1, c2) -> c1.getValue().compareTo(c2.getValue());
+        }
+	//按照key进行排序
+        public static <K, V> Comparator<Map.Entry<K, V>> comparingByKey(Comparator<? super K> cmp) {
+            return (Comparator<Map.Entry<K, V>> & Serializable)
+                (c1, c2) -> cmp.compare(c1.getKey(), c2.getKey());
+        }
+	//按照value进行排序
+        public static <K, V> Comparator<Map.Entry<K, V>> comparingByValue(Comparator<? super V> cmp) {
+            Objects.requireNonNull(cmp);
+            return (Comparator<Map.Entry<K, V>> & Serializable)
+                (c1, c2) -> cmp.compare(c1.getValue(), c2.getValue());
+        }
+    }
+14.V getOrDefault(Object key, V defaultValue) 获取get,提供默认值
+15.V putIfAbsent(K key, V value) 如果不存在才添加,存在key则忽略添加.返回存在的value
+16.boolean remove(Object key, Object value)删除key=value的元素
+17.boolean replace(K key, V oldValue, V newValue) 对key=oldValue的元素,替换成新的newValue
+18.V replace(K key, V value) 替换key对应的value
+
+
+十二、public abstract class AbstractMap<K,V> implements Map<K,V>
+简单的抽象实现,其实多半方法意义都不大,全都靠子类具体实现
+1.public static class SimpleEntry<K,V> implements Entry<K,V>, java.io.Serializable 对Entry的一个简单实现
+持有private final K key;final的key,即key是不能变化的
+持有private V value;正常的value
+通过构造函数传递key和value
+通过set方法可以重新设置value
+2.public static class SimpleImmutableEntry<K,V> implements Entry<K,V>, java.io.Serializable 对Entry的一个简单实现--不可变的value
+private final K key;
+private final V value;
+
+3.public abstract Set<Entry<K,V>> entrySet(); 子类实现元素队列
+4.boolean containsValue(Object value) 和 boolean containsKey(Object key) 、V get(Object key) 、V remove(Object key) 速度很慢
+依次循环entrySet()集合元素,找到相同的为止
+
+十三、class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable
+a.构造函数初始化的容量的时候,大小一定是2的n次方,此时刚刚大于初始化的initialCapacity,目的是有意义的,下文讲。
+b.内部使用链表去维护每一个Node,因此如果key的hash相同的内容越多,查找起来越慢
+
+1.属性
+static final int MAXIMUM_CAPACITY = 1 << 30; 最大容量是2的30次方,即1073741824,10亿多非常够用了
+static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; 默认容量是2的4次方,即16个
+int threshold;此时map元素容纳的真实容量---即盒子有多大,而不是真的存放了多少元素
+int size; 真实存放的元素数量
+final float loadFactor;扩容增长因子,以多少百分比的速度扩容
+Node<K,V>[] table;因为每一个key对应的hash都是一个node链表,因此该table存储链表的数量,即hash后的元素集合
+
+2.构造函数
+HashMap(int initialCapacity, float loadFactor)
+HashMap(Map<? extends K, ? extends V> m) putMapEntries(m, false);
+
+3.核心方法--int hash(Object key) 对任意一个key进行hash
+
+4.内部的链表Node类 static class Node<K,V> implements Map.Entry<K,V>
+final int hash;该node对应的hash值
+final K key;固定死的key
+V value; 此时的value
+Node<K,V> next; 链表的下一个元素
+
+5.Node<K,V>[] resize()  扩容
+
+6.V put(K key, V value)  return putVal(hash(key), key, value, false, true);
+
+7.V putVal(int hash, K key, V value, boolean onlyIfAbsent,boolean evict)

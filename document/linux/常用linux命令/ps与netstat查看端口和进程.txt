@@ -1,0 +1,82 @@
+一、ps
+1.主要命令参数
+-A或者-e 显示所有的进程
+-a 显示同一终端下的所有程序
+-G by real group ID (supports names) 显示哪个组下的进程
+-U by real user ID (supports names) 显示哪个用户下的进程
+-p by process ID 仅仅显示一个进程
+-N 反向选择 比如ps -Np 17 表示就不看17的进程ID,剩下的全看
+-au 显示较详细的资讯
+-aux 显示所有包含其他使用者的行程
+
+2.常用命令 ps -ef 或者 ps -aux
+
+3.linux上进程有5种状态:
+    a. 运行(正在运行或在运行队列中等待)
+    b. 中断(休眠中, 受阻, 在等待某个条件的形成或接受到信号)
+    c. 不可中断(收到信号不唤醒和不可运行, 进程必须等待直到有中断发生)
+    d. 僵死(进程已终止, 但进程描述符存在, 直到父进程调用wait4()系统调用后释放)
+    e. 停止(进程收到SIGSTOP, SIGSTP, SIGTIN, SIGTOU信号后停止运行运行)
+ps工具标识进程的5种状态码:
+    R 运行 runnable (on run queue)
+    S 中断 sleeping
+    D 不可中断 uninterruptible sleep (usually IO)
+    Z 僵死 a defunct (”zombie”) process
+    T 停止 traced or stopped
+
+4. ps -aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT   START   TIME COMMAND 含义
+说明：
+USER：该 process 属于那个使用者账号的
+PID ：该 process 的号码
+%CPU：该 process 使用掉的 CPU 资源百分比
+%MEM：该 process 所占用的物理内存百分比
+VSZ ：该 process 使用掉的虚拟内存量 (Kbytes)
+RSS ：该 process 占用的固定的内存量 (Kbytes)
+TTY ：该 process 是在那个终端机上面运作，若与终端机无关，则显示 ?，另外， tty1-tty6 是本机上面的登入者程序，若为 pts/0 等等的，则表示为由网络连接进主机的程序。
+STAT：该程序目前的状态，主要的状态有
+R ：该程序目前正在运作，或者是可被运作
+S ：该程序目前正在睡眠当中 (可说是 idle 状态)，但可被某些讯号 (signal) 唤醒。
+T ：该程序目前正在侦测或者是停止了
+Z ：该程序应该已经终止，但是其父程序却无法正常的终止他，造成 zombie (疆尸) 程序的状态
+START：该 process 被触发启动的时间
+TIME ：该 process 实际使用 CPU 运作的时间
+COMMAND：该程序的实际指令
+
+
+
+二、 打印网络连接、路由表、连接的数据统计、伪装连接以及广播域成员。
+主要目的查看该端口是否启动了,或者是否活着,以及什么程序占用该端口
+查看服务及监听端口 netstat
+netstat -nlp
+
+-a (all)显示所有选项，默认不显示LISTEN相关
+-t : 指明仅显示TCP端口的服务
+-u : 指明仅显示UDP端口的服务
+-l : 仅列出有在 Listen (监听) 的服務状态
+-p : 显示该监听的端口的进程ID以及进程所在的程序,因为每一个套接字/端口都属于一个程序。
+-n : 不进行DNS轮询(可以加速操作),即显示的是ip形式的host:port,如果不输入n,则显示字符串形式的host
+　　即可显示当前服务器上所有端口及进程服务，于grep结合可查看某个具体端口及服务情况
+-c 每隔一个固定时间，执行该netstat命令。
+-e 表示启动该端口程序对应的用户,比如root,注意如果有n命令,则显示的不是用户名字,而是用户对应的id
+例如:
+　　[root@localhost ~]# netstat -nlp |grep LISTEN   //查看当前所有监听端口
+　　[root@localhost ~]# netstat -nlp |grep 80   //查看所有80端口使用情况
+　　[root@localhost ~]# netstat -an | grep 3306   //查看所有3306端口使用情况
+
+
+  查看连接某服务端口最多的的IP地址
+  netstat -nat | grep "192.168.1.15:22" |awk '{print $5}'|awk -F: '{print $1}'|sort|uniq -c|sort -nr|head -20
+  18 221.136.168.36 说明该ip下有18个请求
+  3 154.74.45.242
+
+  TCP各种状态列表
+  netstat -nat |awk '{print $6}'
+  established)
+  Foreign
+  LISTEN
+  TIME_WAIT
+  ESTABLISHED
+  TIME_WAIT
+  SYN_SENT
+
