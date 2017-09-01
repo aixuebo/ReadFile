@@ -195,6 +195,7 @@ LATERAL VIEW explode(preference_hour) et as k,v
 where k<='21:00' and v>='21:00'
 即将一个user的所有时间map进行拆分,获取k和v表示开始时间和结束时间.然后分别过滤k和v,有一组满足条件的,则都被返回该数据
 
+select explode(split('a,b,c,d',','));输出四行,分别是a b c d
 
 二、generic
 1.对case column when a then b else c end 形式进行处理
