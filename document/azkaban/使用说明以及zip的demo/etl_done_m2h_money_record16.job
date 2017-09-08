@@ -1,0 +1,8 @@
+#etl_done_m2h_money_record16
+type= command
+retries=3
+retry.backoff=60000
+
+command = echo etl_done_m2h_money_record16
+
+dependencies=account_balance_0,account_balance_1

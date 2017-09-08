@@ -1,0 +1,6 @@
+#money_record_1
+type= command
+retries=3
+retry.backoff=60000
+
+command = sh /server/app/sqoop/sqoop_mysql_money_record16_import.sh 1
