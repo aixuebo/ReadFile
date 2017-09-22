@@ -34,3 +34,10 @@ hadoop balancer [-threshold] -setBalancerBandwidth <bandwidth in bytes per secon
 
 9.hdfs balancer -threshold 2 为集群做平衡
 遇到的问题是 如果此时正在有大任务在集群执行.平衡效果是不好的,因为将其kill掉
+
+10.查询线上yarn上的任务是谁的?
+a.通过查询配置信息,获取输入的参数,可以看到大体上是哪个部门的.
+mapreduce.input.fileinputformat.inputdir
+b.如果是hive执行的任务,可以获取任务的sql
+hive.query.string
+c.如果是非hive程序,则获取到jar包以及启动命令,就可以知道是哪个main函数触发的任务,则可以找到相关联系人

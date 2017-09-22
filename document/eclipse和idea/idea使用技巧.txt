@@ -27,6 +27,7 @@ Ctrl+Alt+left/right返回至上次浏览的位置
 Ctrl+Shift+Backspace跳转到上次编辑的地方
 Ctrl+Enter导入包,自动修正
 Ctrl+Alt+L格式化代码
+给类生成流程图,相当于生成血统图----在类的代码区域内,鼠标右键----diagram---然后就可以选择出血统图,快捷键是ctrl+alt+shift+U
 
 一般常用的快捷键
 1.前后浏览代码位置
