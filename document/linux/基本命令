@@ -56,6 +56,7 @@ scp [可选参数] file_source file_target
 从 本地 复制到 远程
 a.复制文件
 scp 本地文件 user@远程ip:/target路径
+例如:scp /root/upload/lib/elasticsearch-5.6.3.tar.gz root@ip:/server/apps/elastic  密码是123123
 注意:target路径可以是文件夹，也可以是文件,如果是文件,则相当于最后文件到远程服务器后名字被改了
 b.复制目录
 scp -r local_folder remote_username@remote_ip:remote_folder 

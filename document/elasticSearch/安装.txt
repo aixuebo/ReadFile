@@ -1,0 +1,26 @@
+一、安装
+curl -L -O https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.3.tar.gz
+tar -xzvf elasticsearch-5.6.3.tar.gz
+
+配置环境变量是java8,必须java8以上才能运行
+二、elasticsearch不允许使用root账户启动,否则会报错,因为要创建一个新的用户
+1.创建用户和组
+groupadd elsearch
+useradd elsearch -g elsearch -p elasticsearch
+2.重新赋予权限
+chown -R elsearch:elsearch  elasticsearch
+3.切换用户
+su elsearch
+4.执行启动命令
+.bin/elasticsearch
+5.如果出问题则查看log目录下日志
+6.测试是否启动成功
+curl http://localhost:9200/?pretty
+
+
+三、注意事项
+1.启动后 提示root用户不允许执行错误
+更改用户后成功
+2.提示启动killed
+发现是内存不够造成的,因此修改conf下jvm参数,将默认的2G改成1G即可
+3.提示java8是最少的环境,因此将服务器java7升级到java8

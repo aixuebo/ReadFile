@@ -14,3 +14,22 @@
 简单的解决方案:
 因此应该需要监控的不是一个文件,而是带有通配符的文件
 
+
+三、配置信息
+1.agent的name即配置文件中key对应的第一个.前面的内容,比如maming.sinks.h5h.channel=h5c,因此agent就是maming
+
+2.配置该agent的组件name集合
+maming.sources = h5k apk
+maming.channels = h5c apc
+maming.sinks = h5h aph
+
+3.表示为该maming这个agent配置为h5k的source配置属性信息,比如他对应的channel,实现souce的方式,以及需要的配置信息
+maming.sources.h5k.channels=h5c
+maming.sources.h5k.type=org.apache.flume.source.kafka.KafkaSource
+maming.sources.h5k.kafka.bootstrap.servers=ip:6667,ip:6667,ip:6667
+
+
+四、启动
+bin/flume-ng agent -n maming -c conf -f conf/flume-conf.properties
+
+

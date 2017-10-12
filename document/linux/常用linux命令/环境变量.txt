@@ -1,0 +1,22 @@
+一、设置环境变量 vi /etc/profile
+
+####export JAVA_HOME=/server/java/jdk1.7.0_51
+####export JRE_HOME=/server/java/jdk1.7.0_51/jre
+export JAVA_HOME=/server/java/jdk1.8.0_60
+export JRE_HOME=/server/java/jdk1.8.0_60/jre
+export CLASS_PATH=$CLASS_PATH:$JAVA_HOME/lib:$JAVA_HOME/jre/lib
+
+export PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$MAVEN_HOME/bin:$PATH
+
+export SCALA_HOME=/server/scala-2.11.8
+export PATH=$SCALA_HOME/bin:$PATH
+
+export KYLIN_HOME=/server/kylin/apache-kylin-1.5.4.1-hbase1.x-bin
+
+#export HADOOP_HOME=/server/hadoop/hadoop-2.7.1
+#export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+#export PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$PATH
+
+#export SPARK_HOME=/server/hadoop/spark-1.6.1
+
+#export PATH=$SPARK_HOME/sbin:$PATH

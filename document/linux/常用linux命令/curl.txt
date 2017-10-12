@@ -1,0 +1,11 @@
+一、下载一个文件
+curl -L -O https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.3.tar.gz
+注意-O(大写)  一定是大写字母O,而不是数字0
+
+
+二、curl -i www.baidu.com
+-i 属性会打印response的 header头
+
+三、curl -XGET www.baidu.com
+-X表示使用什么方式请求,比如GET、DELETE、POST等
+
