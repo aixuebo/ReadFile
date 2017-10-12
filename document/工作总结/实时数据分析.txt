@@ -1,0 +1,8 @@
+一、mysql---binlog---kafka---hbase/elasticSearch/hive
+这样能保证增删改查的数据能及时落地到仓库.
+但是问题是查询的时候,如何查询是一个问题
+
+elasticSearch 查询一个表没问题,但是查询多个表join时候是有问题的
+hbase因为只是支持rowkey查询,所以也没办法用,但是使用hive on hbase好像可以查询,但是需要尝试一下,肯定的是查询sql的速度是会慢,因为hive启动会很慢
+落地hive,可能update和delete的时候会有问题,不知道hive怎么做merge的
+
