@@ -16,6 +16,25 @@ val premiumRawData = sqlContext.read.format("com.databricks.spark.csv").option("
   val sqlContext = new SQLContext(sc)
   val hiveSqlContext = new HiveContext(sc) //执行hive
   import sqlContext.implicits._ //可以隐式转换$("属性")
+
+   val premiumRawData = hiveSqlContext.sql("") //返回的是DataFrame
+  //使用RDD的方式操纵DataFrame
+      val finalResultRdd = premiumRawData.rdd.groupBy((row:Row) => row.getString(0),20)
+        .flatMap{ kv => //userid 所有该用户投资记录
+
+        var buf = collection.mutable.ArrayBuffer.empty[Double]//存储开始时间和结束时间
+        buf += 4.5
+        buf.toList
+      }
+   //将RDD转换成DataFrame,方便将其结果存储到hive中
+      val finalResult = hiveSqlContext.createDataFrame(finalResultRdd)
+      finalResult.show(50)
+      //追加到hive数据库中
+      finalResult.registerTempTable("finalresult")
+      finalResult.sqlContext.sql("insert overwrite table XXX.xxx select userid,fromDate,prefium,recoveryDate,nextPrefium from finalresult")
+注意:必须使用val finalResult = hiveSqlContext.createDataFrame(finalResultRdd)方式,不能使用finalResultRdd.toDF()方式,该方式不能让数据插入到hive中
+
+
 四、spark sql在执行hiveContext环境中,总是提示无法连接到hive表,前提是集群模式下启动,而不是client模式下启动
 问题产生的现象
 1.一开始是说找不到hive相关的包
