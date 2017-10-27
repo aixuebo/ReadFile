@@ -1,5 +1,57 @@
 一、解析binlog
 因为binlog是二进制的,因此要可视化必须用工具
- /server/mysql/bin/mysqlbinlog /server/data/mysql/mysql-bin.000748 | more 
+ /server/mysql/bin/mysqlbinlog /server/data/mysql/mysql-bin.000748 | more
+ 用命令行的方式查看binlog的内容
+ /server/mysql/bin/mysqlbinlog -vv /server/data/mysql/mysql-bin.000748 | more
  hexdump -C /server/data/mysql/mysql-bin.000749 | more 查看文件二进制形式
- 
+
+二、用sql去查看binlog的内容
+SHOW BINLOG EVENTS IN 'mysql-bin.003996' LIMIT 10 查看具体的某一个文件
+SHOW BINLOG EVENTS LIMIT 10
+语法规则:
+SHOW BINLOG EVENTS [IN 'log_name'] [FROM pos] [LIMIT [offset,] row_count]
+其中in 表示查看哪个binlog日志,从哪个位置开始,limit与sql的limit语法一样
+
+
+输出内容:
+Log_name,Pos,Event_type,Server_id,End_log_pos,Info
+mysql-bin.003996,4,Format_desc,1,120,SERVER ver: 5.6.27-LOG, BINLOG ver: 4
+mysql-bin.003996,120,QUERY,1,205,BEGIN
+mysql-bin.003996,205,QUERY,1,365,USE `ambari1`; UPDATE alert_current SET latest_timestamp = 1508806477203 WHERE (alert_id = 790)
+mysql-bin.003996,365,QUERY,1,525,USE `ambari1`; UPDATE alert_current SET latest_timestamp = 1508806477203 WHERE (alert_id = 799)
+mysql-bin.003996,525,QUERY,1,685,USE `ambari1`; UPDATE alert_current SET latest_timestamp = 1508806477194 WHERE (alert_id = 819)
+mysql-bin.003996,685,QUERY,1,845,USE `ambari1`; UPDATE alert_current SET latest_timestamp = 1508806477208 WHERE (alert_id = 820)
+mysql-bin.003996,845,QUERY,1,1005,USE `ambari1`; UPDATE alert_current SET latest_timestamp = 1508806477210 WHERE (alert_id = 923)
+mysql-bin.003996,1005,QUERY,1,1165,USE `ambari1`; UPDATE alert_current SET latest_timestamp = 1508806477198 WHERE (alert_id = 924)
+mysql-bin.003996,1165,Xid,1,1196,COMMIT /* xid=1457161570 */
+mysql-bin.003996,1196,QUERY,1,1271,BEGIN
+
+三、SHOW MASTER STATUS 查看当前binlog位置
+结果集:
+FILE,POSITION,Binlog_Do_DB,Binlog_Ignore_DB,Executed_Gtid_Set
+mysql-bin.003996,803153111,,,
+
+四、查看slave的binlog信息位置
+SHOW SLAVE STATUS
+结果输出字段
+Slave_IO_State,MASTER_HOST,MASTER_USER,MASTER_PORT,Connect_Retry,MASTER_LOG_FILE,Read_Master_Log_Pos,RELAY_LOG_FILE,RELAY_LOG_POS,Relay_Master_Log_File,Slave_IO_Running,Slave_SQL_Running,Replicate_Do_DB,Replicate_Ignore_DB,Replicate_Do_Table,Replicate_Ignore_Table,Replicate_Wild_Do_Table,Replicate_Wild_Ignore_Table,Last_Errno,Last_Error,Skip_Counter,Exec_Master_Log_Pos,Relay_Log_Space,Until_Condition,Until_Log_File,Until_Log_Pos,Master_SSL_Allowed,Master_SSL_CA_File,Master_SSL_CA_Path,MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_KEY,Seconds_Behind_Master,MASTER_SSL_VERIFY_SERVER_CERT,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Replicate_Ignore_Server_Ids,MASTER_SERVER_ID,Master_UUID,Master_Info_File,SQL_Delay,SQL_Remaining_Delay,Slave_SQL_Running_State,Master_Retry_Count,Master_Bind,Last_IO_Error_Timestamp,Last_SQL_Error_Timestamp,Master_SSL_Crl,Master_SSL_Crlpath,Retrieved_Gtid_Set,Executed_Gtid_Set,Auto_Position
+通过下面四个属性,可以知道该slave读取到master哪个binlog文件,哪个偏移量位置了,以及master的host和port是什么
+            String masterHost = maps.get("Master_Host");
+            String masterPort = maps.get("Master_Port");
+            String binlog = maps.get("Master_Log_File");
+            String position = maps.get("Exec_Master_Log_Pos");
+            return new SlaveEntryPosition(binlog, Long.valueOf(position), masterHost, masterPort);
+
+五、show variables like 'binlog_format';   显示mysql此时的binlog格式-----statement-based、row-based、mixed。
+目前canal只能支持row模式的增量订阅(statement只有sql，没有数据，所以无法获取原始的变更日志)
+
+六、show global variables like 'binlog_checksum' 获取master的校验和方式,比如是CRC还是None
+
+七、mysql binlog 请求图
+1.客户端发送请求
+2.master ----response握手协议
+3.客户端---发送show master status命令,获取主库的binlog文件以及目前主库的offset
+4.客户端发送show global variables like 'binlog_checksum' 获取master的校验和方式,比如是CRC还是None
+5.返回master的校验和方式
+6.因此不断的发送binlog的dump命令获取一个binlog事件
+
