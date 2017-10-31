@@ -60,3 +60,28 @@ Slave_IO_State,MASTER_HOST,MASTER_USER,MASTER_PORT,Connect_Retry,MASTER_LOG_FILE
 5.返回master的校验和方式
 6.因此不断的发送binlog的dump命令获取一个binlog事件
 
+八、binlog的mysql-bin.001916这个ID是自增长的,每次执行flush logs; 或者达到一定大小后,会自动切换新文件。
+那么这么下标最大是多少呢,是2^32次方-1,因此正常情况下一辈子也达不到这个最大值。
+
+有效的binlog的日志都会在mysql-bin.index索引文件中引用,该索引文件中未引用的binlog文件,是不会被mysql管理的
+
+九、binlog的配置
+1.binlog_format的格式
+mixed、row、statement
+2.expire_logs_days = 7 日志过期7天,会删除以前的日志
+3.log-bin=mysql-bin 打开binlog
+4.server-id = 1设置master的id
+5.max-binlog-size 设置每一个binlog文件的大小,达到该伐值则切换日志
+6.binlog-do-db和binlog-ignore-db表示哪些数据库需要同步binlog 和哪些数据库不用同步binlog
+
+非必要的配置
+slow_query_log_file = /logs/mysql_slow.log 设置慢sql的路径
+log_error = /logs/mysql_error.log 设置错误的日志路径
+
+十、删除binlog信息
+pruge master logs to binlogName
+pruge master logs before Date
+
+十一、目前canal的server同步的数据都在内存存放,而客户端针对一个队列只能有一个客户端,因此要将该客户端读取的数据写入到kafka或者mq里面,用于多个消费客户端去消费。
+比如binlog的数据要写入到redis、es、mysql、hive中,一个客户端就比较麻烦,比如直接客户端写入到kafka,然后不同消费者去kafka读取数据
+
