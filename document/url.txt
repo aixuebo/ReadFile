@@ -101,3 +101,13 @@ http://x-goder.iteye.com/blog/2036364
 
 redis
 http://mp.weixin.qq.com/s?__biz=MzI4OTU3ODk3NQ==&mid=2247484008&idx=1&sn=259e6f0767a0f98925c3037021ab781c&chksm=ec2c48d8db5bc1ce6745ea5f49196f71c1fbb33fd59a05a89f15e374763c354dd42f804986fb&mpshare=1&scene=23&srcid=040735KMyu2vm7FFKFAfvDYI#rd
+
+
+未来要录制的视频
+1.redis使用 以及 存储格式对应的原理
+2.nginx使用以及配置
+3.hive的几大组件,比如JDBC和thrift原理
+4.hadoop和spark
+5.java基础
+6.ES
+7.flume和spark streming

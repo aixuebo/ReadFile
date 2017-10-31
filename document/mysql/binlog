@@ -1,11 +1,16 @@
 一、解析binlog
-因为binlog是二进制的,因此要可视化必须用工具
+1.因为binlog是二进制的,因此要可视化必须用工具
  /server/mysql/bin/mysqlbinlog /server/data/mysql/mysql-bin.000748 | more
- 用命令行的方式查看binlog的内容
+2.用命令行的方式查看binlog的内容
  /server/mysql/bin/mysqlbinlog -vv /server/data/mysql/mysql-bin.000748 | more
  hexdump -C /server/data/mysql/mysql-bin.000749 | more 查看文件二进制形式
 
-二、用sql去查看binlog的内容
+3.简单的根据时间查看相对binlog内容,此时只是相对内容,详细内容还是要通过canal
+  /mysql/bin/mysqlbinlog -d test --start-datetime='2017-10-30 19:10:01' -vv /mysql/data/mysql-bin.001915 | more
+  注意 上面的sql查询的只是test这个库的,即对binlog进行过滤,方便测试查看binlog日志结果
+4.flush logs;  重新切换产生一个新的binlog日志文件
+
+二、用sql去查看binlog的内容---可以用于查看binlog当前日志中第一个binlog的位置
 SHOW BINLOG EVENTS IN 'mysql-bin.003996' LIMIT 10 查看具体的某一个文件
 SHOW BINLOG EVENTS LIMIT 10
 语法规则:

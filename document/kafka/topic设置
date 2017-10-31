@@ -1,4 +1,9 @@
-一、partitions参数,设置topic的partiton数量
+一、通过broker_list如何知道zookeeper信息
+知道broker_list的话,进入任意一台broker节点的conf目录下,执行cat * | grep zookeeper
+找到zookeeper.connect=datanode01.xxxx.com:2181,datanode02.xxxx.com:2181,datanode04.xxxx.com:2181
+此时就是zookeeper的连接
+
+二、partitions参数,设置topic的partiton数量
 
 创建topic
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --create --topic topicName --partitions 1  --replication-factor 3 //创建topic
