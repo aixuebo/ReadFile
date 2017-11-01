@@ -1,0 +1,537 @@
+第一章
+一、redis简介
+1.Redis 是一个 Key-Value 存储系统。
+2.和 Memcached 类似，它支持存储的 value 类型相对更多，
+包括 string(字符串)、hashmap(hash集合--H表示),list(链表---l表示)、set(集合--S表示)和 zset(有序集合--Z表示)。这些数据类型都支持 push/pop、add/remove 及取交集并集和差集及更丰富的操作，而且这些操作都是原子性的。
+3.与 memcached 一样，为了保证效率，数据都是缓存在内存中。区别的是 Redis 会周期性的把更新的数据写入磁盘或者把修改操作写入追加的记录文件
+4.实现了 master-slave(主从)同步
+
+二、持久化
+通常，Redis 将数据存储于内存中，或被配置为使用虚拟内存。通过两种方式可以实现数据持久化：
+1.使用快照截图的方式，将内存中的数据不断写入磁盘；
+2.用类似 MySQL 的日志方式，记录每次更新的日志。前者性能较高，但是可能会引起一定程度的数据丢失
+
+三、使用场景
+1.取最新 N 个数据的操作
+比如典型的取你网站的最新文章，通过下面方式，我们可以将最新的 5000 条评论的 ID 放在Redis 的 List 集合中，并将超出集合部分从数据库获取。
+a.使用 LPUSH key id命令，向 list 集合中插入数据,
+b.插入完成后再用 LTRIM key 0 5000 命令使其永远只保存最近 5000 个 ID
+
+2.排行榜应用，取 TOP N 操作
+这个需求与上面需求的不同之处在于，前面操作以时间为权重，这个是以某个条件为权重，
+比如按顶的次数排序，这时候就需要我们的 sorted set 出马了，将你要排序的值设置成 sorted
+set 的 score，将具体的数据设置成相应的 value，每次只需要执行一条 ZADD 命令即可
+
+3.需要精准设定过期时间的应用
+比如你可以把上面说到的 sorted set 的 score 值设置成过期时间的时间戳，那么就可以简单地通过过期时间排序，定时清除过期数据了，不仅是清除 Redis 中的过期数据，你完全可以把 Redis 里这个过期时间当成是对数据库中数据的索引，
+用 Redis 来找出哪些数据需要过期删除，然后再精准地从数据库中删除相应的记录。
+
+4、计数器应用
+Redis 的命令都是原子性的，你可以轻松地利用 INCR，DECR 命令来构建计数器系统。
+5、Uniq 操作，获取某段时间所有数据排重值
+这个使用 Redis 的 set 数据结构最合适了，只需要不断地将数据往 set 中扔就行了，set 意为集合，所以会自动排重。
+
+6、实时系统，反垃圾系统
+通过上面说到的 set 功能，你可以知道一个终端用户是否进行了某个操作，可以找到其操作的集合并进行分析统计对比等。没有做不到，只有想不到。
+即每一个操作是一个set集合,里面持有user集合
+
+7、Pub/Sub 构建实时消息系统
+Redis 的 Pub/Sub 系统可以构建实时的消息系统，比如很多用 Pub/Sub 构建的实时聊天系统的例子。
+
+8、构建队列系统
+使用 list 可以构建队列系统，使用 sorted set 甚至可以构建有优先级的队列系统。
+
+9、缓存
+这个不必说了，性能优于 Memcached，数据结构更多样化。
+
+
+四、第四节redis安装和配置参数的详细说明,需要的时候仔细看一下该章节内容即可
+
+五、优势
+1.只存 ID 的话，Redis 是非常高效的。
+2.基于内存存储,大量使用内存.因此效率也很高
+
+
+
+第二章 Redis 数据类型及操作
+一、strings 类型及操作
+1.string 类型是二进制安全的。意思是 redis 的 string 可以包含任何数据
+比如 jpg 图片或者序列化的对象。从内部实现来看其实 string 可以看作 byte 数组，最大上限是 1G 字节，
+下面是string 类型的定义:
+struct sdshdr {
+ long len;
+ long free;
+ char buf[];//存储字节内容,char其实就是java的byte
+};
+len 是 buf 数组的长度。
+free 是数组中剩余可用字节数，
+由此可以理解为什么 string 类型是二进制安全的了，因为它本质上就是个 byte 数组，当然可以包含任何数据了
+
+2.string 类型可以被部分命令按 int 处理.比如 incr 等命令
+3.如果value是String类型的,一些常用简单命令
+a.set name wwl  设置一个name和value
+b.get name 返回wwl,查询name对应的值
+c.del name 删除该key
+d.exists name  验证键是否存在,返回值 0，代表此 key 不存在,1 代表存在
+e.setnx name HongWan_new 含义:nx 是 not exist 的意思,表示如果key不存在,则设置成新的值HongWan_new,如果key存在,则设置不会生效,返回0
+f.SETEX key seconds value 将key值强制替换成value,无论key是否存在,并且设置key的生存周期,单位是秒
+类似SET key value; EXPIRE key seconds 这两个命令
+但是该命令是原子性操作
+TTL key 返回剩余生存周期
+g.setrange key offset value 对原有的key的内容进行修改,从offset位置开始替换,将value的内容作为替换的内容
+例如:get name --->输出HongWan@126.com
+setrange name 8 gmail.com -->输出17
+get name--->输出HongWan@gmail.com
+其中的 8 是指从下标为 8（包含 8）的字符开始替换
+h.mset key value key value 和 msetnx key value key value 事务里面修改多个key=value 的值
+一个是覆盖的方式,一个是只更改key不存在的情况
+i.getset设置 key 的值，并返回 key 的旧值。
+get name -->HongWan
+getset name HongWan_new --->HongWan
+j.getrange 相当于java的substring
+getrange name 0 6
+getrange name -7 -1  字符串右面下标是从-1 开始的
+k.mget一次获取多个 key 的值，如果对应 key 不存在，则对应返回 nil。
+mget key1 key2 key3
+1) "HongWan1"
+2) "HongWan2"
+3) (nil)
+l.incr 和 decr  针对value是int类型的时候,进行追加1/减1原子操作
+set age 20
+incr age  ---> 21
+m.incrby和decrby 针对value是int类型的时候,进行追加n/减n原子操作
+incrby age 5
+n.append 给指定 key 的字符串值追加 value,返回新字符串值的长度。
+append name @126.com  向name追加@126.com内容
+o. strlen 取指定 key 的 value 值的长度
+strlen name  ---->15
+
+二、hash类型----相当于java的hashmap对象,即key对应的类型是一个hashmap,而map对应的key和value分别为feild和value
+因此数据结果是hset key field value
+1.hset和hsetnx 表示为一个key设置field和value,分别是覆盖模式 还是 field存在则不进行覆盖模式
+hset myhash field1 Hello
+hsetnx myhash field Hello
+2.hmset 同时设置 hash 的多个 field。
+hmset myhash field1 Hello field2 World
+3.hget获取指定的 hash field
+hget myhash field1
+4.hmget获取全部指定的 hash filed.
+hmget myhash field1 field2 field3
+1) "Hello"
+2) "World"
+3) (nil)
+5.hexists 测试指定 field 是否存在  返回值是0 和 1
+6.hincrby 指定的 hash filed 加上给定值,此时value必须是整数
+hincrby myhash field3 -8 该属性值-8
+7.hlen返回指定 hash 的 field 数量.
+hlen myhash
+8.hdel 删除一个key,返回指定 hash 的 field 数量
+9.hkeys 返回 hash 的所有 field
+hkeys myhash
+1) "field2"
+2) "field"
+3) "field3"
+10.hvals 返回 hash 的所有 value
+hvals myhash
+1) "World"
+2) "Hello"
+3) "12"
+11.hgetall 获取某个 hash 中全部的 filed 及 value
+hgetall myhash
+1) "field2"
+2) "World"
+3) "field"
+4) "Hello"
+5) "field3"
+6) "12"
+
+三、list类型---实现是双向链表,按照插入的顺序写入到队列,你可以添加一个元素到列表的头部（左边）或者尾部（右边）,一个列表最多可以包含 232 - 1 个元素 (4294967295, 每个列表超过40亿个元素
+key对应的value都是一个list,因此每次添加的内容,表示向key对应的list中添加一个元素
+1.lpush 在 key 对应 list 的头部添加字符串元素
+lpush mylist "world"
+lpush mylist "hello"
+lrange mylist 0 -1  从头0开始 到最后一个-1位置的全部信息
+1) "hello"
+2) "world"
+2.rpush 表示在 key 对应 list 的尾部添加字符串元素,即正常的java的list.add功能
+3.linsert 在 key 对应 list 的特定位置之前或之后添加字符串元素
+linsert mylist3 before "world" "there" 表示在world前追加there,原来是hello world
+lrange mylist3 0 -1
+1) "hello"
+2) "there"
+3) "world"
+4.lrem key count value,因为list中存储的元素是允许相同的,因此该方法返回删除该list中value内容,仅删除2个
+count>0 时，按从头到尾的顺序删除;count<0 时，按从尾到头的顺序删除;count=0 时，删除全部
+rpush mylist5 "hello"
+rpush mylist5 "hello"
+rpush mylist5 "foo"
+rpush mylist5 "hello"
+lrem mylist5 2 "hello"
+lrange mylist5 0 -1
+1) "foo"
+2) "hello"
+5.ltrim保留指定 key 的值范围内的数据
+比如list内数据为one,two，three,four
+ltrim key 1 -1 即保留从第2个开始,到最后的内容,即删除第一个元素,从0开始计数
+lrange key 0 -1
+1) "two"
+2) "three"
+3) "four"
+6.lpop 从 list 的头部删除元素，并返回删除元素
+lrange mylist 0 -1
+1) "hello"
+2) "world"
+lpop mylist
+"hello"
+redis 127.0.0.1:6379> lrange mylist 0 -1
+1) "world"
+7.从 list 的尾部删除元素，并返回删除元素
+8.rpoplpush 两个数组内的元素移动一个位置,即从第一个 list 的尾部移除元素并添加到第二个 list 的头部,最后返回被移除的元素值，整个操作是原子的.如果第一个 list 是空或者不存在返回 nil
+lrange mylist5 0 -1
+1) "three"
+2) "foo"
+3) "hello"
+lrange mylist6 0 -1
+1) "hello"
+2) "foo"
+rpoplpush mylist5 mylist6
+"hello"
+redis 127.0.0.1:6379> lrange mylist5 0 -1
+1) "three"
+2) "foo"
+redis 127.0.0.1:6379> lrange mylist6 0 -1
+1) "hello"
+2) "hello"
+3) "foo"
+9.llen 返回 key 对应 list 的长度
+llen mylist5
+10.lindex 返回名称为 key 的 list 中 index 位置的元素
+lindex mylist5 0
+11.有意思的是 list 的 pop 操作还有阻塞版本的，当我们[lr]pop 一个 list 对象时，如果 list 是空，或者不存在，会立即返回 nil。但是阻塞版本的 b[lr]pop 可以则可以阻塞，当然可以加超时时间，超时后也会返回 nil。
+   为什么要阻塞版本的 pop 呢，主要是为了避免轮询。
+   举个简单的
+   例子如果我们用 list 来实现一个工作队列。执行任务的 thread 可以调用阻塞版本的 pop 去获取任务这样就可以避免轮询去检查是否有任务存在。当任务来时候工作线程可以立即返回，也可以避免轮询带来的延迟。
+a.BLPOP key1 [key2 ] timeout
+移出并获取列表的第一个元素， 如果列表没有元素会阻塞列表直到等待超时或发现可弹出元素为止。
+b.BRPOP key1 [key2 ] timeout
+移出并获取列表的最后一个元素， 如果列表没有元素会阻塞列表直到等待超时或发现可弹出元素为止。
+
+四、Set操作---set 是集合,和java的set相同,存储无序的、不重复的数据集合,并且多个set对象支持求交并差等操作
+set 元素最大可以包含(2 的 32 次方)个元素
+并集(union)，交集(intersection)，差集(difference) 通过这些操作可以很容易的实现 sns 中的好友推荐和 blog 的 tag 功能
+
+1.sadd myset "hello"  向名称为 key 的 set 中添加元素
+2.smembers myset 查看set内全部元素内容
+3.srem删除名称为 key 的 set 中的元素 member
+相当于java的set.remove(元素)操作
+srem myset2 "one"
+4.spop 因为set是无序的集合,因此随机pop去除一个元素返回,并且从set集合中删除该元素
+spop myset3 --->返回删除的元素内容
+5.sdiff 返回所有给定 key 与第一个 key 的差集
+smembers myset2
+1) "three"
+2) "two"
+smembers myset3
+1) "two"
+2) "one"
+sdiff myset2 myset3
+1) "three"
+6.sdiffstore 返回所有给定 key 与第一个 key 的差集，并将结果存为另一个 key
+smembers myset2
+1) "three"
+2) "two"
+smembers myset3
+1) "two"
+2) "one"
+sdiffstore myset4 myset2 myset3
+1) "three"
+7.sinter 返回所有给定 key 的交集
+redis 127.0.0.1:6379> smembers myset2
+1) "three"
+2) "two"
+redis 127.0.0.1:6379> smembers myset3
+1) "two"
+2) "one"
+redis 127.0.0.1:6379> sinter myset2 myset3
+1) "two"
+8.sinterstore返回所有给定 key 的交集，并将结果存为另一个 key
+redis 127.0.0.1:6379> smembers myset2
+1) "three"
+2) "two"
+redis 127.0.0.1:6379> smembers myset3
+1) "two"
+2) "one"
+redis 127.0.0.1:6379> sinterstore myset5 myset2 myset3
+redis 127.0.0.1:6379> smembers myset5
+1) "two"
+9.sunion 返回所有给定 key 的并集   以及 sunionstore
+redis 127.0.0.1:6379> smembers myset2
+1) "three"
+2) "two"
+redis 127.0.0.1:6379> smembers myset3
+1) "two"
+2) "one"
+redis 127.0.0.1:6379> sunion myset2 myset3
+1) "three"
+2) "one"
+3) "two"
+10.smove 从第一个 key 对应的 set 中移除 member 并添加到第二个对应 set 中
+redis 127.0.0.1:6379> smembers myset2
+1) "three"
+2) "two"
+redis 127.0.0.1:6379> smove myset2 myset7 three 将myset2中的three元素 移动到myset7中
+(integer) 1
+redis 127.0.0.1:6379> smembers myset7
+1) "three"
+11.scard返回名称为 key 的 set 的元素个数
+scard myset2
+11.sismember测试 一个元素 是否是名称为 key 的 set 的元素,相当于java的set.contain操作
+sismember myset2 two
+12.srandmember随机返回名称为 key 的 set 的一个元素，但是不删除元素
+13.SSCAN key cursor [MATCH pattern] [COUNT count] 迭代key这个集合,从第cursor个位置开始迭代,一共迭代count个,找到匹配的元素
+redis 127.0.0.1:6379> SADD myset1 "hello"
+redis 127.0.0.1:6379> SADD myset1 "hi"
+redis 127.0.0.1:6379> SADD myset1 "bar"
+redis 127.0.0.1:6379> sscan myset1 0 match h*
+1) "hello"
+2) "h1"
+
+五、sorted sets 排序的set集合--类型及操作
+a.sorted set 是 set 的一个升级版本,它在 set 的基础上增加了一个顺序属性，这一属性在添加修改元素的时候可以指定，每次指定后，zset 会自动重新按新的值调整顺序。可以理解为有两列的 mysql 表，一列存 value，一列存顺序。
+b.操作中 key 理解为 zset 的名字。
+c.和 set 一样 sorted set 也是 string 类型元素的集合，不同的是每个元素都会关联一个 double类型的 score。
+sorted set 的实现是 skip list 和 hash table 的混合体。
+
+1.zadd 向名称为 key 的 zset 中添加元素 member，score 用于排序。如果该元素已经存在，则根据score 更新该元素的顺序
+redis 127.0.0.1:6379> zadd myzset 1 "one"
+redis 127.0.0.1:6379> zadd myzset 2 "two"
+redis 127.0.0.1:6379> zadd myzset 3 "two"
+redis 127.0.0.1:6379> zrange myzset 0 -1 withscores  打印全部元素,以及分数
+1) "one"
+2) "1"
+3) "two"
+4) "3"
+从结果可以看到,存储的每一个值都被拆分成两行,分别表示序号以及具体的值,序号则用于排序使用,可以窥见到他内部的实现
+
+2.zrem 删除名称为 key 的 zset 中的元素 member
+redis 127.0.0.1:6379> zrange myzset 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "3"
+redis 127.0.0.1:6379> zrem myzset two
+redis 127.0.0.1:6379> zrange myzset 0 -1 withscores
+1) "one"
+2) "1"
+可以看到元素和分数都被删除了
+
+3.zincrby 如果在名称为 key 的 zset 中已经存在元素 member，则该元素的 score 增加 increment  否则向集合中添加该元素，其 score 的值为 increment
+redis 127.0.0.1:6379> zadd myzset2 1 "one"
+redis 127.0.0.1:6379> zadd myzset2 2 "two"
+redis 127.0.0.1:6379> zincrby myzset2 2 "one"
+redis 127.0.0.1:6379> zrange myzset2 0 -1 withscores
+1) "two"
+2) "2"
+3) "one"
+4) "3"
+本例中将 one 的 score 从 1 增加了 2，增加到了 3
+即增加的不是value的内容,而是value对应的序号内容
+
+4.zrank返回名称为 key 的 zset 中 member 元素的排名(按 score 从小到大排序)即下标
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+7) "five"
+8) "5"
+redis 127.0.0.1:6379> zrank myzset3 two  单独获取一个元素的时候,返回的是下标,而不是分数
+(integer) 1
+本例中将 two 的下标是 1，我这里取的是下标，而不是 score
+
+5. zrevrank 返回名称为 key 的 zset 中 member 元素的排名(按 score 从大到小排序)即下标
+zrevrank myzset3 two
+还有 zrevrange
+zrevrange myzset3 0 -1 withscores
+
+6.zrangebyscore 返回集合中 score 在给定区间的元素
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+7) "five"
+8) "5"
+redis 127.0.0.1:6379> zrangebyscore myzset3 2 3 withscores
+1) "two"
+2) "2"
+3) "three"
+4) "3"
+
+7.zcount 返回集合中 score 在给定区间的数量
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+7) "five"
+8) "5"
+redis 127.0.0.1:6379> zcount myzset3 2 3
+(integer) 2
+本例中，计算了 score 在 2~3 之间的元素数目
+
+8.zcard 返回集合中元素个数
+zcard myzset3
+
+9.zscore 返回给定元素对应的 score.
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+7) "five"
+8) "5"
+redis 127.0.0.1:6379> zscore myzset3 two
+"2"
+
+10.zremrangebyrank 删除集合中排名在给定区间的元素,即按照下标删除
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+7) "five"
+8) "5"
+redis 127.0.0.1:6379> zremrangebyrank myzset3 3 3
+(integer) 1
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+在本例中我们将 myzset3 中按从小到大排序结果的下标为 3 的元素删除了。
+
+
+11.zremrangebyscore 删除集合中 score 在给定区间的元素,即按照分数删除
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "one"
+2) "1"
+3) "two"
+4) "2"
+5) "three"
+6) "3"
+redis 127.0.0.1:6379> zremrangebyscore myzset3 1 2
+(integer) 2
+redis 127.0.0.1:6379> zrange myzset3 0 -1 withscores
+1) "three"
+2) "3"
+在本例中我们将 myzset3 中按从小到大排序结果的 score 在 1~2 之间的元素删除了。
+
+
+第三章 redis常用命令
+1.keys * 获取所有存在的key集合   或者  keys mylist* 提供关键字开头的key集合
+2.exists key 判断key是否存在,1表示存在,0表示不存在
+3.del key 删除一个key
+4.expire 设置一个 key 的过期时间(单位:秒)
+expire key 10
+ttl key查看还剩余多少秒存活时间
+5.move 将当前数据库中的 key 转移到其它数据库中
+redis 127.0.0.1:6379> select 0  先切换0这个数据库
+redis 127.0.0.1:6379> set age 30 让0数据库上有一个age的key
+redis 127.0.0.1:6379> move age 1 将该age的key移动到数据库1上
+redis 127.0.0.1:6379> get age 发现此时0数据库已经没有这个age的key 了
+redis 127.0.0.1:6379> select 1 切换数据库
+redis 127.0.0.1:6379[1]> get age 发现数据库1上有age这个key了
+"30"
+6.rename age_old age_new 将key的名字重新命名
+7.type key 返回key的数据类型
+redis 127.0.0.1:6379> type myzset2
+zset
+
+8.select选择数据库。Redis 数据库编号从 0~15，我们可以选择任意一个数据库来进行数据的存取
+select 0
+
+9.quit退出连接命令
+
+10.info 获取服务器的信息和统计
+
+11.dbsize返回当前数据库中 key 的数目
+
+12. config get 获取服务器配置信息。
+redis 127.0.0.1:6379> config get dir
+1) "dir"
+2) "/root/4setup/redis-2.2.12"
+
+或者获取服务器全部配置,config get *
+
+13.flushdb 删除当前选择数据库中的所有 key;flushall 删除所有数据库中的所有 key。
+redis 127.0.0.1:6379> dbsize
+(integer) 18
+redis 127.0.0.1:6379> flushdb
+redis 127.0.0.1:6379> dbsize
+(integer) 0
+
+第五章 Redis 高级实用特性
+一、主从----具体参考书上内容
+二、redis的事务--具体参考书上内容
+三、redis的持久化
+redis 是一个支持持久化的内存数据库，也就是说 redis 需要经常将内存中的数据同步到磁盘来保证持久化。redis 支持两种持久化方式，一种是 Snapshotting（快照）也是默认方式，另一种是 Append-only file（缩写 aof）的方式。
+下面分别介绍:
+1.snapshotting 方式
+快照是默认的持久化方式。这种方式是就是将内存中数据以快照的方式写入到二进制文件中,
+默认的文件名为 dump.rdb。可以通过配置设置自动做快照持久化的方式。我们可以配置 redis在 n 秒内如果超过 m 个 key 被修改就自动做快照，下面是默认的快照保存配置
+save 900 1 #900 秒内如果超过 1 个 key 被修改，则发起快照保存
+save 300 10 #300 秒内容如超过 10 个 key 被修改，则发起快照保存
+save 60 10000
+下面介绍详细的快照保存过程:
+a.redis 调用 fork,现在有了子进程和父进程。
+b. 父进程继续处理 client 请求，子进程负责将内存内容写入到临时文件。由于 os 的实时复制机制（copy on write)父子进程会共享相同的物理页面，
+当父进程处理写请求时 os 会为父进程要修改的页面创建副本，而不是写共享的页面。所以子进程地址空间内的数据是 fork时刻整个数据库的一个快照。
+c.当子进程将快照写入临时文件完毕后，用临时文件替换原来的快照文件，然后子进程退出。
+client 也可以使用 save 或者 bgsave 命令通知 redis 做一次快照持久化。save 操作是在主线程
+中保存快照的，由于 redis 是用一个主线程来处理所有 client 的请求，这种方式会阻塞所有client 请求。所以不推荐使用。
+另一点需要注意的是，每次快照持久化都是将内存数据完整写入到磁盘一次，并不是增量的只同步变更数据。如果数据量大的话，而且写操作比较多，必然会引起大量的磁盘 io 操作，可能会严重影响性能。
+
+下面将演示各种场景的数据库持久化情况---参见书内文章
+
+2.aof 方式
+另外由于快照方式是在一定间隔时间做一次的，所以如果 redis 意外 down 掉的话，就会丢失最后一次快照后的所有修改。如果应用要求不能丢失任何修改的话，可以采用 aof 持久化方式。
+下面介绍 Append-only file:
+aof 比快照方式有更好的持久化性，是由于在使用 aof 持久化方式时,redis 会将每一个收到的写命令都通过 write 函数追加到文件中(默认是 appendonly.aof)。
+当 redis 重启时会通过重新执行文件中保存的写命令来在内存中重建整个数据库的内容。
+当然由于 os 会在内核中缓存 write 做的修改，所以可能不是立即写到磁盘上。这样 aof 方式的持久化也还是有可能会丢失部分修改。
+不过我们可以通过配置文件告诉 redis 我们想要通过 fsync 函数强制 os 写入到磁盘的时机。
+有三种方式如下（默认是：每秒 fsync 一次）
+appendonly yes //启用 aof 持久化方式
+# appendfsync always //收到写命令就立即写入磁盘，最慢，但是保证完全的持久化
+appendfsync everysec //每秒钟写入磁盘一次，在性能和持久化方面做了很好的折中
+# appendfsync no //完全依赖 os，性能最好,持久化没保证
+
+接下来我们以实例说明用法---参见书内文章
+
+aof 的方式也同时带来了另一个问题。持久化文件会变的越来越大。例如我们调用 incr test 命令 100 次，文件中必须保存全部的 100 条命令，其实有 99 条都是多余的。
+因为要恢复数据库的状态其实文件中保存一条 set test 100 就够了。
+为了压缩 aof 的持久化文件。redis 提供了 bgrewriteaof 命令。收到此命令 redis 将使用与快照类似的方式将内存中的数据以命令的方式保存到临时文件中，最后替换原来的文件。
+具体过程如下
+a.redis 调用 fork ，现在有父子两个进程
+b.子进程根据内存中的数据库快照，往临时文件中写入重建数据库状态的命令
+c.父进程继续处理 client 请求，除了把写命令写入到原来的 aof 文件中。同时把收到的写命令缓存起来。这样就能保证如果子进程重写失败的话并不会出问题。
+d.当子进程把快照内容写入已命令方式写到临时文件中后，子进程发信号通知父进程。然后父进程把缓存的写命令也写入到临时文件。
+e.现在父进程可以使用临时文件替换老的 aof 文件，并重命名，后面收到的写命令也开始往新的 aof 文件中追加。
+需要注意到是重写 aof 文件的操作，并没有读取旧的 aof 文件，而是将整个内存中的数据库内容用命令的方式重写了一个新的 aof 文件,这点和快照有点类似。接来我们看一下实际的例子:
+
+四、发布及订阅消息--参见书具体内容
+五、Pipeline 批量发送请求---很简单,客户端批处理发送信息
+六、虚拟内存的使用---详细内容参考书

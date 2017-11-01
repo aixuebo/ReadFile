@@ -104,10 +104,10 @@ http://mp.weixin.qq.com/s?__biz=MzI4OTU3ODk3NQ==&mid=2247484008&idx=1&sn=259e6f0
 
 
 未来要录制的视频
-1.redis使用 以及 存储格式对应的原理
-2.nginx使用以及配置
-3.hive的几大组件,比如JDBC和thrift原理
-4.hadoop和spark
-5.java基础
+1.redis使用 canal视频
+2.flume和spark streming----本周末
+3.hive的几大组件,比如JDBC和thrift原理---下周末
+4.hadoop和spark---需要很久时间估计
+5.java基础---每周3个class
 6.ES
-7.flume和spark streming
+7.nginx使用以及配置
