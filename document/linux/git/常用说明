@@ -52,3 +52,5 @@ git config --global user.email "xxxx@qq.com"
 四、常用命令
 git remote add origin path
 git remote -v 查看远程git仓库
+git remote set-url origin git地址---修改git地址
+
