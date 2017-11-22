@@ -106,5 +106,6 @@ git push origin --tags 一次性推送全部尚未推送到远程的本地标签
 如果标签已经推送到远程，要删除远程标签就麻烦一点:
 a.先从本地删除 git tag -d v0.9
 b.再从远程删除 git push origin :refs/tags/v0.9
+git checkout tagName 切换tag
 
 十二、分支管理到时候再看吧,暂时不做介绍

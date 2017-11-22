@@ -1,0 +1,66 @@
+摘要:
+
+该设计巧妙的运用了redis的特性,为我们做统计运算,kafka作为消息队列,mysql作为存储,因此没有开发多余的代码,就是将各种技术做了一个汇总,达到了一定境界,不得不佩服啊
+
+
+dau-statistic项目---统计DAU---详细参见后面的详细设计具体代码逻辑
+1.数据量大的时候,可以多线程读取kafka数据
+2.每一个线程独立读取一个kafka消息,将其转换成要处理的对象
+3.针对该处理的对象,操作redis数据库
+  a.统计每小时的活跃用户数----key是年月日小时,value是userid的set集合
+  b.统计每天每小时的活跃用户数,该曲线是一条一直增长的曲线----key是年月日,value是一个zset类型,因此排序的key是小时,value是该小时内userid集合(该userid不再集合内出现过)
+    例如0点有100人,1点有50人,则1点的数据是150,以此类推。
+    因此设计的时候使用的也是set,只是可以排序的set,key是hau_20151117,排序字段的hour,
+    因此注意的是需要校验该value userid是否在集合内存在,只有不存在的时候才添加,否则会覆盖原有的hour排序,例如0点有80008,1点也有80008,如果不判断set中是否存在80008,则最后set中存放的是1点80008
+4.定时任务将redis数据刷新到mysql中
+a.在crontab中起一个后台的脚本，每隔1分钟，将当前小时的新增和上一个小时的新增数据从Redis刷到mysql中， 用Redis 命令，SCARD  new_2015111709。
+b.在crontab中起一个后台的脚本，每隔1分钟，将当前小时的新增和上一个小时的新增数据从Redis刷到mysql中， 用Redis 命令， zcount dau_20151117  min， max （min，max 写小时的值）能返回统计的用户DAU数。
+注意:
+要刷新两个小时的数据,是避免夸小时的时候产生的数据异常
+
+register-statistic项目
+由于注册每一天就10多万的量,而且也不需要过滤重复,因此没必要使用redis的set功能作为统计,直接从kafka数据中读取数据后,更新数据库即可,所以没什么可以设计的
+---详细设计-----------------------------
+一、统计每小时的活跃用户逻辑
+  key是hau_2015111709
+  jedis = jedisPool.getResource();
+  jedis.sadd(key, hit.getUserId());
+  jedis.expire(key, EXPIRE_SECONDS);
+
+  通过该key,可以获取该年月日小时下有多少不同的活跃用户
+  注意:
+sadd是一个set,为每一个key存储一个set集合,
+  例子:key是myset,value是该myset作为key的集合
+ redis> SADD myset "Hello"
+(integer) 1
+redis> SADD myset "World"
+(integer) 1
+redis> SADD myset "World"
+(integer) 0
+redis> SMEMBERS myset
+1) "World"
+2) "Hello"
+redis> SCARD myset 可以获取该key对应多少条记录
+
+二、统计每天每小时的活跃用户数,该曲线是一条一直增长的曲线
+key是hau_20151117
+jedis = jedisPool.getResource();
+if (jedis.zrank(key, hit.getUserId()) == null) { //不存在则存放
+    jedis.zadd(key, hit.getHour(), hit.getUserId());
+    jedis.expire(key, EXPIRE_SECONDS);
+}
+通过该key,可以获取该年月日下,小时区间内有多少不同的活跃用户
+zcount dau_20151117  01， 06 （1，6 小时内）能返回统计的用户
+
+
+例子:
+redis 127.0.0.1:6379> ZRANK key member
+实例
+redis 127.0.0.1:6379> ZADD myzset 0 a 1 b 2 c 3 d 4 e
+(integer) 5
+redis 127.0.0.1:6379> ZADD myzset 5 f 6 g
+(integer) 2
+redis 127.0.0.1:6379> ZRANK myzset b
+(integer) 1
+redis 127.0.0.1:6379> ZRANK myzset t
+nil
