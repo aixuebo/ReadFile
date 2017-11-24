@@ -114,3 +114,7 @@ Redis是一个分布式缓存系统，支持多种数据结构，我们可以利
 
 八、京东方案
 目前采用Redis集群（16分片）缓存促销信息，例如促销id、促销剩余数、抢次数等，抢的过程中按照促销id散列到对应分片，实时扣减剩余数。当剩余数为0或促销删除，价格恢复原价。
+
+https://www.csdn.net/article/2014-11-28/2822858
+http://blog.csdn.net/xuefengmiao/article/details/50877170
+http://blog.csdn.net/csdn265/article/details/70188121
