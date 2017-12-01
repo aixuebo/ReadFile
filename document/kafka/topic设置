@@ -10,8 +10,39 @@
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --describe --topic topicName  //查看topic的信息
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --list //查看所有的topic
 消费者aaa.properties文件定义group.id=test
-./kafka-console-consumer.sh  --zookeeper datanode01.xxxx.com:port --topic topicName --from-beginning 1 consumer.config /kafka-broker/bin/aaa.properties //模拟消费者,但是该消费者不会移动offset位置
+./kafka-console-consumer.sh  --zookeeper datanode01.xxxx.com:port --topic topicName --from-beginning smallest consumer.config /kafka-broker/bin/aaa.properties //模拟消费者,但是该消费者不会移动offset位置
+一旦设置了该属性--from-beginning,则就一定是从smallest开始读取数据,如果没有设置该属性,则从最新的位置开始读取数据,即largest,即设置的是auto.offset.reset属性
+
 生产者
 ./kafka-console-producer.sh --broker-list ip:prot,ip:prot,ip:prot --topic topicName //创建生产者,可以向里面写入数据
+注意:--broker-list参数的内容来自于zookeeper,而当执行消费者的时候就会有打印粗话--broker-list的参数,将其复制过来即可
+
+三、常用命令
+启动zookeeper
+bin/zookeeper-server-start.sh config/zookeeper.properties &
+
+启动kafka
+
+bin/kafka-server-start.sh config/server.properties &
+
+停止kafka
+bin/kafka-server-stop.sh
+
+停止zookeeper
+bin/zookeeper-server-stop.sh
+
+四、出现的问题
+kafka Failed to send messages after 3 tries
+a.window上
+ping ip可以通,说明网络没问题
+telnet ip port 通不过,说明端口有问题,可能是防火墙的问题,把防火墙关闭了再测试一下
+
+b.确定ip是否填写错了,确保broker的ip是正确的
+
+c.配置host
+将本地的host配置上kafka节点需要的host
+
+d.访问zookeeper,查看/broker/ids/id对应的broker到底是哪个ip:port,此时
+
 
 

@@ -1,0 +1,87 @@
+hive> desc dim_temporary.channel_conversion;
+create_date             string
+channelgenre            string                  渠道类型
+chinesename             string                  渠道名称
+reg_num                 int                     注册人数
+inv1st_num              int                     首投人数
+reg_inv1st_conver       double                  注册首投转化:首投的人数/注册人数
+inv1st_amount           double                  首投金额
+inv1st_per_price        double                  首投客单价:首投金额/首投人数
+inv2nd_num              int                     二投人数
+inv1st_inv2nd_conver    double                  首投二投转化:二次投资人数/首投人数
+regu1st                 int                     首次加入加息计划人数
+two_retain_num          int                     次日留存人数
+two_retain_rate         double                  次日留存率:留存人数/投资人数
+two_retain_amount       double                  次日留存金额
+two_retain_amount_avg   double                  次日人均留存金额:留存金额/留存人数
+four_retain_num         int                     四日留存人数
+four_retain_rate        double                  四日留存率:留存人数/投资人数
+four_retain_amount      double                  四日留存金额
+four_retain_amount_avg  double                  四日人均留存金额:留存金额/留存人数
+seven_retain_num        int                     7日留存人数
+seven_retain_rate       double                  7日留存率:留存人数/投资人数
+seven_retain_amount     double                  7日留存金额
+seven_retain_amount_avg double                  7日人均留存金额:留存金额/留存人数
+fifteen_retain_num      int                     15日留存人数
+fifteen_retain_rate     double                  15日留存率:留存人数/投资人数
+fifteen_retain_amount   double                  15日留存金额
+fifteen_retain_amount_avg       double                  15日人均留存金额:留存金额/留存人数
+thirty_retain_num       int                     30日留存人数
+thirty_retain_rate      double                  30日留存率:留存人数/投资人数
+thirty_retain_amount    double                  30日留存金额
+thirty_retain_amount_avg        double                  30日人均留存金额:留存金额/留存人数
+
+--------------------------------
+insert overwrite table dim_temporary.channel_conversion
+SELECT a.create_date,a.channelgenre,a.chinesename,
+a.reg_num,a.inv1st_num,
+COALESCE((case when a.reg_num >0 then a.inv1st_num/a.reg_num *100 ELSE 0 END),0) reg_inv1st_conver,
+a.inv1st_amount,
+COALESCE(a.inv1st_amount/a.inv1st_num,0),
+a.inv2nd_num,
+COALESCE(a.inv2nd_num/a.inv1st_num * 100,0),
+a.regular1st_num,
+COALESCE(b.two_num,0),COALESCE(b.two_num/a.inv1st_num*100,0),
+COALESCE(b.two_amount,0),COALESCE(b.two_amount/b.two_num,0),
+COALESCE(b.four_num,0),COALESCE(b.four_num/a.inv1st_num*100,0),COALESCE(b.four_amount,0),COALESCE(b.four_amount/b.four_num,0),
+COALESCE(b.seven_num,0),COALESCE(b.seven_num/a.inv1st_num*100,0),COALESCE(b.seven_amount,0),COALESCE(b.seven_amount/b.seven_num,0),
+COALESCE(b.fifteen_num,0),COALESCE(b.fifteen_num/a.inv1st_num*100,0),COALESCE(b.fifteen_amount,0),COALESCE(b.fifteen_amount/b.fifteen_num,0),
+COALESCE(b.thrity_num,0),COALESCE(b.thrity_num/a.inv1st_num*100,0),COALESCE(b.thrity_amount,0),COALESCE(b.thrity_amount/b.thrity_num,0)
+FROM
+(
+	select  a.create_date,b.channelgenre,b.chinesename,
+	sum(a.reg_num) reg_num,sum(a.inv1st_num) inv1st_num,
+	sum(a.inv1st_amount) inv1st_amount,sum(a.inv2nd_num) inv2nd_num,
+	sum(a.regular1st_num) regular1st_num
+	from dim_mm.topic_channel a
+	join mm.sys_channels_bi b on a.channel=b.channelname and a.period=1
+	group by a.create_date, b.channelgenre, b.chinesename
+	having sum(a.reg_num) > 0
+	or sum(a.inv1st_num) > 0
+	or sum(a.inv2nd_num) > 0
+	or sum(a.regular1st_num) > 0
+) a
+LEFT JOIN
+(
+	select a.invest1st_time,c.channelgenre,c.chinesename,
+	count(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,1) then 1 else null end) two_num,
+	sum(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,1) then b.premium_final else 0 end) two_amount,
+	count(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,3) then 1 else null end) four_num,
+	sum(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,3) then b.premium_final else 0 end) four_amount,
+	count(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,6) then 1 else null end) seven_num,
+	sum(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,6) then b.premium_final else 0 end) seven_amount,
+	count(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,14) then 1 else null end) fifteen_num,
+	sum(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,14) then b.premium_final else 0 end) fifteen_amount,
+	count(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,29) then 1 else null end) thrity_num,
+	sum(case when strDateFormat(b.create_date,'yyyyMMdd','yyyy-MM-dd')=date_add(a.invest1st_time,29) then b.premium_final else 0 end) thrity_amount
+	from
+	(
+		select userid,to_date(invest1st_time) as invest1st_time,channel
+		from dim_mm.dim_user_info
+	) as a
+	join fact_mm.premium_record as b on a.userid=b.userid
+	join mm.sys_channels_bi c on a.channel=c.channelname
+	where b.log_day>='2017-05-01' and b.premium_final>=100
+	group by a.invest1st_time,c.channelgenre,c.chinesename
+) b on a.chinesename=b.chinesename AND
+a.create_date=b.invest1st_time AND a.channelgenre=b.channelgenre

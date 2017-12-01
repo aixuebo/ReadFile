@@ -1,0 +1,95 @@
+一、key如何设置,可以让RedisDesktopManager管理工具可以用目录的形式展现出来
+目录规则是key根据冒号进行拆分
+比如:{h5_real_time_detail}:16:30,m.www.com/static/extend/angpao_tongyong.html,weiche_cpa_01_styn
+第一级目录是主要key表示符{h5_real_time_detail},
+第二级目录是小时
+第三级目录是分钟以及该分钟内对应的不同的小key
+
+二、maven配置
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>2.9.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+            <version>2.0</version>
+        </dependency>
+
+三、redis工厂类
+public class JedisPoolFactory{
+
+    private static final String host = "10.103.27.172";//测试
+    //private String host = "10.2.19.70";//online
+    private static final int port = 6379;
+
+    private static final int poolConfigMaxTotal = 300;
+    private static final int poolConfigMaxIdle = 30;
+    private static final boolean poolConfigTestOnReturn = false;
+    private static final boolean poolConfigTestOnBorrow = false;
+    private static final boolean poolConfigTestWhileIdle = true;
+    private static final boolean poolConfigBlockOnExhausted = false;
+    private static final int timeout = 2000;
+
+    public static JedisPool jedis = null;
+
+    public static synchronized  JedisPool getInstance() throws Exception {
+
+        if(jedis == null){
+            return getObject();
+        }
+        return jedis;
+    }
+
+    private static JedisPool getObject() throws Exception {
+
+        if (StringUtils.isEmpty(host)) {
+            throw new IllegalArgumentException("host should not be empty");
+        }
+
+        return new JedisPool(buildDefaultPoolConfig(), host, port, timeout);
+    }
+
+    private static GenericObjectPoolConfig buildDefaultPoolConfig() {
+        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+        poolConfig.setTestOnReturn(poolConfigTestOnReturn);
+        poolConfig.setTestOnBorrow(poolConfigTestOnBorrow);
+        poolConfig.setTestWhileIdle(poolConfigTestWhileIdle);
+        poolConfig.setBlockWhenExhausted(poolConfigBlockOnExhausted);
+        poolConfig.setMaxIdle(poolConfigMaxIdle);
+        poolConfig.setMaxTotal(poolConfigMaxTotal);
+        return poolConfig;
+    }
+
+四、调用demo
+        int MAX_ATTEMPTS = 10;//最大尝试次数
+        int EXPIRE_SECONDS = 3 * 24 * 60 * 60; //过期时间三天
+        for (int i = 0; i < MAX_ATTEMPTS; ++i) {
+            JedisPool jedisPool = null;
+            Jedis jedis = null;
+            try {
+                jedisPool = JedisPoolFactory.getInstance();
+                jedis = jedisPool.getResource();
+                jedis.sadd("mm_222", "1111");
+                jedis.expire("mm_222", EXPIRE_SECONDS);
+                break;
+            } catch (JedisException e) {
+                if (jedis != null) {
+                    Client client = jedis.getClient();
+                    jedisPool.returnBrokenResource(jedis);
+                    jedis = null;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                jedisPool.returnResource(jedis);
+            }
+        }
