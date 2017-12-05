@@ -5,13 +5,9 @@ import java.sql.*;
 
 public class MysqlConnectFactory {
 
-    private static Connection connection;
-
     public static synchronized Connection getConnection(){
         try{
-            if(connection == null){
-                connection = DriverManager.getConnection("","","");
-            }
+            Connection connection = DriverManager.getConnection("","","");
             return connection;
         } catch(Exception ex){
             ex.printStackTrace();
@@ -47,7 +43,7 @@ public class MysqlConnectFactory {
         }
     }
 
-    public static void close(Connection conn,PreparedStatement st,ResultSet rs){
+    public static void close(Connection conn,Statement st,ResultSet rs){
         if(rs!=null){
             try {
                 rs.close();

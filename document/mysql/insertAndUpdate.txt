@@ -1,0 +1,7 @@
+一、insert和update同时执行
+String sql = INSERT INTO JLC_APP_MARKPOINT_REALTIME (create_date,create_minute,appversion,packagename,platform,channel,regnum,investamount)
+values(?,?,?,?,?,?,?,?)
+"ON DUPLICATE KEY UPDATE regnum = ?,investamount=?
+说明当唯一约束不存在的时候,则使用values方式进行insert,当唯一约束存在的时候,则不执行values代码,而是执行UPDATE regnum = ?,investamount=?代码,将若干个字段设置成新的值,字段分隔符用逗号即可
+注意:上面的唯一约束是create_date,create_minute,appversion,packagename,platform,channel组成的复合唯一约束
+
