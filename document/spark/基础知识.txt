@@ -49,3 +49,9 @@ job是每一个action发生都会产生一个job,有多少个action,就有多少
 stage 一个job里面由于partition之间来回传递,因此会被分成若干个阶段,最明显的是shuffer产生,就会产生一个阶段,即在一个action中可能产生若干个shuffer,那么就会有若干个阶段
 task 每一个阶段都会执行若干个partition任务,每一个partition都是作为一个task来进行的,每一个task的工作内容是相同的
 
+五、spark的conf/spark-defaults.conf文件可以添加参数
+比如添加如下两个参数
+spark.driver.extraJavaOptions -Dhdp.version=2.4.2.0-258
+spark.yarn.am.extraJavaOptions -Dhdp.version=2.4.2.0-258
+此时再提交submit任务的时候,会追加额外的java环境信息
+

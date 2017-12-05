@@ -2,6 +2,7 @@
 知道broker_list的话,进入任意一台broker节点的conf目录下,执行cat * | grep zookeeper
 找到zookeeper.connect=datanode01.xxxx.com:2181,datanode02.xxxx.com:2181,datanode04.xxxx.com:2181
 此时就是zookeeper的连接
+该连接可能在server.properties 或者 zookeeper.properties配置文件中
 
 二、partitions参数,设置topic的partiton数量
 
@@ -10,16 +11,22 @@
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --describe --topic topicName  //查看topic的信息
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --list //查看所有的topic
 消费者aaa.properties文件定义group.id=test
-./kafka-console-consumer.sh  --zookeeper datanode01.xxxx.com:port --topic topicName --from-beginning smallest consumer.config /kafka-broker/bin/aaa.properties //模拟消费者,但是该消费者不会移动offset位置
-一旦设置了该属性--from-beginning,则就一定是从smallest开始读取数据,如果没有设置该属性,则从最新的位置开始读取数据,即largest,即设置的是auto.offset.reset属性
+./kafka-console-consumer.sh  --zookeeper datanode01.xxxx.com:port --property print.key=true --topic topicName --from-beginning smallest consumer.config /kafka-broker/bin/aaa.properties //模拟消费者,但是该消费者不会移动offset位置
+注意:
+1.一旦设置了该属性--from-beginning,则就一定是从smallest开始读取数据,如果没有设置该属性,则从最新的位置开始读取数据,即largest,即设置的是auto.offset.reset属性
+2.--property print.key=true表示打印kafka的key信息
 
 生产者
 ./kafka-console-producer.sh --broker-list ip:prot,ip:prot,ip:prot --topic topicName //创建生产者,可以向里面写入数据
 注意:--broker-list参数的内容来自于zookeeper,而当执行消费者的时候就会有打印粗话--broker-list的参数,将其复制过来即可
 
+
 三、常用命令
 启动zookeeper
-bin/zookeeper-server-start.sh config/zookeeper.properties &
+bin/zookeeper-server-start.sh config/zookeeper.properties &  这种方式说明在zookeeper.properties配置文件中配置好zookeeper的地址,这样kafka会启动zookeeper,不需要单独的启动zookeeper服务
+
+或者 在server.properties配置文件中找到zookeeper.connect配置,说明采用的是外部zookeeper服务方式,即zookeeper服务与kafka解耦,分别启动zookeeper服务
+
 
 启动kafka
 
