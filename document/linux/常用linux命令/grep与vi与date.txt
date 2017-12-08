@@ -6,8 +6,8 @@ b.PATTERN 是正则表达式
 
 
 1.搜索指定关键词,但是不知道他在哪个文件中
-grep -w "easou" click_data.20140716.*
-搜索包含"sasou的文件名"
+grep -w "xxxx" click_data.20140716.*
+搜索包含"xxx的文件名"
 
 2.获取前后行
 a.grep -A5 -w 8088 *
@@ -52,6 +52,9 @@ find . -name '*.java' | xargs grep --color 'main(' | awk '{print $1}' | uniq | g
 grep -a online /usr/bin/ls
 
 10.-v 表示取反
+
+11.\用于转义,比如要查询的内容包含""
+grep "\"table\":\"bank_card\""
 
 二、vi
 查看二进制

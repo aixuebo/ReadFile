@@ -1,0 +1,5 @@
+java.util.Set[String] 要在scala中使用foreach
+解决方法:
+因为reducedList是java.util.HashMap, 没有foreach方法, 所以需要将其转换为Scala的集合类型,
+因此需要在代码中加入如下内容(Scala支持与Java的隐式转换),
+import scala.collection.JavaConversions._

@@ -10,7 +10,6 @@ import kafka.serializer.StringDecoder
 object BinlogTransfer {
 
   def main (args: Array[String]) {
-    println("-222--")
     val ssc = functionToCreateContext()
     ssc.start()
     ssc.awaitTermination()
@@ -23,7 +22,7 @@ object BinlogTransfer {
     val ssc = new StreamingContext(sparkConf, Seconds(30))
 
     val topicsSet = "binlogTransfer".split(",").toSet
-    val kafkaParams = scala.collection.immutable.Map[String, String]("metadata.broker.list" -> "ip:port,ip:port","group.id" -> "test2")
+    val kafkaParams = scala.collection.immutable.Map[String, String]("metadata.broker.list" -> "ip:port,ip:port","group.id" -> "test2","auto.offset.reset"->"smallest") //auto.offset.reset=largest/smallest
     val directKakfaStream = KafkaUtils.createDirectStream[String,String,StringDecoder,StringDecoder](ssc ,kafkaParams ,topicsSet)
 
     //读取kafka内的所有数据内容
@@ -39,3 +38,11 @@ a.val kafkaParams = scala.collection.immutable.Map[String, String]("metadata.bro
 b.先删除要重新统计的redis内的统计指标值
 c.代码里有参数配置要从哪天开始跑历史数据,到哪天为止
 d.循环所有kafka的历史数据,只要大于b参数设置的时间区间的数据都要计算,然后更新redis记录即可
+
+三、限流
+    val sparkConf = new SparkConf(). .set("spark.streaming.kafka.maxRatePerPartition", "100")
+    val ssc = new StreamingContext(sparkConf, Seconds(30))
+上面的配置表示每秒spark streaming只读取每一个kafka的partition只能读取100条数据,即一个批处理30s,则只会读取3000条数据
+即如果有3个partition,则每秒能读取9000条数据去处理
+
+另外spark.streaming.receiver.maxRate这个属性限制每秒的最大吞吐。即限制receiover方式的流量

@@ -24,3 +24,6 @@ def main (args: Array[String]) {
 	blogDate.value != null
 四、不需要序列化的字段
   @transient private var _config: SimpleConsumerConfig = null  //transient关键字表示对该对象不需要进行序列化
+
+
+五、--queue spark_queue 启动时候加入到哪个队列中

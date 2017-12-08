@@ -10,8 +10,11 @@
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --create --topic topicName --partitions 1  --replication-factor 3 //创建topic
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --describe --topic topicName  //查看topic的信息
 ./kafka-topics.sh --zookeeper datanode01.xxxx.com:port --list //查看所有的topic
-消费者aaa.properties文件定义group.id=test
+消费者aaa.properties文件定义group.id=test auto.commit.interval.ms=5000
 ./kafka-console-consumer.sh  --zookeeper datanode01.xxxx.com:port --property print.key=true --topic topicName --from-beginning smallest consumer.config /kafka-broker/bin/aaa.properties //模拟消费者,但是该消费者不会移动offset位置
+
+输出到文件中 追加: | grep "\"table\":\"bank_card\"" >bbb.txt
+
 注意:
 1.一旦设置了该属性--from-beginning,则就一定是从smallest开始读取数据,如果没有设置该属性,则从最新的位置开始读取数据,即largest,即设置的是auto.offset.reset属性
 2.--property print.key=true表示打印kafka的key信息
