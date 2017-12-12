@@ -49,3 +49,11 @@ ssh node1
 以上配置是让master登录node1和node2,但是node1和node2不能相互登录,node1也不能登录master
 如果都让他们三个互相登录,因此将node1和node2的公钥 在master节点添加,在master节点vi authorized_keys,然后将node1和node2的公钥复制进来,然后再将authorized_keys文件重新上传到node1和node2节点上即可实现三个节点互相登录的功能
 
+三、ssh服务访问某些节点速度很慢
+1.vi /etc/ssh/ssh_config
+将GSSAPIAuthentication 改成no就快了
+或者在/etc/hosts文件中加入host和ip的映射
+
+四、ssh配置文件所在地
+/etc/ssh/...
+~/.ssh/...

@@ -54,5 +54,7 @@ c.配置host
 
 d.访问zookeeper,查看/broker/ids/id对应的broker到底是哪个ip:port,此时
 
-
-
+五、关键参数
+linger.ms=100表示100s内的数据,kafka客户端的数据一起发给kafka集群.可以减少性能。缺点就是kafka接收到的数据可能有延迟
+buffer.memory用于配置producer端等待向server发送的数据的缓冲区的大小，默认值为32MB
+max.block.ms=5000当生产者比kafka要消费者快的时候,要阻塞到内存队列中,并且阻塞最多就是这些时间,超过这个时间就抛异常

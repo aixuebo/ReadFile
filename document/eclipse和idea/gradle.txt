@@ -1,0 +1,8 @@
+一、安装
+1.下载---百度云上有
+2.解压缩
+3.设置环境变量
+Gradle_Home   E:\mm\dev\gradle-4.4
+设置path -->  %Gradle_Home%\bin;
+4.测试
+gradle -v

@@ -51,23 +51,3 @@ apt-get 所下载的用于安装的软件包，在
 
 dpkg -L <package name> 如果包安装成功的话，会列出所有文件的位置。
 
-四、scp
-scp [可选参数] file_source file_target 
-从 本地 复制到 远程
-a.复制文件
-scp 本地文件 user@远程ip:/target路径
-例如:scp /root/upload/lib/elasticsearch-5.6.3.tar.gz root@ip:/server/apps/elastic  密码是123123
-注意:target路径可以是文件夹，也可以是文件,如果是文件,则相当于最后文件到远程服务器后名字被改了
-b.复制目录
-scp -r local_folder remote_username@remote_ip:remote_folder 
-c.从远程 复制到本地----是a和b的逆过程
-scp user@远程ip:/source路径 本地target路径
-
-注意
-1.scp需要密码登录,比较麻烦,最好用ssh配置无密码登录方式
-2.如果远程服务器防火墙有特殊限制，scp便要走特殊端口，具体用什么端口视情况而定，命令格式如下
-scp -p 4588 remote@www.abc.com:/usr/local/sin.sh /home/administrator
-3.scp使用的user要有远程服务器相关文件的权限
-
-五、crontab
-40 7 * * * source /home/xxxx/.bashrc && cd /data11/xxxx/app/fixJob && sh fixdb.sh 2>>/data11/xxxxx/logs/fixJob/log/error.log 1>>/data11/xxxx/logs/fixJob/log/out.log

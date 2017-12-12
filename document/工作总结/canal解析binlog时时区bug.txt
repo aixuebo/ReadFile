@@ -1,0 +1,51 @@
+JVM时区出现问题以及解决问题的思路
+1.数据库时间出现延迟13个小时,目测是时区不对。
+数据库内容:last_update_time      | timestamp     | YES  |     | CURRENT_TIMESTAMP | on update CURRENT_TIMESTAMP
+说明该字段是timestamp类型的,在update的时候自动修改为当时时间,记录binlog的内容是一个时间戳,比如1512962560l。
+2.经过整理发现linux服务器的date时间是对的,时区也是对的。
+3.此处陷入无解状态
+4.查看canal解析这块的代码,发现是用java.sql.Timestamp方式解析的mysql的timestamp类型的。
+因此写了一个demo
+	String value = "";
+        final long i32 = 1512962560l;
+        System.setProperty("user.timezone", "");
+        System.out.println(TimeZone.getDefault());
+        System.out.println(i32);
+        if (i32 == 0) {
+            value = "0000-00-00 00:00:00";
+        } else {
+            String v = new Timestamp(i32 * 1000).toString();
+            System.out.println(v);
+            value = v.substring(0, v.length() - 2);
+        }
+        System.out.println(value);
+为了快速发现该问题.因此在linux上写一个文件,编译--执行--测试即可
+5.发现确实java在该节点上结果是错误的,晚了13个小时,很奇怪。
+6.猜测到JVM可能自带一个时区,和linux时区不一致。
+打印Sysyem自带的配置属性
+import java.util.Enumeration;
+import java.util.Properties;
+import java.util.TimeZone;
+final Properties p = System.getProperties();
+final Enumeration e = p.keys();
+while (e.hasMoreElements())
+{
+    final String prt = (String) e.nextElement();
+    final String prtvalue = System.getProperty(prt);
+    System.out.println(prt + ":" + prtvalue);
+}
+最终结果应该是user.timezone:Asia/Shanghai,但是结果确实user.timezone:America/New_York
+7.既然找到问题了,那么就容易改了,设置好分区即可,但是想知道为什么会java读取到的是new_york呢
+System.out.println(TimeZone.getDefault()); //打印的结果也是America/New_York
+
+根据linux版本不同,不一样,我的是/etc/sysconfig/clock 文件来确定时区。
+如果没有可以添加一个。
+ZONE="America/New_York" --->修改为： "Asia/Shanghai"
+UTC=false
+ARC=false
+
+ZONE -- 时区
+UTC -- 表明时钟设置为UTC。
+ARC -- 仅用于alpha表明使用ARC。
+
+这样就可以解决该问题。

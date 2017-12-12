@@ -1,3 +1,4 @@
 1.安装rz命令
 yum install lrzsz
+yum install openssh-server
 2.sudo apt-get install git

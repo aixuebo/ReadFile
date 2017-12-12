@@ -1,0 +1,19 @@
+一、相关概念
+cluster 集群
+node 集群的每一个节点
+shard 分片,能做update操作的一定是主分片,其他分片是备份副本分片
+repilca 做副本的
+全文检索
+
+二、mysql   与 es的映射
+database   index
+table      type
+row    document
+column   field
+schema  mapping
+index   everying is indexed
+sql  query DSL
+select  * from biao   ---> get http://...
+update table set.. ---> put http://...
+
+三、es的写使用bulk-load方式

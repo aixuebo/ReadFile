@@ -6,8 +6,9 @@
  hexdump -C /server/data/mysql/mysql-bin.000749 | more 查看文件二进制形式
 
 3.简单的根据时间查看相对binlog内容,此时只是相对内容,详细内容还是要通过canal
-  /mysql/bin/mysqlbinlog -d test --start-datetime='2017-10-30 19:10:01' -vv /mysql/data/mysql-bin.001915 | more
+  /mysql/bin/mysqlbinlog -d test --base64-output=decode-rows --start-datetime='2017-10-30 19:10:01' --start-position="423257210" -vv /mysql/data/mysql-bin.001915 | more
   注意 上面的sql查询的只是test这个库的,即对binlog进行过滤,方便测试查看binlog日志结果
+  --base64-output=decode-rows 表示显示的数据不要base64的结果
 4.flush logs;  重新切换产生一个新的binlog日志文件
 
 二、用sql去查看binlog的内容---可以用于查看binlog当前日志中第一个binlog的位置
