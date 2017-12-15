@@ -51,6 +51,9 @@ GET "kylin_msg_flag"
 "0"
 10.0.1.70:6379> SET "kylin_msg_flag" 0
 
+删除map里面的数据
+1.对redis执行查询map中的key,对key进行过滤,选择删除的数据关键字,然后使用redis的删除命令去删除数据
+redis-cli hkeys key | grep -E "2017-12-10|2017-12-09" | xargs redis-cli hdel key
 
 
 

@@ -56,6 +56,9 @@ grep -a online /usr/bin/ls
 11.\用于转义,比如要查询的内容包含""
 grep "\"table\":\"bank_card\""
 
+12.过滤的内容是正则表达式
+grep -E "2017-12-10|2017-12-09" 即过滤包含2017-12-10或者2017-12-09的数据,正则表达式也可以写成2017-12-[09|10]
+
 二、vi
 查看二进制
 vi -b 文件名
@@ -63,3 +66,7 @@ vi -b 文件名
 
 三、date
 echo `date -d "-1 day" +%Y-%m-%d-%H-%M` 表示前天时间2017-06-12-15-19
+
+四、xargs
+redis-cli hkeys key | grep -E "2017-12-10|2017-12-09" | xargs redis-cli hdel key
+属于管道,比如 redis-cli hdel key + value,此时的value是xargs结果集中一行一行数据代替value的含义,工作中很重要

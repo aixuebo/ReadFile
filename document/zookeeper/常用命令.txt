@@ -13,3 +13,7 @@
 2. 查看ZK服务状态: sh bin/zkServer.sh status
 3. 停止ZK服务:       sh bin/zkServer.sh stop
 4. 重启ZK服务:       sh bin/zkServer.sh restart
+
+三、常用第三方服务框架的介绍
+CuratorFramework 框架很方便做watch
+ZkClient 框架很方便做读取get和put操作

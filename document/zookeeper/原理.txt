@@ -8,3 +8,7 @@
  三、自增长ID
  利用zookeeper的数据版本,因为数据版本会自增的
 
+ // 节点不存在，那么需要生成id，利用zk节点的版本号每写一次就自增的机制来实现
+ Stat stat = zkClient.writeDataReturnStat(/mm/seq, new byte[0], -1);  // -1表示不会对版本号进行校验
+ // 生成id
+ String id = String.valueOf(stat.getVersion());
