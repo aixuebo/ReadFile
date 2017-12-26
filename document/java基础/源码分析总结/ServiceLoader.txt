@@ -1,0 +1,69 @@
+java.util.ServiceLoader源码分析
+
+
+实现了java的spi功能
+1.加载所有jar包下的META-INF/services/文件集合
+2.该文件的name是接口全路径
+3.该文件的内容是实现了该接口的实现类集合,每行是一个实现类
+
+
+属性
+1.private LinkedHashMap<String,S> providers = new LinkedHashMap<>();
+key是实现类的全路径,value是实例对象
+
+
+实现
+一.ServiceLoader(Class<S> svc, ClassLoader cl) 构造函数
+a.传入要查找哪个接口,以及使用什么loader加载器去查找该接口
+b.进行迭代器懒加载,获取所有的实现类集合的迭代器
+创建迭代器LazyIterator对象
+Enumeration<URL> configs = null;//找到META-INF/services/接口全路径对应的文件集合
+Iterator<String> pending = null;//解析一个文件,找到里面具体的实现类集合
+String nextName = null;//下一个具体的实现类,从pending中迭代
+
+1.boolean hasNext()方法
+a.在所有的jar包下,查找META-INF/services/接口全路径对应的文件集合,赋值给configs
+b.循环找到的所有文件,每一个文件进行解析,获取一个实现类集合,赋值给pending
+c.不断的从pending中迭代,找到一个一个实现类全路径
+
+2.S next()方法
+a.使用classloader加载nextName这个实现类,获取class对象
+b.确保该class对象一定是service的实现类,即确保service.isAssignableFrom(c)
+c.S p = service.cast(c.newInstance());将其实例化,强转成S对象
+d.providers.put(nextName, p);将class的实现类的name与具体实例化对象做关联映射
+
+二、如何解析每一个文件
+Iterator<String> parse(Class service, URL u)
+1.参数是class的接口,以及META-INF/services/接口全路径的文件url
+2.打开文件流,一行一行读取文件,过滤#对应的注解
+3.将解析的实现类添加到一个list集合中
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+一、应用---查找dirver的所有驱动实现类
+1.以前我们要使用Class.forName("com.mysql.jdbc.Driver")这句先加载数据库相关的驱动，然后再过去连接
+2.JDBC4.0之后就不需要了,而是使用SPI,因为java jdbc只要定义一个接口即可,java.sql.Driver.
+3.每一个驱动的厂商会自己实现类,并且写入到自己的jar包下,并且在META-INF/services写入实现类内容
+比如
+在mysql的jar包mysql-connector-java-6.0.6.jar中，可以找到META-INF/services目录，该目录下会有一个名字为java.sql.Driver的文件，文件内容是com.mysql.cj.jdbc.Driver，这里面的内容就是针对Java中定义的接口的实现。
+4.因此我们就不需要使用Class.forName("com.mysql.jdbc.Driver")了,而是使用以下即可:
+String url = "jdbc:xxxx://xxxx:xxxx/xxxx";
+Connection conn = DriverManager.getConnection(url,username,password);
+5.原因就是DriverManager类会加载所有驱动实现类
+ServiceLoader<Driver> loadedDrivers = ServiceLoader.load(Driver.class);
+Iterator<Driver> driversIterator = loadedDrivers.iterator();
+6.然后使用url中关键字,如果是mysql,则选择mysql的jar包即可。
+
+注意:
+1.真实的情况不是像6说的那样,没有根据url,而是强制的创建各种连接,直到能连接成功为止,即选择了一个合适的driver驱动了
+2.在SPI解析过程中,每一个driver的实现类都会调用DriverManager.registerDriver(java.sql.Driver driver),将该driver注册给DriverManager,方便查找driver的时候使用
+
+
+
+
+二、SPI使用场景
+关于组织或者公司定义标准,不用关注实现,实现让不同的厂商实现即可,只要有管理就好
+
+三、缺点
+通过上面的解析，可以发现，我们使用SPI查找具体的实现的时候，需要遍历所有的实现，并实例化，然后我们在循环中才能找到我们需要实现。这应该也是最大的缺点，需要把所有的实现都实例化了，即便我们不需要，也都给实例化了。
+但是dubbo给把这个问题解决了

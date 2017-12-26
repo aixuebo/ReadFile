@@ -1,0 +1,4 @@
+1.真实的情况不是像6说的那样,没有根据url,而是强制的创建各种连接,直到能连接成功为止,即选择了一个合适的driver驱动了
+2.在SPI解析过程中,每一个driver的实现类都会调用DriverManager.registerDriver(java.sql.Driver driver),将该driver注册给DriverManager,方便查找driver的时候使用
+
+详细参见视频和serviceLoader代码解析

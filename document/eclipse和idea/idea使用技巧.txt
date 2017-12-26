@@ -1,3 +1,7 @@
+debug的watch
+用于将关心的变量单独显示出来,这样无论该变量变化成什么值了,都可以在debug区域内展示出来
+
+
 eclipse快捷键
 1、Ctrl+Shift+G 查看方法在什么地方调用过。前提是方法被光标选中以后再进行操作。
 2、Syso+Alt+?
@@ -13,6 +17,12 @@ eclipse快捷键
 
 
 idea快捷键
+常用代码提示快捷键
+main-----psvm 也就是public static void main的首字母。
+for ----fori
+sout----System.out.println();
+更多的提示可以CTRL + j 可以查看,mac系统下是command＋j.
+
 最常用的快捷键
 Alt+F1 常用工具都在这个选项里面
 Alt+F7 查找该方法或该类在哪些地方被调用了

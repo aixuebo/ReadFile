@@ -1,0 +1,181 @@
+一、spring文件的方式依赖注入,ClassPathXmlApplicationContext方式
+public class SpringContainer  {
+    public static final String DEFAULT_SPRING_CONFIG = "classpath*:META-INF/spring/*.xml";//去什么路径加载xml配置文件
+
+    static ClassPathXmlApplicationContext context;//全局共享,而且是静态的,初始化一次后,其他类就可以通过该类加载到bean了
+
+    public static ClassPathXmlApplicationContext getContext() {
+		return context;
+	}
+
+	public void start() {
+        String configPath = DEFAULT_SPRING_CONFIG;
+        context = new ClassPathXmlApplicationContext(configPath.split("[,\\s]+"));
+        context.start();//开启方法其实没有根本性的意义,详细参见下面解答
+    }
+
+    public void stop() {
+        try {
+            if (context != null) {
+                context.stop();
+                context.close();
+                context = null;
+            }
+        } catch (Throwable e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+}
+
+
+二、java配置annatation的方式依赖注入,AnnotationConfigApplicationContext方式
+
+public class JavaConfigContainer{
+
+    public static final String DEFAULT_SPRING_JAVACONFIG = "dubbo.spring.javaconfig";//可以存储包名,也可以是具体的class，如果是包名,表示该名字下面就是存储的各种引用对象
+
+    static AnnotationConfigApplicationContext context;//该方法是静态的,一旦启动后就可以用该方法了
+
+    public static AnnotationConfigApplicationContext getContext() {
+        return context;
+    }
+
+    public void start() {
+        String configPath = DEFAULT_SPRING_JAVACONFIG;
+        context = new AnnotationConfigApplicationContext(configPath);
+        context.start();
+    }
+
+    public void stop() {
+        try {
+            if (context != null) {
+                context.stop();
+                context.close();
+                context = null;
+            }
+        } catch (Throwable e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+}
+
+三、demo
+
+public class Assignment {
+    public void test(){
+        System.out.println("--Assignment----");
+    }
+}
+
+public class Module {
+    private Assignment assignment;
+
+    public Assignment getAssignment() {
+        return assignment;
+    }
+
+    public void setAssignment(Assignment assignment) {
+        this.assignment = assignment;
+    }
+}
+
+public class Course {
+    private Module module;
+
+    public Module getModule() {
+        return module;
+    }
+
+    public void setModule(Module module) {
+        this.module = module;
+    }
+}
+
+配置对象
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class AppContext {
+    @Bean
+    public Course course() {
+        Course course = new Course();
+        course.setModule(module());
+        return course;
+    }
+
+    @Bean
+    public Module module() {
+        Module module = new Module();
+        module.setAssignment(assignment());
+        return module;
+    }
+
+    @Bean
+    public Assignment assignment() {
+        return new Assignment();
+    }
+}
+或者xml的配置
+<beans>
+    <bean id="course" class="demo.Course">
+        <property name="module" ref="module"/>
+    </bean>
+
+    <bean id="module" class="demo.Module">
+        <property name="assignment" ref="assignment"/>
+    </bean>
+
+    <bean id="assignment" class="demo.Assignment" />
+</beans>
+
+测试
+public class Test {
+
+    static AnnotationConfigApplicationContext context;//该方法是静态的,一旦启动后就可以用该方法了
+
+    public static final String DEFAULT_SPRING_JAVACONFIG = "com.alibaba.dubbo.container.javaconfig.demo.resource";
+
+    public void test1(){
+        String configPath = DEFAULT_SPRING_JAVACONFIG;
+        //context = new AnnotationConfigApplicationContext(AppContext.class);
+        context = new AnnotationConfigApplicationContext(configPath);//可以存储包名,也可以是具体的class
+        Course course = ((Course) context.getBean("course"));
+        course.getModule().getAssignment().test();
+        context.start();
+    }
+    public static void main(String[] args) throws InterruptedException {
+        Test test = new Test();
+        test.test1();
+
+        Thread.sleep(5000);
+
+        new Test2().test1();
+
+        boolean running = true;
+        synchronized (Test.class) {//一定要让其睡眠,不然AnnotationConfigApplicationContext启动后程序就结束了,test2就没有办法执行代码了
+            while (running) {
+                try {
+                    Test.class.wait();
+                } catch (Throwable e) {
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 外部使用javaconf去调用程序,因为主程序在sleep
+ */
+public class Test2 {
+
+    public void test1(){
+        AnnotationConfigApplicationContext context = Test.context;
+        Course course = ((Course) context.getBean("course"));
+        course.getModule().getAssignment().test();
+    }
+
+}
+

@@ -1,0 +1,60 @@
+hadoop-----------------
+一、赋予权限
+hadoop fs -chmod -R 775 /apps/hive/warehouse/data_analysis.db
+
+
+二、设置path的user和group
+hadoop fs -chown -R 775 user:analysis /apps/hive/warehouse/data_analysis.db
+
+三、创建hadoop临时目录并且赋权限
+hadoop fs -mkdir -p /user/root/
+hdfs dfs -chmod -R 777 /user/root/
+
+四、查看某个组下有哪些用户
+hdfs groups hdfs 查看hdfs这个组下有哪些用户
+
+
+五、另外的方式设置权限
+hdfs dfs
+        [-chgrp [-R] GROUP PATH...] 将path的组设置为group
+        [-chmod [-R] <MODE[,MODE]... | OCTALMODE> PATH...] 修改文件的权限
+        [-chown [-R] [OWNER][:[GROUP]] PATH...] 设置该path的所属者和group
+
+
+linux---------------------------------------
+一、更改文件的所有者和所属组
+chown命令来改变文件所有者及用户组
+chown [-R] 账号名称 文件或目录
+chown [-R] 账号名称:用户组名称 文件或目录
+-R : 进行递归( recursive )的持续更改，即连同子目录下的所有文件、目录
+例如:
+chown zjy /home/zjy/ 设置文件所属人
+chown zjy:hdfs /home/zjy/ 设置用户和组
+
+二、仅仅设置所属组
+chgrp命令来改变文件所在用户组
+chgrp [-R] users install.log 设置install.log的所属组是users
+
+三、设置权限
+为一个目录设置权限,并且递归操作
+chmod -R 775 /data/encryption/
+
+四、将三个用户添加到hdfs组
+usermod -G hdfs sqoop
+usermod -G hdfs hive
+usermod -G hdfs root
+
+五、查看用户所属哪些组里面
+groups username 查看username这个用户都有哪些组,返回该用户对应的组集合
+
+
+六、查看用户集合和组集合
+1.cat /etc/passwd | more 查看用户集合信息
+数据格式:用户名、密码、用户ID、用户所在组ID、用户备注、用户的home目录、shell命令所在目录
+
+
+2.cat /etc/group | more 查看用户组内集合信息
+数据格式:用户组、组口令、组ID、该组内user集合
+
+
+
