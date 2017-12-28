@@ -57,3 +57,12 @@ ssh node1
 四、ssh配置文件所在地
 /etc/ssh/...
 ~/.ssh/...
+
+五、登录
+ssh -lroot -p2222 ip
+即ssh -luser -p端口 ip 然后输入密码
+
+
+
+ssh工具的输入密码时候的前置条件写入的内容-------password
+

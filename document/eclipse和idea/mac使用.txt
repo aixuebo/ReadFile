@@ -1,0 +1,46 @@
+ 一、远程桌面全屏 command+2即可
+ 二、截屏
+ Shift＋Command＋3 是截取全屏
+ Shift＋Command＋4 是截取可以选择的屏幕
+
+ 三、如何使用锐捷登录公司网络
+ 1.在app中查找sslvpn这个应用
+ 2.在最上面的状态栏里面有登录信息
+ 3.输入密码后即可完成登录的网络切换
+
+ 四、远程桌面
+ 1.在app中的搜索按钮,搜索Remote Desktop 即可
+ 2.在app页面列明的第一页,有"远程桌面连接"图标,点击即可
+ 3.输入ip:port 点击连接即可
+
+五、mac上item2工具的使用
+1.如何设置用户和密码去记住linux服务器的密码
+profiles---open profiles---edit profile进行编辑
+在general里面写入name以及command里面写入expect脚本路径:
+比如 expect /users/macbookair/.ssh/xxx/27 ip
+表示进入27这个跳板机跳转的脚本文件.传入最终要跳转的ip地址
+
+2.expect脚本的注意事项---定义一个脚本去远程登录机器,脚本路径/users/macbookair/.ssh/xxx/27---27表示跳板机的服务器ip
+#!/usr/bin/expect -f
+  set user xxxx
+  set host ip
+  set port 22
+  set password xxxx
+  set timeout -1
+  set remote_host [lindex $argv 0]
+
+  spawn ssh -l$user -p$port $host
+  expect "*assword:*"
+  send "$password\r"
+  expect "*#*"
+  send "ssh $remote_host\r"
+  interact
+  expect eof
+
+注意:
+a.开始设置各种参数值
+b.其中如何从外部获取传入的参数值:[lindex $argv 0]这种方式获取第0个参数值,以此类推修改最后的数字即可找到参数值
+c.expect表示期望是什么字符出现,此时可以使用*表示通配符
+d.send是要输入的内容是什么
+注意send内容输入完成后,要接着\r表示回车的意思,这样程序就会继续执行下去了
+e.先输入密码登录到跳板机,然后在发送命令去另外的节点机器

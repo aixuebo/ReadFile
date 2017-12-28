@@ -1,0 +1,5 @@
+ 一、任何线程,在shutdown之前,并且在执行期间,由于一个失败而导致的终止时,
+ If any thread terminates due to a failure during execution prior to shutdown,
+
+ due to 表示由于
+ prior to 表示在...之前
