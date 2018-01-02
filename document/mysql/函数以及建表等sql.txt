@@ -51,3 +51,6 @@ CREATE TABLE `user_wealth_achievement` (
   UNIQUE KEY `uq_user_mobile` (`user_mobile`) USING BTREE,
   KEY `IDX_USER_ID` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='用户财富成绩单'
+
+7.导入数据
+mysql -h -P3306 -uroot  -p密码 database < user_wealth_achievement.sql
