@@ -38,6 +38,10 @@ public class DateUtil {
 	    return YMD_.print(YMD_.parseDateTime(date).plusDays(dayNum));
 	}
 
+	//计算两个时间差多少天
+	public static int dayNum(String beginDate,String endDate){//2017-02-01
+		return Integer.parseInt(String.valueOf((YMD_.parseDateTime(endDate).getMillis() - YMD_.parseDateTime(beginDate).getMillis()) / (24 * 3600 * 1000)));
+	}
     //每个月的开头和结尾
 	public void month(){
 		
@@ -142,6 +146,6 @@ public class DateUtil {
 		System.out.println(before3Day);
 
 		System.out.println(DateUtil.weekday("20141203"));
-
+		System.out.println(dayNum("2017-02-04","2017-02-04"));
 	}
 }

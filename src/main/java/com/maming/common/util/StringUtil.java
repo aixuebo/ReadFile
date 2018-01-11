@@ -1,5 +1,7 @@
 package com.maming.common.util;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.MessageFormat;
@@ -103,6 +105,10 @@ public class StringUtil {
 
     public static BigDecimal div(long value1, int value2) {
         return new BigDecimal(value1).divide(new BigDecimal(value2), 2, BigDecimal.ROUND_HALF_UP);
+    }
+    
+    public static BigDecimal div(double value1, double value2,int n) {
+        return new BigDecimal(value1).divide(new BigDecimal(value2), n, BigDecimal.ROUND_HALF_UP);
     }
 
     public static String setStringToString(Set<String> set) {
@@ -215,6 +221,13 @@ public class StringUtil {
 		return Double.parseDouble(new DecimalFormat("###.00").format(value));
 	}
 	
+	//打印堆栈信息
+    public static String printStackTrace(Throwable t){
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw, true));
+        return sw.getBuffer().toString();
+    }
+    
     public static void main(String[] args) {
         int[] a = new int[]{5, 6, 7};
         String xx = StringUtil.setIntegerArrToString(a);
