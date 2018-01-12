@@ -1,0 +1,5 @@
+一、字符串如何转换成时间格式 和 date格式
+select cast(create_time as timestamp)  from xxx limit 10 ---转换成时间
+select date(cast(create_time as timestamp))  from xxx limit 10 ---转换成date
+select date_parse('2017-08-19 17:25:11.0','%Y-%m-%d %H:%i:%s.%f') from xxx limit 10 ---mysql的方式格式转换
+select parse_datetime('2017-01-01','YYYY-MM-dd') from xxx limit 10  ----java的方式格式转换

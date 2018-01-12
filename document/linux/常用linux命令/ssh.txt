@@ -46,8 +46,10 @@ scp authorized_keys root@node2:root/.ssh/
 ssh node1
 
 注意:
-以上配置是让master登录node1和node2,但是node1和node2不能相互登录,node1也不能登录master
+1.以上配置是让master登录node1和node2,但是node1和node2不能相互登录,node1也不能登录master
 如果都让他们三个互相登录,因此将node1和node2的公钥 在master节点添加,在master节点vi authorized_keys,然后将node1和node2的公钥复制进来,然后再将authorized_keys文件重新上传到node1和node2节点上即可实现三个节点互相登录的功能
+
+2.比如我要让62的节点上 执行ssh root@70节点,则要在70节点上/root/.ssh/authorized_keys中添加62节点的/root/.ssh/id_rsa.pub
 
 三、ssh服务访问某些节点速度很慢
 1.vi /etc/ssh/ssh_config
@@ -66,3 +68,6 @@ ssh -lroot -p2222 ip
 
 ssh工具的输入密码时候的前置条件写入的内容-------password
 
+
+六、在其他节点机器上去执行程序
+ssh root@ip nohup sh /server/app/spark_streaming/job/xxx.sh &

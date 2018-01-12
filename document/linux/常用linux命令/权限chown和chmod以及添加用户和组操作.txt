@@ -1,4 +1,5 @@
 hadoop-----------------
+r=4，w=2，x=1
 一、赋予权限
 hadoop fs -chmod -R 775 /apps/hive/warehouse/data_analysis.db
 
@@ -37,6 +38,7 @@ chgrp [-R] users install.log 设置install.log的所属组是users
 
 三、设置权限
 为一个目录设置权限,并且递归操作
+r=4，w=2，x=1
 chmod -R 775 /data/encryption/
 
 四、将三个用户添加到hdfs组
