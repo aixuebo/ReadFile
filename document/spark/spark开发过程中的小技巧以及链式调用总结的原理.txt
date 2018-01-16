@@ -1,0 +1,133 @@
+开发过程中的小技巧-------------------------------------------------------
+1.mappartition中it调用it.map或者filter或者foreach或者flatmap的时候可以进入懒加载模式
+2.spark的map和filter、mappartition这些函数能链式的原因是返回值都是迭代器，而迭代器可以懒加载也可以直接加载。
+3.map方法或者filter等方法如果需要知道这行数据是第几个partition的数据?
+可以使用rdd.mapPartitionsWithIndex( (index,iter) => {
+  iter.map(str => (index,str))//懒加载模式
+}).map(kv=>{
+  println(kv._1) //返回第几个partition
+  println(kv._2)  //返回具体的一行数据内容
+})
+4.glom返回的就是一个partition内所有的数据转换成Array数组,因为他会占用内存，并且非懒加载。
+5.任何方法中都可以通过TaskContext.get()方法得到context上下文对象。
+
+
+-------------------------------------------------------
+链式调用原理
+
+https://spark.apache.org/docs/latest/rdd-programming-guide.html
+
+spark流程
+sparkConf--->sparkContext-->调用textFile等方法--返回RDD
+然后对rdd各种操作,每一个操作还会产生新的rdd的过程,这期间就会有多个任务产生
+最后sc.stop停止
+
+比如 读取Hadoop的一个文件,产生一个RDD[String]。其中String表示一行内容
+然后.map()获取一行数据中的某一列信息.然后count,查看多少个数量
+
+即Rdd.map().count,期间产生了两个RDD,最后计算第二个rdd的count
+
+map函数接收的参数是一个函数,即给定一个参数对象,返回一个转换后的对象,结果集是RDD[U]
+说明map函数是transfer的函数,即第一个RDD的每一行数据都将这一行数据内容给map进行输出成新的对象,
+以此类推,属于堆栈信息可以打印调用链,即如果RDD后面接100个map,则调用链堆栈长度就是100个主要方法,
+结果就是最后一个map返回的值,然后循环下一行数据。
+####问题1--最后的返回值如何存储的呢?毕竟count要用到返回值
+  def map[U: ClassTag](f: T => U): RDD[U] = withScope {
+    val cleanF = sc.clean(f)
+    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))//表示每一个元素都执行f函数,将原本的T转换成U
+  }
+迭代器调用map方法,会在next方法的时候,将迭代器的一个元素进行f函数处理,返回的依然是一个迭代器,
+但是只是一个迭代器,没有真的去执行
+  def map[B](f: A => B): Iterator[B] = new AbstractIterator[B] {
+    def hasNext = self.hasNext
+    def next() = f(self.next())
+  }
+
+如上代码实现:
+this表示第一个Rdd,然后将rdd的每一个迭代器要执行的方法作为参数给map,这样每一个map就可以执行这个函数了,
+得到新的RDD返回值,以此类推,即调用链是iter3.map(iter2.map(iter1.map(cleanF)))
+其实真实的是T => U,U => X,X => Y,的过程,经过转变为
+比如 第一个方法表示将T转换成Ta,即多加一个a
+第二个方法是再多加一个b
+第三个方法是多加一个c
+
+我们看一下一个action行为是如何触发的
+def count(): Long = sc.runJob(this, Utils.getIteratorSize _).sum
+他会触发一个真正的job去执行,this表示最后一个rdd对象
+此时RDD存储的是Y对象
+
+比如此时this的RDD就是RDD[String],该String是经过iter3.map(iter2.map(iter1.map(cleanF)))计算出来的结果
+然后交给了sc.runJob(this, Utils.getIteratorSize _).sum
+即相当于把迭代器给Utils.getIteratorSize函数,然后不断的调用next方法
+  def getIteratorSize[T](iterator: Iterator[T]): Long = {
+    var count = 0L
+    while (iterator.hasNext) {
+      count += 1L
+      iterator.next()
+    }
+    count
+  }
+每一次调用next方法,都会进行迭代器的next方法处理,此时会执行f(self.next()),
+而此时的f就是一个元素进行链式访问,
+f(原始文件一行数据),
+f(  f(原始文件一行数据)+c  )
+f(  f( f(原始文件一行数据)+b )+c  )
+f(  f( f( f(原始文件一行数据)+a )+b )+c  ) 这就是最终变化的计算规则
+这就是一个递归调用的过程,最终一行数据可以变成最终的返回值
+
+
+然后会执行该rdd,并且每一个分区该如何执行,以及一共多少个分区的id集合
+  def runJob[T, U: ClassTag](
+      rdd: RDD[T],
+      func: Iterator[T] => U,
+      partitions: Seq[Int]): Array[U] = {
+    val cleanedFunc = clean(func)
+    runJob(rdd, (ctx: TaskContext, it: Iterator[T]) => cleanedFunc(it), partitions)
+  }
+对函数再一次封装为Utils.getIteratorSize(Iterator[T])=>U
+当最终给一个分区的时候,会调用Utils.getIteratorSize方法,该方法会获取next值,而
+next值的计算就是走iter3.map(iter2.map(iter1.map(cleanF)))的过程
+
+
+  def runJob[T, U: ClassTag](
+      rdd: RDD[T],
+      func: (TaskContext, Iterator[T]) => U,
+      partitions: Seq[Int]): Array[U] = {
+    val results = new Array[U](partitions.size) //多少个partition,每一个partiton的结果
+    runJob[T, U](rdd, func, partitions, (index, res) => results(index) = res) //将每一个抓去的结果,存储到results数组中
+    results
+  }
+上面代码告诉我们最终返回值是一个数组,因此每一个分区的返回值不宜太多数据,否则返回到driver会承受不住的。
+就因为数组很小,因此可以进行一些操作,比如foreach或者sum计算总数量
+
+
+  def foreach(f: T => Unit): Unit = withScope {
+    val cleanF = sc.clean(f)
+
+    /**
+     * 让sc执行runjob方法,第一个参数是根需要的RDD
+     * 第二个参数是传入一个迭代器,函数会循环迭代器,每一个元素都执行f方法
+     */
+    sc.runJob(this, (iter: Iterator[T]) => iter.foreach(cleanF))//迭代器每一个partition,每一个元素进行f函数处理
+  }
+  可以看到foreach是针对每一个分区的内容进行foreach函数处理的,最终处理的数组在driver端是没有任何处理的。
+  因此也是性能很好的,因为是分布式的算法逻辑
+不断的循环每一个原始元素,然后经过一些列运算后,执行foreach里面的方法打印或者其他,然后执行下一行代码
+
+以下为迭代器里面的代码实现
+  def foreach[U](f: A =>  U) { while (hasNext) f(next()) }
+
+详细学习每一个action行为的原理
+
+一旦执行完action后,就会返回给driver端一个数据,该数据是可以在driver端获取的，即程序转移到driver端上来了。
+该过程是一个同步操作的过程。因此性能产生在这个位置,即如果多个action,又不是多线程的,因此会在driver端产生严重的延迟性问题。
+有可能这种延迟性是业务需要的
+
+  def reduce(f: (T, T) => T): T = withScope { 是将结果在driver端进一步merge的过程
+即每一个分区要执行一个reduce操作,然后merge阶段是所有的job执行完后返回的Array数组进一步执行一下reduce函数。
+
+def takeOrdered(num: Int)(implicit ord: Ordering[T]): Arra会调用reduce方法去实现
+
+  def countByKey(): Map[K, Long] = self.withScope { 应该有shuffler的过程,可以详细观察一下是否真的有这个过程
+
+  saveAsTextFile如何实现的
