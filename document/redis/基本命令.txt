@@ -56,4 +56,6 @@ GET "kylin_msg_flag"
 redis-cli hkeys key | grep -E "2017-12-10|2017-12-09" | xargs redis-cli hdel key
 
 
-
+--------------------------
+如何开启服务
+sh /server/redis-3.0.6/src/redis-server /etc/redis/6379.conf

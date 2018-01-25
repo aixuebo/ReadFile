@@ -11,3 +11,10 @@ echo ${CLASSPATH}
 
 千万注意：在linux上，这个命令" java -cp .:some.jar My " 中参数cp后面的类路径分隔符为冒号":"而不是分号";",而在windows上则是分号，这个务必注意，否则不会出正确结果的
 
+二、线上的一个启动demo
+/server/java/jdk1.8.0_60/bin/java -Xmx512M -server -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSScavengeBeforeRemark -XX:+DisableExplicitGC \
+-Djava.awt.headless=true -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9999 -Dkafka.logs.dir=/var/log/kafka \
+-Dlog4j.configuration=file:/usr/hdp/current/kafka-broker/bin/../config/tools-log4j.properties -cp :/usr/lib/ambari-metrics-kafka-sink/ambari-metrics-kafka-sink.jar:/usr/lib/ambari-metrics-kafka-sink/lib/*
+com.maming.hdfs.core.Server
+
+

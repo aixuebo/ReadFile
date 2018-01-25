@@ -35,3 +35,25 @@ object Option {
 
   //而要么是一个空集合,要么是一个元素的集合
   def toList: List[A] = if (isEmpty) List() else new ::(this.get, Nil)
+
+三、try catch使用
+    try{
+          if(count > 0 ) product.send(messages)
+        } catch{
+          //TODO 打印日志,此时很关键
+          case e:Exception => buf += DateUtil.YMDHFM.print(System.currentTimeMillis()) + "fault" + StringUtil.printStackTrace(e)
+        }
+
+四、case问题,关于多行语法,可以不用加{}
+    val replicationFuture = data match {
+        //复制到多个节点上
+      case b: ByteBufferValues if putLevel.replication > 1 =>
+        // Duplicate doesn't copy the bytes, but just creates a wrapper
+        val bufferView = b.buffer.duplicate() //复制要copy的字节内容
+        Future {
+          // This is a blocking action and should run in futureExecutionContext which is a cached
+          // thread pool
+          replicate(blockId, bufferView, putLevel)
+        }(futureExecutionContext)
+      case _ => null
+    }

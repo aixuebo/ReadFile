@@ -92,6 +92,8 @@ GenericUDAFComputeStats和StringNumDistinctValueEstimator 用于distinct语法�
     substr("abcd",2) 返回bcd,表示从2开始一直到结尾
  注意,pos下标从1开始计算,length表示最终获取多少个数字
 
+19_2.split(url, '\\?')[0]; 让url按照?号拆分成数组,获取第0个元素
+
 20.parse_url(String url,String key) 从url中解析执行部分,然后返回截取的指定地方
    第二个参数是:HOST, PATH, QUERY, REF, PROTOCOL, AUTHORITY, FILE
   例如

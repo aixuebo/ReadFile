@@ -1,0 +1,145 @@
+一、专门将数据恢复的操作,涉及到的有reset、revert、checkout三者的关系与区别。
+不过目前只是将reset、revert简单的区别
+
+区别
+1.revert只能撤销commit,不能针对某一个文件单独撤销
+2.reset和checkout可以针对commit,也可以针对某一个文件进行还原
+
+
+二、工作区域只有一个版本内容,此时相当于临时文档
+  index 区域是一个本地单机版本的仓库---多版本
+  push 区域是分布式仓库,即所有分布式节点公用的版本控制---多版本
+
+三、revert  撤销特定commit
+注意:
+只是撤销某一个commit,比如三个提交,分别提交了文件1，文件2，文件3
+
+1.最简单的一个场景，就是撤销最近的1次commit：---这个最常用
+git revert HEAD
+最近1次commit是新增03.txt，撤销这个commit之后，test01分支就只剩下2个文件了：01.txt, 02.txt。
+
+2.有时，可能需要撤销某个特定commit，比如，当我需要撤销第2个commit时，指定对应ID即可：
+git revert 3821210392184432de18b596cee58ab7924e39f9
+此时撤销的commit是提交文件2,以及此时commit还修改了文件1
+因此结果是文件只有01，和03,同时文件1还出现了两次提交的公共代码,要求自己merge后再提交
+
+3.一次撤销多个commit
+git revert b39476b9c730d312266fe9bc7f63e795f9ba856f 3821210392184432de18b596cee58ab7924e39f9
+撤销了后面2个commit，test03分支就只剩下1个文件了：01.txt。
+
+
+4.例子3中撤销的是连续的commit,但是因为revert操作只与单个commit相关，我们也可以撤销多个非连续的commit
+git revert b39476b9c730d312266fe9bc7f63e795f9ba856f  55d3012564e94a39f6686c0e532c0459ddc41ec4
+撤销了第1个和第3个commit，test04分支就只剩下1个文件了：02.txt。
+
+
+
+四、reset 表示重置为特定commit
+1.在示例3中，撤销了两个连续的commit，这样做等价于将代码重置为第1个commit的状态：仅有01.txt这1个文件。使用git revert命令有些麻烦，我们可以直接使用git reset命令来实现：
+git reset --hard 55d3012564e94a39f6686c0e532c0459ddc41ec4
+将仓库强制重置为第1个commit，这样分支就只剩下1个文件了：01.txt。
+
+git reset –hard与git revert效果看起来一样，但是不同点在于，前者直接删除了后面2个commit及其代码，没有保存commi历史，因此这个操作是不可逆的！使用时应该特别小心。
+即重置会将后面所有的commit的记录都删除掉,写的代码也会被删除掉,并且没有commit提交历史
+
+
+
+如果你的本地仓库与远程仓库在reset之前是同步过的，reset之后，两者的commit不一致，本地仓库的commit落后与远程仓库，这样会导致push失败：
+
+git push
+To git@github.com:Fundebug/git-rollback.git
+ ! [rejected]        test05 -> test05 (non-fast-forward)
+error: failed to push some refs to 'git@github.com:Fundebug/git-rollback.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. Integrate the remote changes (e.g.
+hint: 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+这是需要使用–force选项，这样远程仓库会被强制覆盖：
+
+git push --force
+
+2.reset时使用–hard选项是一个很危险的操作，因为它把commit以及代码全删了，没法恢复。如果你只希望删除commit，而保留修改过的代码的话，可以使用–soft选项。
+git reset --soft 55d3012564e94a39f6686c0e532c0459ddc41ec4
+这时，后面2个commit也被删除了，当前commit为第1个commit。但是，02.txt与03.txt并没有被删除。
+
+
+
+四、demo开始,详细看git的执行逻辑
+1.创建aaa.txt文件,写入内容aaa
+2.执行git status
+On branch master
+Initial commit
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        aaa.txt
+nothing added to commit but untracked files present (use "git add" to track)
+
+说明此时在master的分支上,有文件aaa.txt没有被提交
+已经提交的内容中没有尚未commit的,但是有文件没有被git管理起来,建议用add去添加到系统中
+
+3.提交commit aaa.txt
+4.执行git status
+On branch master
+nothing to commit, working directory clean
+说明此时已经没有什么东西可以被提交,工作目录干净了(干净意味着都提交了,并且所有文件都被git管理了)
+但是此时尚未push,因此只是说明工作空间干净了
+
+5.添加一个bbb.txt文件,以及修改aaa.txt文件
+6.执行git status
+a.说明在master分支上,有尚未被提交的aaa.txt文件,即此时工作区和index区进行对比发现的结果
+On branch master
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git checkout -- <file>..." to discard changes in working directory)
+
+        modified:   aaa.txt
+
+b.说明在master上有bbb文件尚未被git管理
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+        bbb.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+6.先解决上面的b问题,将bbb文件添加到git中
+$ git status
+On branch master
+Changes to be committed:
+  (use "git reset HEAD <file>..." to unstage)
+
+        new file:   bbb.txt
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git checkout -- <file>..." to discard changes in working directory)
+
+        modified:   aaa.txt
+
+说明此时工作区增加了bbb文件(新文件) 需要被提交,以及更改的aaa需要被提交
+
+7.创建ccc文件,并且提交
+8.查看日志
+git log 查看详细日志
+$ git log --pretty=oneline 查看简略日志
+456e6c49fad9fc9824d5b848897c645736743df7 提交ccc
+2ee94f8de3d56fbc09ad114420c2c228b8136f29 提交bbb
+2b3442d5ae909a600538ec8d9cfc61b59e129f12 提交aaa
+
+
+五、以前的学习内容
+在Git中，用HEAD表示当前版本，上一个版本就是HEAD^，上上一个版本就是HEAD^^，当然往上100个版本写100个^比较容易数不过来，所以写成HEAD~100。
+a.将分支上HEAD,即最后一次提交的内容,重新放置到缓存区中
+恢复当前版本 git reset HEAD readme.txt
+恢复上一个版本 git reset --hard HEAD^
+恢复到某一个版本git reset --hard 3628164
+b.将缓存区的内容,重新覆盖到工作区中
+git checkout -- readme.txt
+注意--,如果没有--,则就是切换分支了,注意这个区别。
+git checkout HEAD readme.txt
+从版本库中还原数据
+
+
+
+
+

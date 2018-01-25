@@ -1,5 +1,9 @@
-一、val conf = new SparkConf().setAppName("Arima_premium_predict").set("spark.executor.instances", "30").set("spark.executor.cores", "1").set("spark.executor.memory", "3g").set("spark.ui.port","4038")
+一、val conf = new SparkConf().setAppName("Arima_premium_predict").set("spark.executor.instances", "30").set("spark.executor.cores", "1").set("spark.executor.memory", "3g").set("spark.ui.port","4038").set(""spark.driver.memory","2G")
 表示开启30个executor,每一个executor有一个线程,一个executor一共持有3G内存,ui在端口4038上执行
+spark.driver.memory表示driver的内存使用,driver与executor是可以设置不同的内存使用
+spark.driver.cores 表示driver使用的cpu数量
+详细参数参考与org.apache.spark.deploy.SparkSubmitArguments
+
 val conf = new SparkConf().setAppName("Arima_premium_predict").setMaster("local") 表示本地模式执行
 二、spark的rdd如何产生job
 1.spark的rdd是一个action行为产生一个job
@@ -27,3 +31,22 @@ def main (args: Array[String]) {
 
 
 五、--queue spark_queue 启动时候加入到哪个队列中
+
+六、启动脚本 以及如何设置动态conf参数
+#!/bin/bash
+
+statisticsPath=/server/app/spark_streaming/lib
+logPath=/server/logs/spark_streaming
+
+export LIB_PATH=$statisticsPath/*.jar
+
+jarpaths=`echo $LIB_PATH | sed -e 's/ /,/g'`
+
+##echo ---------------------
+##echo $jarpaths
+spark-submit \
+--master yarn_cluster --class com.datacenter.machineLearning.streaming.BinlogTransfer \
+--jars $jarpaths \
+--verbose \
+--conf spark.streaming.kafka.maxRatePerPartition=4500 --conf spark.ui.port=4038 \
+/server/app/spark_streaming/job/spark_project.jar $* 1>>$logPath/binlogTransfer_out_test.log 2>>$logPath/binlogTransfer_err_test.log

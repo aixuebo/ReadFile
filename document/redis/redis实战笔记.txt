@@ -286,7 +286,7 @@ redis 127.0.0.1:6379> smembers myset7
 11.scard返回名称为 key 的 set 的元素个数
 scard myset2
 11.sismember测试 一个元素 是否是名称为 key 的 set 的元素,相当于java的set.contain操作
-sismember myset2 two
+sismember myset2 two ----相当于set中的get方法
 12.srandmember随机返回名称为 key 的 set 的一个元素，但是不删除元素
 13.SSCAN key cursor [MATCH pattern] [COUNT count] 迭代key这个集合,从第cursor个位置开始迭代,一共迭代count个,找到匹配的元素
 redis 127.0.0.1:6379> SADD myset1 "hello"
