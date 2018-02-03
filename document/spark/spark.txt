@@ -1,4 +1,6 @@
 一、val conf = new SparkConf().setAppName("Arima_premium_predict").set("spark.executor.instances", "30").set("spark.executor.cores", "1").set("spark.executor.memory", "3g").set("spark.ui.port","4038").set(""spark.driver.memory","2G")
+spark.task.cpus 每一个任务需要消耗多少个cpu,因为每一个task都是在executor节点上多线程执行的,默认是一个任务占用一个cpu
+
 表示开启30个executor,每一个executor有一个线程,一个executor一共持有3G内存,ui在端口4038上执行
 spark.driver.memory表示driver的内存使用,driver与executor是可以设置不同的内存使用
 spark.driver.cores 表示driver使用的cpu数量
@@ -49,4 +51,7 @@ spark-submit \
 --jars $jarpaths \
 --verbose \
 --conf spark.streaming.kafka.maxRatePerPartition=4500 --conf spark.ui.port=4038 \
+--conf spark.streaming.kafka.binlogTableName=cash_record \
 /server/app/spark_streaming/job/spark_project.jar $* 1>>$logPath/binlogTransfer_out_test.log 2>>$logPath/binlogTransfer_err_test.log
+
+注意:自定义的conf要想从sc中get到,前缀一定要是spark.streaming.kafka.开头

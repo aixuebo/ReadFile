@@ -22,6 +22,13 @@ sed '/^test/'d file
 5.删除空白行：
 sed '/^$/d' file
 
+6.删除文件每行的第一个字符
+sed -n 's/^.//gp' mysql.sh
+
+
+demo
+cat file | sed 's/"//g'  | sed '1d' >out.log
+表示读取文件,然后将双引号取消,然后删除第一行数据,将结果输出重定向到out.log中
 
 二、替换
 将双引号取消
@@ -29,7 +36,21 @@ sed 's/"//g' file
 语法是 sed 's/原始内容/替换后的内容/g'
 
 
+三、追加
+1.在每一行的开始追加一个aa字符串
+sed -n 's/^./aa&/gp' mysql.sh
+其中&表示匹配的内容,即匹配任意的开头前面追加aa字符串
 
-demo
-cat file | sed 's/"//g'  | sed '1d' >out.log
-表示读取文件,然后将双引号取消,然后删除第一行数据,将结果输出重定向到out.log中
+当然将aa替换成日期也是可以的
+now=`date "+%G-%m-%d %H:%M:%S"`
+printf "show slave status\G;" | mysql -h -P3306 -u -p database | sed -n "s/^./${now} &/gp" >>/server/app/monitor/log_mysql_all_out.log
+
+注意:
+因为now是变量,因此一定要用双引号包围起来
+
+四、注意问题
+1.sed中使用变量的使用,一定要用双引号包围起来
+2.&表示sed前期匹配的字符串内容
+
+
+

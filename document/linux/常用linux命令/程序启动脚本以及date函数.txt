@@ -1,0 +1,25 @@
+一、时间函数
+now=`date "+%G-%m-%d %H:%M:%S"`
+d=`date -d "-1 day" +%Y%m%d`
+d_=`date -d "-1 day" +%Y-%m-%d`
+
+二、启动脚本
+#!/bin/bash
+
+
+statisticsPath=/server/app/spark_streaming/lib
+logPath=/server/logs/spark_streaming
+
+export LIB_PATH=$statisticsPath/*.jar
+
+
+jarpaths=`echo $LIB_PATH | sed -e 's/ /,/g'`
+
+##echo ---------------------
+##echo $jarpaths
+spark-submit \
+--master yarn_cluster --class com.xxx.xxx.xxx.BinlogTransfer \
+--jars $jarpaths \
+--verbose \
+--conf spark.streaming.kafka.maxRatePerPartition=1500 --conf spark.ui.port=4038 \
+/server/app/spark_streaming/job/spark_project.jar $* 1>>$logPath/binlogTransfer_out_test.log 2>>$logPath/binlogTransfer_err_test.log

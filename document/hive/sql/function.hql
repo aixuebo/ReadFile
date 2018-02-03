@@ -156,7 +156,7 @@ select date_add(from_unixtime(unix_timestamp(),'yyyy-MM-dd'),-1);
 25.强制转换 cast as
 cast(actid as String)
 select from_unixtime(cast(1495037476000/1000 as bigint),'yyyy/MM/dd HH:mm:ss');
-
+select from_unixtime(INT(substr(occurrencetime,0,10)),'yyyy-MM-dd HH:mm:ss') //即只要时间戳的前10位,并且字符串转换成int
 
 26.json
 SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.owner');

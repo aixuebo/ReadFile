@@ -55,3 +55,10 @@ CREATE TABLE `user_wealth_achievement` (
 
 7.导入数据
 mysql -h -P3306 -uroot  -p密码 database < user_wealth_achievement.sql
+
+8.更改表结构
+ALTER TABLE database.table
+ADD COLUMN invest_first_number int(100) DEFAULT '0' NULL COMMENT '首投人数' AFTER user_rank,
+ADD COLUMN invest_first_amount decimal(14,2) DEFAULT '0.0' NULL COMMENT '首投金额' AFTER invest_first_number
+
+表示更改某个表,在某个字段后面追加两个字段,并且该字段的内容可以为null

@@ -86,3 +86,19 @@ pruge master logs before Date
 十一、目前canal的server同步的数据都在内存存放,而客户端针对一个队列只能有一个客户端,因此要将该客户端读取的数据写入到kafka或者mq里面,用于多个消费客户端去消费。
 比如binlog的数据要写入到redis、es、mysql、hive中,一个客户端就比较麻烦,比如直接客户端写入到kafka,然后不同消费者去kafka读取数据
 
+十二、查看同步进度
+在slave节点执行以下命令:
+show slave status\G
+主要关注的指标
+我们解释一下 show slave status\G 中重要的几个参数:
+Slave_IO_Running： I/O线程是否被启动并成功地连接到主服务器上。
+Slave_SQL_Running： SQL线程是否被启动。
+Seconds_Behind_Master：
+本字段是从属服务器“落后”多少的一个指示。当从属SQL线程正在运行时（处理更新），本字段为在主服务器上由此线程执行的最近的一个事件的时间标记开始，已经过的秒数。当此线程被从属服务器I/O线程赶上，并进入闲置状态，
+等待来自I/O线程的更多的事件时，本字段为零。总之，本字段测量从属服务器SQL线程和从属服务器I/O线程之间的时间差距，单位以秒计。
+
+
+比如定期监控同步进度程度
+printf "show slave status\G;" | mysql -h -P3306 -u -p database  | grep "Seconds_Behind_Master"
+printf "show slave status\G;" | mysql -h -P3306 -u -p database | sed -n "s/^./${now} &/gp" >>/server/app/monitor/log_mysql_all_out.log 为每一行输出都追加一个日期,详细语法规则参见linux--sed语法
+
