@@ -25,5 +25,7 @@ Perform 执行 表演
 resolution 分辨率 决心
 
 
-
-
+6.图计算被用于不同的区域,比如计算机视觉、自然语言处理、推荐引擎
+Graphs can be used to model such diverse areas as computer vision, natural language processing, and recommender systems.
+diverse不同的
+vision 视觉
