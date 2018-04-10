@@ -1,0 +1,24 @@
+一、 =:=
+case class Foo[A](a:A) { // 'A' can be substituted with any type
+    // getStringLength can only be used if this is a Foo[String]
+    def getStringLength(implicit evidence: A =:= String) = a.length
+}
+表示只能在 A是String泛型的时候,才能使用getStringLength方法
+
+即表示A和String必须是相同的类型,即A是String类型
+
+比如
+scala> Foo("blah").getStringLength
+res6: Int = 4
+But if I tried use it with a Foo containing something other than a String:
+
+scala> Foo(123).getStringLength
+<console>:9: error: could not find implicit value for parameter evidence: =:=[Int,String]
+
+二、<:< and <%< 与=:=类似,但是有一些轻微的不同
+A =:= B means A must be exactly B,要求A 必须精准的是B的类型
+A <:< B means A must be a subtype of B (analogous to the simple type constraint <:) 要求A必须是B的一个子对象,类似<:语法
+A <%< B means A must be viewable as B, possibly via implicit conversion (analogous to the simple type constraint <%) 要求A必须是B的可见性,可能通过隐式转换,类似<%语法.
+类似于view bound，表示 A可以当作B，即A隐式转换成B也满足
+
+三、

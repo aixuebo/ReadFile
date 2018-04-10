@@ -29,7 +29,7 @@ load data local inpath '/home/xxxx' into table summary.cash_ba partition(log_day
 加载数据到一个分区中
 注意不支持覆盖分区功能,只能先移除分区,再重新添加该分区
 
-四、更改表名
+四、更改表名---也可以用于迁移数据库,即数据可以从一个数据库迁移到另外一个数据库所在的文件目录下
 ALTER TABLE table_name RENAME TO new_table_name;
 
 五、创建表

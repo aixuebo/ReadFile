@@ -1,0 +1,4 @@
+一、more
+more <xxxx.log
+more /? 帮助命令
+

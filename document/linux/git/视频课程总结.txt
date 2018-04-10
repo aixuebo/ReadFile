@@ -4,6 +4,7 @@ sudo apt-get install git
 二、git的初始化
 $ git config --global user.name "Your Name"
 $ git config --global user.email "email@example.com"
+$ git config --list 查找配置的所有信息内容
 
 三、git的仓库建立
 git init 

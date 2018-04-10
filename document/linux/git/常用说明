@@ -54,3 +54,7 @@ git remote add origin path
 git remote -v 查看远程git仓库
 git remote set-url origin git地址---修改git地址
 
+
+五、关于windows上两个git账户切换提交的时候,总是失败,而失败的原因是A的git账户项目总是使用B的git账户提交
+解决方法:
+控制面板\用户帐户和家庭安全\凭据管理器 --删除web和windows上关于git登录的凭证信息

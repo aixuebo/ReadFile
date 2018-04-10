@@ -56,9 +56,27 @@ CREATE TABLE `user_wealth_achievement` (
 7.导入数据
 mysql -h -P3306 -uroot  -p密码 database < user_wealth_achievement.sql
 
+
+如果导入的数据是一行一行的insert into,会导致速度很慢,因此在mysql上使用source命令导入文件
+注意:优化要临时关闭事务、然后手动开启事务、手动提交事务
+a.临时修改变量,做完操作后要重新替换成老的
+show variables like '%trx%';
+show variables like '%sync%';
+set autocommit=0
+set global innodb_flush_log_at_trx_commit=0;
+set global sync_binlog=0;
+
+b.start transaction;
+source /xx/xx/xxx.sql
+COMMIT;
+
+
 8.更改表结构
 ALTER TABLE database.table
 ADD COLUMN invest_first_number int(100) DEFAULT '0' NULL COMMENT '首投人数' AFTER user_rank,
 ADD COLUMN invest_first_amount decimal(14,2) DEFAULT '0.0' NULL COMMENT '首投金额' AFTER invest_first_number
 
 表示更改某个表,在某个字段后面追加两个字段,并且该字段的内容可以为null
+
+9.设置字符编码,让客户端显示中文不乱码
+set character_set_results=utf8

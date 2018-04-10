@@ -36,6 +36,8 @@ set hive.output.file.extension=.c1;
 
 六、设置动态分区
 a.set hive.exec.dynamic.partition.mode=nostrick;
+set hive.exec.max.dynamic.partitions=5000 最大的分区数量
+set hive.exec.max.dynamic.partitions.pernode=2000
 b.insert overwrite table dim.topic_user_partition partition(log_day)
 c.select的最后几个字段的值就是分区的值
 
