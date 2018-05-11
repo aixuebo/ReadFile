@@ -1,0 +1,59 @@
+一、spark读取文件产生的是rdd
+sc = spark.sparkContext
+allSysLogs = sc.textFile(“file:/var/log/system.log*”)
+
+二、RDD如何添加schema,产生DataFrame,可以用于sql处理
+logsRDD = allSysLogs.map(lambda logRow: Row(log=logRow))
+logsDF = spark.createDataFrame(logsRDD)
+logsDF.createOrReplaceTempView(“logs”)
+spark.sql(“SELECT * FROM logs LIMIT 1”).show()
+
+三、有一些特殊类型的文件,可以直接读取后生成DataFrame,比如json和Parquet文件,因为里面包含了schema信息
+logsDF = spark.read.parquet(“file:/logs.parquet”)
+logsDF.createOrReplaceTempView(“logs”)
+>>> spark.sql(“SELECT * FROM logs LIMIT 1”).show()
+
+
+事实上可以直接查询Parquet文件,非常容易
+spark.sql(“”” SELECT * FROM parquet.`path/to/logs.parquet` LIMIT 1 ”””).show()
+
+四、什么是dataFrame
+其实他就是RDD 外面套了一个schema
+
+五、schema可以推测出来,也可以具体的写进来
+
+六、数据如何保存
+peopleDF = spark.createDataFrame(peopleRDD, schema)
+peopleDF.write.save("s3://acme-co/people.parquet",format="parquet") #
+
+七、数据文件是json的时候如何处理
+1.读取文件
+>>> spark.read.json("file:/json.explode.json").createOrReplaceTempView("json")
+>>> spark.sql("SELECT * FROM json").show()
++----+----------------+
+| x| y|
++----+----------------+
+|row1| [1, 2, 3, 4, 5]|
+|row2|[6, 7, 8, 9, 10]|
++----+----------------+
+2.explode函数拆分字段
+>>> spark.sql("SELECT x, explode(y) FROM json").show()
++----+---+
+| x|col|
++----+---+
+|row1| 1|
+|row1| 2|
+|row1| 3|
+|row1| 4|
+|row1| 5|
+|row2| 6|
+|row2| 7|
+|row2| 8|
+|row2| 9|
+|row2| 10|
++----+---+
+3.获取数组类型的数据元素值
+SELECT col[1], col[3] FROM json
+
+4.获取对象的属性值
+SELECT field.subfield FROM json

@@ -45,3 +45,6 @@ c.select的最后几个字段的值就是分区的值
 
 八、更换队列
 set mapreduce.job.queuename=xstorm;
+
+九、为结果生成title
+set hive.cli.print.header=true;

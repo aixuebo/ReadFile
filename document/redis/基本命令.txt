@@ -59,3 +59,11 @@ redis-cli hkeys key | grep -E "2017-12-10|2017-12-09" | xargs redis-cli hdel key
 --------------------------
 如何开启服务
 sh /server/redis-3.0.6/src/redis-server /etc/redis/6379.conf
+
+有密码的时候如何操作redis-----------------------------------------
+./redis-cli ####进入redis
+auth jlc1234qwer ###输入redis密码
+keys * ####查询数据
+
+有密码的方式执行redis
+./redis-cli -a passwprd 命令

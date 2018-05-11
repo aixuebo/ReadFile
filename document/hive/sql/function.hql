@@ -153,10 +153,18 @@ select date_add('2016-08-17',-(datediff('2016-08-17','2015-01-09') % 7)) 返回�
 
 select to_date(from_unixtime(unix_timestamp(),'yyyy-MM-dd HH:mm:ss')); 获取当前的时间,相当于mysql的DATE_ADD(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL -1 DAY)
 select date_add(from_unixtime(unix_timestamp(),'yyyy-MM-dd'),-1);
+
+获取每个月的最后一天
+select interest_date,date_add(interest_date,-1) lastday //1号数据-1天就是上个月最后一天数据
+from history_union_rate //所有日期数据表
+where interest_date like '%-01' //获取每个月的第一天,即1号的数据
+
 25.强制转换 cast as
 cast(actid as String)
 select from_unixtime(cast(1495037476000/1000 as bigint),'yyyy/MM/dd HH:mm:ss');
 select from_unixtime(INT(substr(occurrencetime,0,10)),'yyyy-MM-dd HH:mm:ss') //即只要时间戳的前10位,并且字符串转换成int
+
+select unix_timestamp(substr(create_time,0,19),'yyyy-MM-dd HH:mm:ss') 将日期时间字符串形式,格式为第二个参数的形式,转换成时间戳,但是该时间戳要*1000才是真的时间戳
 
 26.json
 SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.owner');

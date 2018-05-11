@@ -76,3 +76,44 @@ SELECT userid FROM bank_card 添加WHERE userid IS NOT NULL即可
 
 四、如何对sql大小写敏感,即要区分大小写数据,加入binary关键字即可
 select user_id,channel,create_time,last_update_time from user_info where binary channel like '%mmm%' limit 10;
+
+
+五、  `redeem_real_amount` decimal(14,2) DEFAULT '0.00' COMMENT '已经发生赎回金额',
+mysql> select redeem_real_amount from JLC_APP_MARKPOINT_REALTIME where redeem_real_amount='fdsafasfasfasdfasdfa' limit 5;
+mysql> select redeem_real_amount from JLC_APP_MARKPOINT_REALTIME where redeem_real_amount='' limit 5;
+以上sql 都会将0.00的查询出来,原因就是该值是double类型的,如输入的字符串不是double的,则强制转换,出现问题则变成0.00
+
++--------------------+
+| redeem_real_amount |
++--------------------+
+|               0.00 |
+|               0.00 |
+|               0.00 |
+|               0.00 |
+|               0.00 |
++--------------------+
+5 rows in set, 1 warning (0.00 sec)
+可以看到有一个警告
+
+mysql> show warnings;
++---------+------+----------------------------------------------------------+
+| Level   | Code | Message                                                  |
++---------+------+----------------------------------------------------------+
+| Warning | 1292 | Truncated incorrect DOUBLE value: 'fdsafasfasfasdfasdfa' |
+
+可以掌握警告的原因
+
+
+六、查询mysql的慢的sql
+mysql -e "show full processlist" | grep -v Sleep | sort -rnk6
+
+七、mysql优化
+1.慢查询sql分析
+2.mysql -e "show full processlist" | grep -v Sleep | sort -rnk6 在线找到最慢执行的sql有哪些,explain进行检查
+3.索引要充分利用,如果利用不好,自然就慢了
+4.主键要短、最好是整数
+5.主外键类型要一致,防止隐式转换
+6.批处理的时候,不要自动提交
+7.数据库分区
+8.数据库与服务要在同一个网段机房中
+9.设置innodb参数
