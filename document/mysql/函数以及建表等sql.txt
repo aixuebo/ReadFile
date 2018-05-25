@@ -29,15 +29,16 @@ LINES TERMINATED BY '\n';
 
 6.建表语法
 CREATE TABLE `user_wealth_achievement` (
-  `id` bigint(20) NOT NULL COMMENT '',
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '',
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '',
   `user_id` varchar(50) NOT NULL COMMENT '用户id',
-  `start_up_num` int(11) DEFAULT NULL COMMENT '启动次数',
+  `start_up_num` int(11) DEFAULT '0' COMMENT '启动次数',
   `create_date` varchar(10) DEFAULT NULL COMMENT '注册时间',
   `interest_day_num` int(11) DEFAULT NULL COMMENT '有收益的天数',
-  `invest_amount` decimal(18,2) DEFAULT NULL COMMENT '投资总金额',
+  `invest_amount` decimal(18,2) DEFAULT '0.00' COMMENT '投资总金额',
   `redeem_tax_amount` decimal(18,2) DEFAULT NULL COMMENT '赎回手续费',
   `redeem_amount` decimal(18,2) DEFAULT NULL COMMENT '赎回总金额',
-  `invitation_num` int(11) DEFAULT NULL COMMENT '邀请首投人数',
+  `invitation_num` int(11) DEFAULT '0' COMMENT '邀请首投人数',
   `invitation_amount` decimal(18,2) DEFAULT NULL COMMENT '邀请共享收益',
   `invitation_userids` varchar(200) DEFAULT NULL COMMENT '邀请共享收益贡献最多的5位好友;逗号分隔',
   `max_premium` decimal(18,2) DEFAULT NULL COMMENT '最高存量',
