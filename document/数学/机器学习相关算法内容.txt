@@ -5,3 +5,4 @@ https://deeplearning4j.org
 但是支持scala的api接口
 https://mxnet.incubator.apache.org/tutorials/index.html
 https://github.com/apache/incubator-mxnet
+3.python的keras
