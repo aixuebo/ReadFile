@@ -7,3 +7,14 @@
 ssh -qtfnN -D 127.0.0.1:7001 aixuboss@s15.flyssh.net
 ps -ef | grep 7001 可以kill掉
 safari----偏好设置---高级---代理---socket代理---127.0.0.1 7001即可
+
+
+chrome里面设置
+1.设置scoket代理为127.0.0.1和7001,以及设置为socket5
+2.设置规则例如*youtube* 设置成代理的名字即可
+
+chrome 插件安装
+1.chrome://extensions
+2.SwitchySharp 扩展程序下载。
+下载插件，解压缩后, SwitchySharp.crx拖拽安装即可
+插件在百度云上有mac版本
