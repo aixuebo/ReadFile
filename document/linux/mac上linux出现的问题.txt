@@ -1,0 +1,5 @@
+一、home下面没有办法创建文件夹
+1.sudo vim /etc/auto_master
+将/home目录这行注释掉
+2.sudo automount 让注释后的文件生效
+3.mkdir /home/test 创建文件夹即可
