@@ -48,3 +48,14 @@ set mapreduce.job.queuename=xstorm;
 
 九、为结果生成title
 set hive.cli.print.header=true;
+
+十、hive.exec.parallel
+默认是false,将其设置为true,可以让一个sql中包含的多个job,而很多job是没有关系的，可以同时执行，但是缺点是消耗更多的资源。
+比如
+select r1.a
+from (
+   select t.a from sunwg_10 t join sunwg_10000000 s on t.a=s.b) r1 
+   join 
+   (select s.b from sunwg_100000 t join sunwg_10 s on t.a=s.b) r2 
+   on (r1.a=r2.b);
+但是可以看出来其实两个子查询中的sql并无关系,可以并行的跑

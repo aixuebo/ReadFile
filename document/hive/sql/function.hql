@@ -104,6 +104,7 @@ GenericUDAFComputeStats和StringNumDistinctValueEstimator 用于distinct语法�
 21.三元if判断
 if( Test Condition, True Value, False Value ) 
 Example: if(1=1, 'working', 'not working') returns 'working'
+count(distinct if(f.picture is not null and trim(f.picture) != '',f.id,null)) as xxx
 22.返回第一个不是null的值
 COALESCE( value1,value2,... ) 返回第一个不是null的值,如果都是null,则返回null
 例如COALESCE(cur_plus_money,0)
@@ -205,7 +206,120 @@ LATERAL VIEW explode(preference_hour) et as k,v
 where k<='21:00' and v>='21:00'
 即将一个user的所有时间map进行拆分,获取k和v表示开始时间和结束时间.然后分别过滤k和v,有一组满足条件的,则都被返回该数据
 
-select explode(split('a,b,c,d',','));输出四行,分别是a b c d
+
+
+29.explode() 可以将一根array或者map作为输入,每一个元素都作为一个单独的行,进行输出,
+属于UDTF函数,可以被用于select表达式和LATERAL VIEW表达式里
+a.select explode(split('a,b,c,d',',')) as col;输出四行,分别是a b c d,其中plit('a,b,c,d',',')表示对字符串按照逗号拆分成数组array对象
+b.SELECT explode(myMap) AS (myMapKey, myMapValue) FROM myMapTable; 用于map
+c.
+[{“eid”:”38”,”ex”:”affirm_time_Android”,”val”:”1”,”vid”:”31”,”vr”:”var1”},
+{“eid”:”42”,”ex”:”new_comment_Android”,”val”:”1”,”vid”:”34”,”vr”:”var1”},
+{“eid”:”40”,”ex”:”new_rpname_Android”,”val”:”1”,”vid”:”1”,”vr”:”var1”},
+{“eid”:”19”,”ex”:”hotellistlpage_Android”,”val”:”1”,”vid”:”1”,”vr”:”var01”},
+{“eid”:”29”,”ex”:”bookhotelpage_Android”,”val”:”0”,”vid”:”1”,”vr”:”var01”},
+{“eid”:”17”,”ex”:”trainMode_Android”,”val”:”1”,”vid”:”1”,”vr”:”mode_Android”},
+{“eid”:”44”,”ex”:”ihotelList_Android”,”val”:”1”,”vid”:”36”,”vr”:”var1”},
+{“eid”:”47”,”ex”:”ihotelDetail_Android”,”val”:”0”,”vid”:”38”,”vr”:”var1”}
+
+用explode小试牛刀一下：
+
+select explode(split(regexp_replace(mvt,'\\[|\\]',''),'\\},\\{')) from ods_mvt_hourly where day=20160710 limit 10;1
+
+首先对字符串mvt取消[或者],然后按照{,}进行拆分,成数组array
+
+最后出来的结果如下： 
+{“eid”:”38”,”ex”:”affirm_time_Android”,”val”:”1”,”vid”:”31”,”vr”:”var1”
+“eid”:”42”,”ex”:”new_comment_Android”,”val”:”1”,”vid”:”34”,”vr”:”var1” 
+“eid”:”40”,”ex”:”new_rpname_Android”,”val”:”1”,”vid”:”1”,”vr”:”var1” 
+“eid”:”19”,”ex”:”hotellistlpage_Android”,”val”:”1”,”vid”:”1”,”vr”:”var01”
+“eid”:”29”,”ex”:”bookhotelpage_Android”,”val”:”0”,”vid”:”1”,”vr”:”var01” 
+“eid”:”17”,”ex”:”trainMode_Android”,”val”:”1”,”vid”:”1”,”vr”:”mode_Android” 
+“eid”:”44”,”ex”:”ihotelList_Android”,”val”:”1”,”vid”:”36”,”vr”:”var1” 
+“eid”:”47”,”ex”:”ihotelDetail_Android”,”val”:”0”,”vid”:”38”,”vr”:”var1”}
+
+30.ateral view
+a.语法
+LATERAL VIEW udtf(expression) tableAlias AS columnAlias (‘,’ columnAlias)* 
+即LATERAL VIEW 后面追加explode函数,得到新的表,别名是tableAlias,该表的字段是columnAlias,或者可能map结果的key，value,用逗号拆分即可
+FROM baseTable (lateralView)*
+LATERAL VIEW 语法用于from table 后面
+
+b.Lateral view 是将一个已经存在的表,每一行数据追加一列或者若干列数据,数据的来源是Lateral view后面的将一个字段转换成多行数据的结果
+c.demo
+比如一个表pageAds,有两个字段,一个pageid表示页面name,adid_list表示该页面有哪些元素,是一个数组
+比如2行数据
+frontpage  [1，2，3]
+backpage  [4，5，5]
+
+SELECT pageid, adid
+FROM pageAds LATERAL VIEW explode(adid_list) adTable AS adid;
+即查询pageAds表,以及pageAds表每一行 join adTable表,2️而adTable表的熟悉是adid,内容是对adid_list进行explode的结果
+
+输出
+frontpage 1
+frontpage 2
+frontpage 3
+backpage 1
+backpage 2
+backpage 3
+
+d.结果可以作为子查询的结果,进一步被from处理
+比如
+select *
+from
+(
+SELECT pageid, adid
+FROM pageAds LATERAL VIEW explode(adid_list) adTable AS adid;
+) a
+order by adid
+
+e.接入多个LATERAL VIEW语法,其实是在做笛卡尔乘机
+比如table字段 Array<int> col1   Array<string> col2
+例如
+[1, 2] [a", "b", "c"]
+[3, 4] [d", "e", "f"]
+
+SELECT myCol1, myCol2 FROM baseTable
+LATERAL VIEW explode(col1) myTable1 AS myCol1
+LATERAL VIEW explode(col2) myTable2 AS myCol2;
+
+或者
+SELECT myCol1, myCol2 FROM baseTable
+LATERAL VIEW explode(split('1,2',',')) myTable1 AS myCol1
+LATERAL VIEW explode(split('a,b,c,d',',')) myTable2 AS myCol2;
+
+笛卡尔结果是
+1 "a"
+1 "b"
+1 "c"
+2 "a"
+2 "b"
+2 "c"
+3 "d"
+3 "e"
+3 "f"
+4 "d"
+4 "e"
+4 "f"
+
+f.Outer Lateral View
+如果UDTF转换的Array是空的怎么办呢？
+如果加上outer关键字，则会像left outer join 一样，还是会输出select出的列，而UDTF的输出结果是NULL。
+hive> select * FROM test_lateral_view_shengli LATERAL VIEW explode(array()) C AS a ;
+结果是什么都不输出。
+
+如果加上outer关键字：
+SELECT * FROM src LATERAL VIEW OUTER explode(array()) C AS a limit 10;
+
+238 val_238 NULL
+86 val_86 NULL
+311 val_311 NULL
+27 val_27 NULL
+165 val_165 NULL
+409 val_409 NULL
+
+
 
 二、generic
 1.对case column when a then b else c end 形式进行处理
