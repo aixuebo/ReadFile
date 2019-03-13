@@ -1,0 +1,108 @@
+第四章
+1.定义方法 以及 有返回值的方法必须有等号。没有返回值的方法可以省略等号
+  /**
+    * 关键点
+    * 1.参数都是val类型的，不能被更改
+    * 2.有等号,表示一定有返回值
+    * 3.最后一行返回值不需要return
+    */
+  def add(b:Int) : Long = {
+   //b = b + 1
+    sum = sum + b
+    sum
+  }
+
+  /**
+    * 无返回值,因此返回值是
+    */
+  def add1(b:Int)= {
+    sum = sum + b
+  }
+
+  /**
+    * 无返回值,又一行代码,因此可以用等号，取消花括号
+    * @param b
+    */
+  def add2(b:Int)= sum = sum + b
+
+  /**
+    * 无返回值,因此可以把等号去掉，用花括号
+    * @param b
+    */
+  def add3(b:Int) {
+    sum = sum + b
+  }
+  
+第六章
+1.定义class
+class xxx(n:Int,m:Int){
+  
+  1.require(m!=0)//出错则抛异常
+  new的时候就会执行该class中非dev和val的所有代码块
+  2.方法里面是可以使用n和m的，但是是属于该实例的私有属性
+  外面的实例是没有办法使用的，如果要使用，则需要定义属性
+  val num:Int = n //默认是public的
+}
+
+2.scala的主构造函数就一个，即在class定义的时候定义的
+
+使用this这个方法，创建辅助构造函数
+但是第一行代码一定要调用this主构造函数，因为调用完主构造函数后，该实例就会被初始化了，因此第二行代码就可以使用初始化后的对象了
+def this(n:int) = {
+  this(n,1)
+  xxxxx
+}
+
+3.私有的属性不会被外界调用，同时如果属性是一个方法的返回值，则该属性只会初始化一次。
+private val value = xxx
+def xxx() :int ={}
+
+即value在new对象的时候会调用xxx方法，但是第二次在用vakue的时候不会再调用xxx方法了。
+但是直接调用xxx方法是每一次都会执行xxx方法的
+
+4.唯一描述符特殊的时候,用``包裹。
+比如yeild在java中是线程用的，如果你想定义变量为该名字，则使用val `yeild` = xxx 运行的时候会将``省略掉
+
+5.隐式转换
+定义隐式转换
+implicit def intToRational(x: Int) = new Rational(x) 将一个int转换成分数对象Rational
+a.implicit 表示告诉编译器这个方法是一个隐式转换方法
+b.方法名字不重要,是为了可读性,给程序员看的
+c.主要关注参数和返回值,即该隐式转换告诉编译器,将Int转换成Rational对象
+d.隐式转换的作用域,在{}内可以被使用
+e.隐式转换非常强大,但是也容易产生错误,因此详细的内容参见21章
+
+第七章
+1. if有返回值
+val aa = if() xxx else xxx
+2.while循环没有返回值
+3.for循环
+for(i <- list){
+	println(i)
+}
+
+4.try catch
+try{
+  xxx
+}catch{
+  case ex:xxxException => xxx
+  case ex:Exception => xxx
+}
+
+5.模式匹配---也有返回值
+val value = ""
+val flag = value match {
+  case "value1" => ""
+  case "value2" => ""
+  case _ => ""
+}
+
+模式匹配,匹配case class 会有强大的功能,这也是模式匹配最优秀、最值得推广的原因
+sealed abstract class Expr
+case class xxx(name:String) extends Expr
+
+
+第八章
+1.object对象
+
+

@@ -11,3 +11,6 @@
 第三个参数是如果第一个A2与sheet2中匹配的话,则将A4:G4中第三个索引值写到cell中
 注意:
 设置vlookup的时候,cell要设置在A2后面若干个cell中
+
+六、相关性
+correl

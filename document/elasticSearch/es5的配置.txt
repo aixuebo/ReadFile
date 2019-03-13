@@ -1,0 +1,65 @@
+{
+  "order": 0,
+  "template": "list_index_*",//模板名字,有通配符
+  "settings": {
+    "index": {
+      "analysis": {
+        "analyzer": {
+          "comma": {
+            "type": "custom",
+            "tokenizer": "comma"//定义分词器
+          }
+        },
+        "tokenizer": {
+          "comma": {
+            "pattern": ",",
+            "type": "pattern"//支持逗号拆分分词
+          }
+        }
+      },
+      "number_of_shards": "5",
+      "number_of_replicas": "1"
+    }
+  },
+  "mappings": {
+    "aixuebo_list": {//表示索引的type的name
+      "_all": {
+        "enabled": false
+      },
+      "properties": {
+        "id": {
+          "type": "text",
+          "index": false
+        },
+        "poilist": {
+          "type": "text",
+          "index": true,
+          "analyzer": "comma"//该属性用逗号拆分内容,因此要挂一个分词器
+        },
+        "poisize": {
+          "type": "integer",
+          "index": true
+        },
+        "father_uid": {
+          "type": "long",
+          "index": true,
+          "doc_values": true
+        },
+        "son_uid": {
+          "type": "long",
+          "index": true,
+          "doc_values": true //支持聚合/排序
+        },
+        "tag": {
+          "type": "text",
+          "index": true
+        },
+        "dt": {
+          "type": "keyword",
+          "index": true
+        }
+      }
+    }
+  },
+  "aliases": {}
+}
