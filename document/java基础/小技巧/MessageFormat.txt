@@ -1,0 +1,94 @@
+一、如何将date类型的转换成各种字符串形式
+1.MessageFormat format = new MessageFormat("{0,date,yyyyMMdd HH:mm:ss}/{0,date,HH}/{1}");
+System.out.println(format.format(new Object[] { new Date(), "aaa" }));//20180828 16:15:08/16/aaa
+
+注意:{0,date,yyyyMMdd HH:mm:ss} 表示将0的参数值,必须转换成date类型,然后在转换成后面匹配的格斯,如果第0个参数不是date类型,则会抛异常
+
+
+2.
+String message = "oh, {0,number,#.#} is a number";  
+Object[] array = new Object[]{new Double(3.1415)};  
+String value = MessageFormat.format(message, array);  
+System.out.println(value); // oh, 3.1 is a number  
+
+3.小数处理---注意:转换都是会被四舍五入
+Object[] array = new Object[]{new Double(3.1)};
+String message = "oh, {0,number,####.##%} is a number";  
+String value = MessageFormat.format(message, array);
+System.out.println(value); // oh, 3.1 is a number
+
+a.小数 * 100 %
+{0,number,####.##%}  输出结果310%,即3.1 * 100 保留两位小数，但是如果是0,则取消
+
+b.0表示占位符，即数据是0的必须占着位置
+{0,number,####.00%}  输出结果310.00%,即3.1 * 100 保留两位小数，但是如果是0,则保留
+
+c.小数 四舍五入 保留2位
+{0,number,####.##}  输出3.1,0被删除了
+{0,number,####.00} 输出3.10,0展位 保留2位小数
+
+d.财务逗号分隔符
+假设输入参数是343423423423.1
+
+test.test4("####.00%");  34342342342310.00%
+test.test4("####.00");   343423423423.10
+test.test4("####.##");   343423423423.1
+test.test4("##,####.00"); 3434,2342,3423.10  表示四位一分格,如果是3位分割,则改成###即可
+
+		
+
+		
+4.通用格式
+MessageFormat用来格式化一个消息，通常是一个字符串。MessageFormat模式的主要部分：
+
+
+FormatElement:
+         { ArgumentIndex }
+         { ArgumentIndex , FormatType }
+         { ArgumentIndex , FormatType , FormatStyle }
+
+ 
+
+FormatType: 
+         number：调用NumberFormat进行格式化
+         date：调用DateFormat进行格式化
+         time：调用DateFormat进行格式化
+         choice：调用ChoiceFormat进行格式化
+
+ 
+FormatStyle:
+         short
+         medium
+         long
+         full
+         integer
+         currency
+         percent
+         SubformatPattern(子模式)
+
+{0}、{1,number,short}、{2,number,#.#}属于FormatElement，0,1,2是ArgumentIndex
+
+{1,number,short}里面的number属于FormatType，short则属于FormatStyle
+
+{1,number,#.#}里面的#.#就属于子格式模式
+
+五、注意事项:
+1.单引号和双引号----单引号被忽略,两个单引号 输出 可以变成单引号  ，双引号需要转义
+格式化字符串时，两个单引号才表示一个单引号，单个单引号会被省略，除非中文单引号不会被省略，如：
+String value = MessageFormat.format("oh, {0} is 'a' pig", "ZhangSan");  
+System.out.println(value);  // 输出：oh, ZhangSan is a pig  
+给字母a加上单引号，如：
+String value = MessageFormat.format("oh, {0} is ''a'' pig", "ZhangSan");
+System.out.println(value);  // 输出：oh, ZhangSan is 'a' pig
+如果需要显示双引号要进行转移，比如：String msg = “oh, {0} is \”a\” pig”;
+
+2.单引号会使其后面的占位符均失效，导致直接输出占位符  
+MessageFormat.format("{0}{1}", 1, 2); // 结果12
+MessageFormat.format("'{0}{1}", 1, 2); // 结果{0}{1}  ----单引号后面的所有输出都没意义
+MessageFormat.format("'{0}'-{1}", 1, 2); // 结果{0}-2  ----单引号包裹的数据可以当转义字符使用
+
+3.要使用到左花括号需要使用单引号配合使用
+MessageFormat.format(“‘{‘{0}}”, “X-rapido”); // {X-rapido}
+} 可以直接输出，不会报错,但是{单独出现会报错,因此用单引号包裹
+
+

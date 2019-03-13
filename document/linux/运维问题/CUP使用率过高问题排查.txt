@@ -1,0 +1,9 @@
+一、top 查看cpu过高的进程
+比如 pid为23374的进程 CPU使用达到300%+
+二、查看占用CPU较大的pid：23374进程 ，查看各线程
+top -Hp 23374
+三、查看CPU占用较大的PID,记录好pid,并且将其转换成16进制.
+System.out.println(Integer.toHexString(23527));---->5be7
+四、找运维将jstack信息下载
+五、在jstack中搜索5be7,就可以知道此时什么代码这么耗时了。
+或者查看RUNNABLE状态的信息

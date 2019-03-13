@@ -1,0 +1,5 @@
+1.按照数字排序 sort -rn
+-n, --numeric-sort, --sort=numeric  按照数字排序
+-r, --reverse  倒排序
+
+例如 du -sh * | sort -rn
