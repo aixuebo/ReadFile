@@ -18,6 +18,17 @@ b.对a的结果进行group by date、小时、userid,select中根据标识符进
 
 或者将所有的可能列情况都写在一行,只是没有值的时候用0表示即可,这样最终外层循环用sum就可以了
 
+c.行转列
+select col1,col2,concat_ws(',',collect_set(col3)) 
+from biao  
+group by col1,col2;
+
+或者 select中用case when 方式
+
+d.列转行
+select col1,col2,name 
+from biao  
+lateral view explode(split(col3,',')) col3 as name;
 
 3.学习使用full join操作,相当于left join和right join的综合版
 测试的话可以获取两个表的各两条记录,full join后还是4条记录
