@@ -1,0 +1,12 @@
+
+    Orc的分split有3种策略（ETL、BI、HYBIRD），
+    默认是HYBIRD(混合模式，根据文件大小和文件个数自动选择ETL还是BI模式)，
+    问题出在BI模式，BI模式是按照文件个数来分split的，ETL模式已经修复了这个问题，因此有两个解决方法：
+1、 修改hive代码进行空判断
+2、 设置hive.exec.orc.split.strategy为ETL
+
+修改方法
+hiveContext.setConf("hive.exec.orc.split.strategy", "ETL")
+hiveContext.setConf("spark.hadoop.mapreduce.input.fileinputformat.split.maxsize","67108864")
+
+可以看到spark的stage阶段的task任务变得多了,即split原始文件了
