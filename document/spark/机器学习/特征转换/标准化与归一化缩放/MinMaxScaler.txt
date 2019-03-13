@@ -1,0 +1,32 @@
+一、MinMaxScaler
+注意:
+1.输入/输出都是Vector类型
+因为特征可能有很多个，比如有50个。但是归一化的可能就是按组分的，因此将都个特征转换成vector
+2.value-min /max-min,对各个维度数据进行归一化，让他们都转换成0-1之间,因此可以进行比较,当max=min的时候，
+说明整个维度就一个值,因此归一化的结果都相同，所以默认值为0.5
+3.更新每一个维度的value值---min和max表示最终分数在min-max之间。默认值是min=0,max=1,表示分数就是row计算好的归一化的值
+进一步打分,正常逻辑这部分不操作。后期操作
+
+
+    val dataArr = Array(
+      Vectors.dense(-2.0, 2.3),
+      Vectors.dense(0.0, 0.0),
+      Vectors.dense(0.6, -1.1)
+    )
+    val df = sqlContext.createDataFrame(dataArr.map(Tuple1.apply)).toDF("features")
+
+    val scaler = new MinMaxScaler()
+      .setInputCol("features")
+      .setOutputCol("scaledFeatures")
+
+    val scalerModel = scaler.fit(df) //计算最大值和最小值等统计信息
+
+    val scaledData = scalerModel.transform(df)
+    scaledData.show(false)
+    
+|features  |scaledFeatures                         |
++----------+---------------------------------------+
+|[-2.0,2.3]|[0.0,1.0]                              |
+|[0.0,0.0] |[0.7692307692307692,0.3235294117647059]|
+|[0.6,-1.1]|[1.0,0.0]                              |
++----------+---------------------------------------+

@@ -1,0 +1,27 @@
+一、Normalizer
+范式归一化---自己每一个维度进行单位化
+注意:
+1.输入/输出都是Vector
+2.计算逻辑是每一个特征值/该向量的范式
+3.使用org.apache.spark.ml.feature包下的StandardScaler,而不是mllib下的,mllib下的不好用
+
+
+
+    val dataArr = Array(
+      Vectors.dense(-2.0, 2.3),
+      Vectors.dense(0.0, 0.0),
+      Vectors.dense(0.6, -1.1)
+    )
+    val df = sqlContext.createDataFrame(dataArr.map(Tuple1.apply)).toDF("features")
+    val normalizer2 = new Normalizer()
+              .setP(2)
+              .setInputCol("features")
+              .setOutputCol("normalizerFeatures")
+
+    normalizer2.transform(df).show(false)
+    
+|features  |normalizerFeatures                      |
++----------+----------------------------------------+
+|[-2.0,2.3]|[-0.6561787149247866,0.7546055221635046]|
+|[0.0,0.0] |[0.0,0.0]                               |
+|[0.6,-1.1]|[0.4788521306805732,-0.8778955729143844]|

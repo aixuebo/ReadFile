@@ -1,0 +1,47 @@
+一、抽取现有vector字段中一部分特征，组成新的字段
+import java.util.Arrays
+
+import org.apache.spark.ml.attribute.{Attribute, AttributeGroup, NumericAttribute}
+import org.apache.spark.ml.feature.VectorSlicer
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.StructType
+
+
+val data = Arrays.asList(Row(Vectors.dense(-2.0, 2.3, 0.0))) //创建一个java数组 Array[Row[Vector]],3维特征
+
+方式1
+val defaultAttr = NumericAttribute.defaultAttr //设置特征属性为正数
+val attrs = Array("f1", "f2", "f3").map(defaultAttr.withName) //三个name组成三个特征的name
+
+方式2
+val attrs = Array[Attribute](
+  NumericAttribute.defaultAttr.withName("f1"),
+  NumericAttribute.defaultAttr.withName("f2"),
+  NumericAttribute.defaultAttr.withName("f3")
+)
+    
+val attrGroup = new AttributeGroup("userFeatures", attrs.asInstanceOf[Array[Attribute]]) //创建新的字段userFeatures,是特征向量对象
+
+val dataset = spark.createDataFrame(data, StructType(Array(attrGroup.toStructField()))) //加载数据
+
+val slicer = new VectorSlicer().setInputCol("userFeatures").setOutputCol("features") //对userFeatures向量处理，输出到features特征中
+
+slicer.setIndices(Array(1)).setNames(Array("f3")) //要userFeatures特征中1和3列
+
+val output = slicer.transform(dataset) //追加features特征
+println(output.select("userFeatures", "features").first()) //输出userFeatures和features内容
+
+[[-2.0,2.3,0.0],[2.3,0.0]]
+
+
+-----------
+
+    val data1 = util.Arrays.asList(
+      Row(Vectors.dense(-2.0, 2.3, 0.0)),
+      Row(Vectors.sparse(3, Array[Int](0, 1), Array[Double](-2.0d, 2.3d))) 因为是稀疏向量,因此输出的时候也是输出稀疏向量
+    )
+    
+[-2.0,2.3,0.0]     [2.3,0.0]   
+(3,[0,1],[-2.0,2.3])   (2,[0],[2.3])  //输出原来3个特征,现在2个特征,其中一个特征是空.因此没有输出
+

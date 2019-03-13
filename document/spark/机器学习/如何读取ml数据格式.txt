@@ -1,0 +1,51 @@
+一、第一种数据格式
+val filepath1 = ""
+val data = MLUtils.loadLibSVMFile(sc, filepath1)    返回值RDD[LabeledPoint]
+
+格式 lable index:value1 index:value2
+这种格式解析后的结果是稀疏向量
+1 1:1 2:1 3:1
+1 1:1 2:1 3:2
+1 1:1 2:2 3:1
+0 1:1 2:2 3:2
+1 1:2 2:1 3:1
+0 1:3 2:1 3:2
+0 1:3 2:1 3:1
+0 1:3 2:2 3:1
+1 1:2 2:1 3:1
+0 1:2 2:2 3:2
+注意:
+1.特征序号要保证增序排序
+2.lable一定是double类型的 特征序号是int类型,特征值是double类型
+3.序号要从1开始计算，方法会将1变成0,即方法内会转换成0开头的序号
+
+
+MLUtils.saveAsLibSVMFile(data: RDD[LabeledPoint], dir: String)
+将该格式保存到磁盘
+
+二、第二种格式
+val data = MLUtils.loadLabeledPoints(sc, filepath1)
+
+格式:lable,value1 value2 value3
+1,1 1 1
+1,1 1 2
+1,1 2 1
+0,1 2 2
+1,2 1 1
+0,3 1 2
+0,3 1 1
+0,3 2 1
+1,2 1 1
+0,2 2 2
+
+MLUtils.saveLabeledData(data: RDD[LabeledPoint], dir: String)
+将该格式保存到磁盘
+
+二、分解成训练和测试数据集
+    val splits = data.randomSplit(Array(0.7, 0.3))
+    val (trainingData, testData) = (splits(0), splits(1))
+
+    trainingData.foreach(println(_))
+    println("-----")
+    testData.foreach(println(_))
+
