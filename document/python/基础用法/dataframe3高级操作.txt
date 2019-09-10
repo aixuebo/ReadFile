@@ -1,0 +1,107 @@
+一、初始化数据
+import pandas as pd
+import numpy as np
+from datetime import datetime, date, time, timedelta
+
+def load_data(filepath):
+    df = pd.read_csv(filepath,sep=',',parse_dates=["c4","c5"]) ## 直接将某些日期类型的字符串转换成datetime64类型
+    return df
+    
+df = load_data('/Users/maming/Downloads/test/temp.txt')
+
+注意:
+默认csv的第一行数据是title.
+
+
+二、如何追加一列?
+df["c4"] = df["c1"] + df["c2"]  ### 追加一列,名字为c4,值是c1+c2的计算结果。
+
+
+三、数据运算 + - * /
+相当于excel的每一行追加一列
+a.每一行的c1列 与 c2列互相运算,计算产生结果
+df["c1"] + df["c2"] 
+df["c1"] - df["c2"]
+df["c1"] * df["c2"]
+df["c1"] / df["c2"]
+b.每一行的某一列，与具体值进行运算
+df["c1"] + 2
+df["c1"] - 2
+df["c1"] * 2
+df["c1"] / 2
+
+四、比较运算
+df["c1"] >= df["c2"]
+输出boolean类型的值
+0    False
+1    False
+2    False
+
+五、汇总运算
+a.将每一列/每一行所有数据进行汇总,计算出一个值。
+相当于excel的每一列求sum运算。
+df.count()  输出每一列非null的元素数量
+df.count(axis=1)  输出每一行非null的元素数量
+df["c1"].count() 输出某一列的非null元素数量
+b.类似函数
+sum、max、min、mean(均值)、median(中位数)、mode(众数)、var(方差)、std(标准差)、quantile(分位数)
+注意:
+1.mode如果没有重复的数据时，或者出现多个相同数据的时候,会展示所有的相同的众数。
+2.df.quantile(0.25) 表示获取四分之一分位数值。
+
+c.相关性运算,衡量2个事物之间的相关程度
+df["c1"].corr(df["c2"])  ### 计算两列相关程度
+df.corr() ### 各字段两两之间的相关性,输出是一个相关矩阵。类似协方差矩阵。
+
+六、日期类型转换
+a.字符串日期类型 转换成日期类型
+比如c5列的格式是2019-08-10,在df.info中该列是object类型,表示字符串
+df['c5'] = pd.DatetimeIndex(df['c5']) ### 将该列转换成日期类型datetime64
+df.set_index("c5", inplace=True)  ### 设置该列为索引,即默认索引列是0开始计数的,此时索引为日期列。
+
+b.获取日期列的数据内容
+df["c5"].dt.month  获取c5这个日期列的月份数据,注意 dt属性必须存在,表示先获取c5列的日期类型
+df.index.year ### 如果日期列是索引,则df.index找到索引列,然后获取该列的年.注意 此时不需要获取dt属性了
+
+
+c.日期类型如果有时间呢，或者20190810形式，如何转换？
+df['c4'] = pd.to_datetime(df['c4'], format='%Y%m%d %H:%M:%S')  ## 字符串转换成datetime64
+df['c6'] = df['c6'].apply(lambda x: datetime.strptime(x,'%Y%m%d %H:%M:%S'))  ## 字符串转换成datetime64
+df['c7'] = df['c7'].apply(lambda x: datetime.strptime(str(x),'%Y%m%d')) ### 将20190810 这种形式的int 转换成string形式,然后再转换成datetime64
+
+d.日期内容如何做减法
+df["cha_str"] = df["c4"] - df["c6"]  ### 1 days 00:00:21 获取差距部分的字符串形式,即差距N天、多少小时、多少分钟、多少秒
+df["cha"] = (df["c4"] - df["c6"]).dt.days  ### 1  获取差距部分中的天
+df["seconds"] = (df["c4"] - df["c6"]).dt.seconds ### 21 获取差距部分中的秒
+
+七、缺失值处理
+1.NaN NULL null 都表示缺失值
+df.info() ### 判断列是否有NaN数据
+print df.isnull() ### 返回true/false 表示是否是null.数据多的时候不太常用,可以用df.info()查看是否有null数据
+
+2.缺失值删除
+print df.dropna() ### 发现改行数据有缺失值,则该行数据都要被删除---NaN
+print df.dropna(how = "all") ### 整行都是缺失值--空白行才会被删除
+
+3.缺失值填充
+print df.fillna(0) ### 缺失值都填充为0
+print df.fillna({"c1":-99,"c2":-999}) ## 针对不同的列 设置不同的缺失值
+
+八、删除重复数据
+1.默认重复数据仅保留第一次出现的数据。
+
+2.语法
+df.drop_duplicates() ### 一行数据所有字段都重复时,删除多余的数据
+df.drop_duplicates(subset = "c2") ### c2一列重复了,就删除多余的行数据,相当于group by c2
+### c1 和 c2两列重复了,就删除多余的行数据,相当于group by c1 , c2
+## keep 选择保留哪些数据 first 保留第一次数据; last 保留最后一次数据 ;False全部删除,不保留任何数据,注意False 写成false是报错的
+df.drop_duplicates(subset = ["c1","c2"],keep = False)
+
+九、异常值检测和处理
+### 业务规定指标的正常范围,通过阈值
+### 是否正态分布,超过3倍标准差就是异常
+### 绘制箱型图,大于 或者 小于 上下边缘的点称之为异常值
+### 处理方式  删除、缺失值代替、专门研究异常值出现的原因
+### 数据筛选--删除、筛选--替换 replace 在后面的章节介绍
+
+十、数据处理，参见git的dataframe_2_data_deal.ipynb

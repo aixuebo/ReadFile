@@ -1,0 +1,21 @@
+anaconda 类似安装包IOS，比如应用市场，避免pip方式下载python需要的包，
+anaconda可以帮我们统一管理各种包。
+一、下载
+1.国内镜像文件
+https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/ 
+或者百度搜索anaconda 官方下载  缺点是慢。
+2.根据python的版本,选择对应的文件进行下载。
+比如:
+Anaconda2-5.3.1-MacOSX-x86_64 --- 针对python2.7
+Anaconda3-5.3.1-MacOSX-x86_64 --- 针对python3.7
+二、查看安装是否成功
+conda -V
+可能没有配置环境变量,让环境变量生效
+cat ~/.bash_profile
+source ~/.bash_profile
+
+三、基于conda 安装jupyter notebook
+conda install jupyter notebook
+
+启动
+jupyter notebook

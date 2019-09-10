@@ -1,0 +1,65 @@
+import pandas as pd
+
+一、导入excel
+df = pd.read_excel(filepath.xlsx,sheet_name="aaa")
+df = pd.read_excel(filepath.xlsx,sheet_name=0,index_col=0,header=0,usecols=[0,1,2])
+df.head(3)
+
+注意:
+1.sheet_name可以省略,指代读取第一个sheet。
+2.sheet_name可以输入name,也可以输入序号,从0开始计数。
+3.index_col 表示使用excel的第几列作为行索引,excel从0开始计数。
+4.header 选择哪列作为行索引。
+5.usecols 表示我只要excel的前三列导入即可.从0开始计数。
+
+
+二、导入csv
+df = pd.read_csv(filepath,sep=',',nrows = 3,encoding = "utf-8",engine="python")
+注意:
+1.nrows 表示先加载前3行,先看看情况,防止数据过多,相当于df.head(3)
+
+三、导入txt
+df = pd.read_table("/Users/maming/Downloads/test/temp.txt",sep = ",")
+df.head(3)
+
+------------
+导出
+一、excel
+df.to_excel(excel_writer = "/Users/maming/Downloads/111111.xlsx",sheet_name="1111",
+                index = "false",##因为索引列没意义,所以不展示索引列,即列从0开始累加的列不展示
+                columns = ["name","problem_count","20190901"],##设置选择哪些列导出
+                header = ["aa","bb","ccc"],### 设置title
+                encoding = "utf-8",##设置编码
+                na_rep = 0,### 设置缺失值
+                inf_rep = 0 ## 正负无穷值处理
+                )
+                
+二、csv
+df.to_csv(path_or_buf = "/Users/maming/Downloads/111112.csv",
+                sep = ",",
+                index = "false",##因为索引列没意义,所以不展示索引列,即列从0开始累加的列不展示
+                columns = ["name","problem_count","20190901"],##设置选择哪些列导出
+                header = ["aa","bb","ccc"],### 设置title
+                encoding = "utf-8",##设置编码
+                na_rep = 0### 设置缺失值
+                )
+问题:
+1.文件名中文不支持。
+2.文件内容中文不支持.后续需要查资料修复。
+
+------
+
+demo:
+一、加载方式
+import pandas as pd
+import numpy as np
+
+def load_data(filepath):
+    df = pd.read_csv(filepath,sep=',')
+    return df
+    
+df = load_data('/Users/maming/Downloads/test/temp.txt')
+
+注意:
+默认csv的第一行数据是title.
+
