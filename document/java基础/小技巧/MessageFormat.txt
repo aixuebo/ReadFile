@@ -1,3 +1,5 @@
+String value = MessageFormat.format("删除【{0}】","10");  //输出 删除【10】---即从0开始计数
+
 一、如何将date类型的转换成各种字符串形式
 1.MessageFormat format = new MessageFormat("{0,date,yyyyMMdd HH:mm:ss}/{0,date,HH}/{1}");
 System.out.println(format.format(new Object[] { new Date(), "aaa" }));//20180828 16:15:08/16/aaa

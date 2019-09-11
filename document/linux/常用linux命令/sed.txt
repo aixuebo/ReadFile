@@ -48,6 +48,12 @@ printf "show slave status\G;" | mysql -h -P3306 -u -p database | sed -n "s/^./${
 注意:
 因为now是变量,因此一定要用双引号包围起来
 
+2.在每一行结尾追加aa字符串
+sed -n 's/$/aa&/gp' mysql.sh
+
+3.替换每一行的空白内容 替换成aa
+sed -n 's/[[:space:]][[:space:]]*/aa&/gp' mysql.sh
+
 四、注意问题
 1.sed中使用变量的使用,一定要用双引号包围起来
 2.&表示sed前期匹配的字符串内容

@@ -85,3 +85,32 @@ LEFT JOIN
 	group by a.invest1st_time,c.channelgenre,c.chinesename
 ) b on a.chinesename=b.chinesename AND
 a.create_date=b.invest1st_time AND a.channelgenre=b.channelgenre
+
+--------------------------------
+计算留存方式
+
+  计算每一个商家、昨日用户留存率、昨日新客留存率、昨日老客留存率
+  select
+      a.poi_id,
+      coalesce(sum(if(b.user_id is not null, 1, 0)) / count(a.user_id), 0) ,### 今天又购买的用户数/总购买用户数
+      coalesce(sum(if(a.is_first_buy = 1 and b.user_id is not null, 1, 0))/sum(if(a.is_first_buy = 1, 1, 0)),0) ,
+      coalesce(sum(if(a.is_first_buy = 0 and b.user_id is not null, 1, 0))/sum(if(a.is_first_buy = 0, 1, 0)),0) 
+  from
+  (
+    select user_id,poi_id, max(是否是首次购买该商家数据) is_first_buy
+    from 用户商家购买表
+    where dt = 昨天
+    group by user_id,poi_id
+  )a
+  left join
+  (
+    select user_id,poi_id
+    from 用户商家购买表
+    where dt = 今天
+    group by user_id,poi_id
+  )b on a.poi_id = b.poi_id and a.user_id = b.user_id
+  group by a.poi_id
+  
+  同样计算近7天用户留存率、近7天新客留存率、近7天老客留存率
+改造a和b的查询时间,a为dt在15-8天前。b为1-7天前
+  
