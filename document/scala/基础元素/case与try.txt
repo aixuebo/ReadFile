@@ -44,6 +44,16 @@ object Option {
           case e:Exception => buf += DateUtil.YMDHFM.print(System.currentTimeMillis()) + "fault" + StringUtil.printStackTrace(e)
         }
 
+返回Option对象
+     try{
+          Some(Order())
+        } catch{
+          case e:Exception => log.info("error:"+row.toSeq.mkString(","))
+            None
+        }
+        
+        .filter( !_.isEmpty).cache() 过滤调rdd中None的Option数据
+
 四、case问题,关于多行语法,可以不用加{}
     val replicationFuture = data match {
         //复制到多个节点上

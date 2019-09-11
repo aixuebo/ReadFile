@@ -1,0 +1,19 @@
+import scala.util.parsing.combinator.JavaTokenParsers
+
+class Arith extends JavaTokenParsers {
+
+  def expr : Parser[Any] = term~rep("+"~term | "-"~term)
+  def term : Parser[Any] = factor~rep("*"~factor | "/"~factor)
+  def factor : Parser[Any] = floatingPointNumber | "("~expr~")"
+
+}
+
+object m extends  Arith{
+
+  def main(args: Array[String]): Unit = {
+    println("----")
+    println(parseAll(expr,"  2  *  (3+ 7)"))
+    // [1.15] parsed: ((2~List((*~(((~((3~List())~List((+~(7~List())))))~)))))~List())
+  }
+
+}

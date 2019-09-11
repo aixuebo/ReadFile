@@ -1,6 +1,0 @@
-try
-{
-catch{
-   case _ => println(row.toString())
-   None
-}
