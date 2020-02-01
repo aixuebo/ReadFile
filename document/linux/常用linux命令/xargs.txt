@@ -1,0 +1,10 @@
+
+redis-cli hkeys key | grep -E "2017-12-10|2017-12-09" | xargs redis-cli hdel key
+
+demo 杀死所有属于一个执行命令后的进程
+ps aux | grep rebuild_maming | awk '{print $2}' | xargs kill -9
+
+
+查看源代码
+find . -name '*.java' | xargs grep --color 'main(' | awk '{print $1}' | uniq | grep -v test
+

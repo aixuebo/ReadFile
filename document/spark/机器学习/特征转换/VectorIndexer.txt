@@ -1,0 +1,49 @@
+一、VectorIndexer 对分类离散型特征值进行重新构造，从0开始计数
+1.输入/输出都是Vector类型的列
+2.maxCategories定义小于该特征值的就为离散型特征,大于该特征数的就为连续性特征
+3.转换过程
+分类特征的内容变成唯一数字，从0开始计数
+连续性特征值不变
+元数据存储分类特征的所有分类内容
+
+VectorIndexer把数据集中的类型特征索引为向量。它不仅可以自动的判断哪些特征是可以类别化,也能将原有的值转换为类别索引。 通常情况下,它的过程如下:
+1 拿到类型为vector的输入列和参数maxCategories
+2 根据有区别的值的数量,判断哪些特征可以类别化。拥有的不同值的数量至少要为maxCategories的特征才能判断可以类别化。
+3 对每一个可以类别化的特征计算基于0的类别索引。
+4 为类别特征建立索引,将原有的特征值转换为索引。
+索引类别特征允许诸如决策树和集合树等算法适当处理可分类化的特征,提高效率。
+转换后的数据可以传递给DecisionTreeRegressor等可以操作分类特征的算法。
+
+    val dataArr = Array(
+      Vectors.dense(1.0, 2.3),
+      Vectors.dense(1.0, 0.0),
+      Vectors.dense(1.0, -1.1)
+    )
+    val df = sqlContext.createDataFrame(dataArr.map(Tuple1.apply)).toDF("features")
+
+
+    val indexer = new VectorIndexer()
+      .setInputCol("features")
+      .setOutputCol("indexed")
+      .setMaxCategories(3) //小于3个值的我们就认为是离散型列
+
+    val indexerModel = indexer.fit(df) //模型
+
+    //输出哪些列我们认为是离散型列
+    val categoricalFeatures: Set[Int] = indexerModel.categoryMaps.keys.toSet
+    println(s"Chose ${categoricalFeatures.size} categorical features: " +
+      categoricalFeatures.mkString(", "))
+
+    val indexedData = indexerModel.transform(df)
+    indexedData.show(false)
+    
+    
+    
+ Chose 2 categorical features: 0, 1 选择2特分类,分别是0和1两个维度，即向量都是离散类型的
++----------+---------+
+|features  |indexed  |
++----------+---------+
+|[1.0,2.3] |[0.0,2.0]| 将原始向量转换成离散型向量
+|[1.0,0.0] |[0.0,0.0]|
+|[1.0,-1.1]|[0.0,1.0]|
++----------+---------+

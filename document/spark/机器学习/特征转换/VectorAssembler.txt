@@ -1,0 +1,22 @@
+一、VectorAssembler给定的多列转换为一个向量列
+注意
+1.参数列必须是数字类型的，或者vector(数字)类型的
+2.输入是多个列,类型为数字或者vector
+ 输出是vector类型的列
+ 
+
+    val dataset = sqlContext.createDataFrame(
+      Seq((0, 0.8, 1.0, Vectors.dense(0.0, 10.0, 0.5), 1.0))
+    ).toDF("id", "hour", "mobile", "userFeatures", "clicked")
+
+    val assembler = new VectorAssembler()
+      .setInputCols(Array("hour", "mobile", "userFeatures"))
+      .setOutputCol("features")
+
+    val output = assembler.transform(dataset)
+    output.select("*").show(false)
+    
++---+----+------+--------------+-------+----------------------+
+|id |hour|mobile|userFeatures  |clicked|features              |
++---+----+------+--------------+-------+----------------------+
+|0  |0.8 |1.0   |[0.0,10.0,0.5]|1.0    |[0.8,1.0,0.0,10.0,0.5]|

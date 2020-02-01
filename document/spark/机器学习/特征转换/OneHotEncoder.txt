@@ -1,0 +1,76 @@
+一、OneHotEncoder 将一个String类型的离散值字段  转换成 Vector类型的字段
+
+val df = sqlContext.createDataFrame(Seq(
+      (0, "a"),
+      (1, "b"),
+      (2, "c"),
+      (3, "a"),
+      (4, "a"),
+      (5, "c")
+    )).toDF("id", "category")
+
+    val indexer = new StringIndexer()
+      .setInputCol("category")
+      .setOutputCol("categoryIndex")
+      .fit(df) //先对数据源进行lable排序--按照出现的词频排序
+    val indexed = indexer.transform(df) //对lable进行编号
+    indexed.show(false)
+
+    val encoder = new OneHotEncoder()
+      .setInputCol("categoryIndex")
+      .setOutputCol("categoryVec")
+    val encoded = encoder.transform(indexed)
+    encoded.select("id", "categoryVec").show()
+    
++---+--------+-------------+
+|id |category|categoryIndex|
++---+--------+-------------+
+|0  |a       |0.0          |
+|1  |b       |2.0          |
+|2  |c       |1.0          |
+|3  |a       |0.0          |
+|4  |a       |0.0          |
+|5  |c       |1.0          |
++---+--------+-------------+
+
++---+-------------+
+| id|  categoryVec|
++---+-------------+
+|  0|(2,[0],[1.0])|
+|  1|    (2,[],[])|
+|  2|(2,[1],[1.0])|
+|  3|(2,[0],[1.0])|
+|  4|(2,[0],[1.0])|
+|  5|(2,[1],[1.0])|
++---+-------------+
+
+注意:
+1.可以看到0 3 4 这三个字段因为分类是相同的，因此对应的categoryVec也是相同的
+其他的id也是一样道理。
+2.因为默认是setDropLast=true,即最后一个label会被删除,因此结构1,即b对应的是没有数据的，因此是一个空向量
+3.a对应的值是(2,[0],[1.0]),表示一共2个标签lable,即a和c,因为b被删除了,a是第0个位置有值,因此是0位置设置为1,其余位置为0
+同理c为(2,[1],[1.0]) 表示下标1(第二个)位置为1,其余位置为0
+
+即第1和3都是不变化，就是第2个位置在变化，表示第几位是该分类属性对应的下标
+
+修改bug---.setDropLast(false)
+
+    val encoder = new OneHotEncoder()
+      .setInputCol("categoryIndex")
+      .setOutputCol("categoryVec")
+      .setDropLast(false)
+    val encoded = encoder.transform(indexed)
+    encoded.select("id", "categoryVec").show()
+
++---+-------------+
+| id|  categoryVec|
++---+-------------+
+|  0|(3,[0],[1.0])|
+|  1|(3,[2],[1.0])|
+|  2|(3,[1],[1.0])|
+|  3|(3,[0],[1.0])|
+|  4|(3,[0],[1.0])|
+|  5|(3,[1],[1.0])|
++---+-------------+
+    
+a对应的值是(3,[0],[1.0]),表示一共3个标签lable,a是第0个位置有值,因此是0位置设置为1,其余位置为0

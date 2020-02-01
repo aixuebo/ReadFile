@@ -1,0 +1,36 @@
+一、简单创建
+val dataset = spark.createDataFrame(Seq(
+  (7, "US", 18, 1.0),
+  (8, "CA", 12, 0.0),
+  (9, "NZ", 15, 0.0)
+)).toDF("id", "country", "hour", "clicked")
+
+二、更改内容，类似map方法
+import org.apache.spark.sql.functions._
+  val xxx = udf((str:String) => str.split(",").map(v => v.toDouble))
+  .withColumn("feature",xxx(col("feature")))
+  
+三、读取csv
+
+        <dependency>
+            <groupId>com.databricks</groupId>
+            <artifactId>spark-csv_2.10</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
+
+   val conf = new SparkConf().setAppName("xxx").setMaster("local")
+    val sc = new SparkContext(conf)
+    val arg_conf = new Configuration()
+
+    val sqlContext = new SQLContext(sc)
+
+    val filepath1 = "/Users/maming/Downloads/test/fenxi.txt"
+
+    val featureIndexMap = sqlContext.read.format("com.databricks.spark.csv").option("inferSchema", "false").load(filepath1)
+      .toDF("colume1", "colume2")
+      
+      注意 输出的字段内容都是string类型的，如果要int类型，得需要toInt转换。
+      
+
+  

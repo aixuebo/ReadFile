@@ -1,0 +1,31 @@
+ 特征选择试图识别相关的特征用于模型构建。它改变特征空间的大小，它可以提高速度以及统计学习行为。
+ChiSqSelector实现卡方特征选择，它操作于带有类别特征的标注数据。 
+ChiSqSelector根据独立的卡方测试对特征进行排序，然后选择排序最高的特征。下面是一个使用的例子。
+
+import org.apache.spark.SparkContext._
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.mllib.feature.ChiSqSelector
+// 加载数据
+val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
+
+// 卡方分布需要类别特征，所以对特征除一个整数。虽然特征是double类型，
+//但是ChiSqSelector将每个唯一的值当做一个类别
+val discretizedData = data.map { lp =>
+  LabeledPoint(lp.label, Vectors.dense(lp.features.toArray.map { x => (x / 16).floor } ) )
+}
+// Create ChiSqSelector that will select top 50 of 692 features
+val selector = new ChiSqSelector(50)
+// Create ChiSqSelector model (selecting features)
+val transformer = selector.fit(discretizedData)
+// Filter the top 50 features from each feature vector
+val filteredData = discretizedData.map { lp => 
+  LabeledPoint(lp.label, transformer.transform(lp.features)) 
+}
+
+注意:
+1.特征和label必须是分类的，因此因为数据源是double类型的,所以demo中/16表示进行分类处理
+2.new ChiSqSelector(50) 表示从全部692特特征中最后选择top50的特征
+3.将原始数中692特征中过滤,结果是只有50个特征的向量
+  LabeledPoint(lp.label, transformer.transform(lp.features)) 

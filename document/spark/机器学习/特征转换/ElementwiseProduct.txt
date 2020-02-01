@@ -1,0 +1,23 @@
+一、ElementwiseProduct
+两个vector,相应下标元素相乘,组成新的Vector
+换句话说，就是通过一个乘子对数据集的每一列进行缩放
+
+注意:
+1.输入是Vector,代表权重vector
+2.输出是vector,代表向量本身 * 权重后的vector
+3.最好使用mllib下的ElementwiseProduct,下面的demo也是mllib下的数据
+
+    val dataArr = sc.parallelize(Array(Vectors.dense(1.0, 2.0, 3.0), Vectors.dense(4.0, 5.0, 6.0)))
+    val transformingVector = Vectors.dense(0.0, 1.0, 2.0) //权重向量
+    val transformer = new org.apache.spark.mllib.feature.ElementwiseProduct(transformingVector)
+
+    // Batch transform and per-row transform give the same results:
+    val transformedData = transformer.transform(dataArr)
+    transformedData.foreach(println(_))
+
+    val transformedData2 = dataArr.map(x => transformer.transform(x))
+    transformedData2.foreach(println(_))
+    
+输出:
+[0.0,2.0,6.0]
+[0.0,5.0,12.0]

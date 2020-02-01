@@ -9,7 +9,8 @@
 优化方式:
 1.
 	select userId,investamount,investtime,
-	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn,
+	SUM(1) OVER(PARTITION BY NULL) AS rn12,     --分组内总行数-----注意该函数很有用,可以用于计算组内的总和
 	from invest_record
 	where substr(investtime,1,10) = '2016-05-09'
 正常查询sql,但是多了一个rn列,表示对该sql中,userid进行分组,并且每组中按照时间进行排序。这样之后产生的序号。
@@ -21,6 +22,7 @@
 
 4.将其都作为子查询,进行join,最终输出总结果即可
 
+5.查看下面的5-c的内容,可以一个sql，获取第一个、最后一个、倒数第二个数据,而不需要查询多次同一张表
 
 总sql:
 select first.userId,first.investamount,first.investtime,second.investamount,second.investtime,last.investamount,last.investtime,collect.c,collect.s
@@ -70,7 +72,8 @@ from
 --ROW_NUMBER() –从1开始，按照顺序，生成分组内记录的序列 –比如，按照pv降序排列，生成分组内每天的pv名次
 —RANK() 生成数据项在分组中的排名，排名相等会在名次中留下空位
 —DENSE_RANK() 生成数据项在分组中的排名，排名相等会在名次中不会留下空位
---NTILE(3) 将同一组下的数据分成3份
+--NTILE(3) 将同一组下的数据分成3份---经过测试,按照顺序分组的,因此如果相同的也会分配到2个不同组内,因此更常用的是CUME_DIST方法对数据分组
+具体参见下面的demo--NTILE和CUME_DIST综合测试demo
 总结:RANK和DENSE_RANK都会设置排名,key相同的排名都会相同。但是一个会继续接着按排名序号连续走,一个会跳跃排序编号
 
 SELECT
@@ -124,6 +127,8 @@ SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN CURRENT ROW 
 SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) 表示当前行+往前3行的值进行sum
 将sum替换成其他语法即可
 
+avg(a.all) over(partition by b.first_city_id, c.second_city_id) 表示 获取每一个一级城市、二级城市分类下的均值
+
 注意:
 a.可以省略ROWS BETWEEN 3 PRECEDING AND CURRENT ROW语法,
 如果有order by的时候,省略,则默认会添加ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),即从开始到当前行
@@ -133,33 +138,110 @@ b.sum里面填写的可以不仅仅是字段,也可以是常数,比如填写1,�
 5.计算占比
 a.定义
 –CUME_DIST 小于等于当前值的行数/分组内总行数
-例如 CUME_DIST() OVER(PARTITION BY userid ORDER BY 薪水) AS rn2
-表示按照userid分组,计算每一行数据的结果为 小于等于当前行薪水的行数/总行数,即用于获取比当前行对应的值小的比例
-CUME_DIST() OVER(ORDER BY 薪水) AS rn2 此时没有PARTITION BY,因此表示分组是整个数据
+
+例如:
+SELECT 
+dept,
+userid,
+sal,
+CUME_DIST() OVER(ORDER BY sal) AS rn1,
+CUME_DIST() OVER(PARTITION BY dept ORDER BY sal) AS rn2 
+FROM lxw1234;
+ 
+dept    userid   sal   rn1       rn2 
+-------------------------------------------
+d1      user1   1000    0.2     0.3333333333333333
+d1      user2   2000    0.4     0.6666666666666666
+d1      user3   3000    0.6     1.0
+d2      user4   4000    0.8     0.5
+d2      user5   5000    1.0     1.0
+ 
+rn1: 没有partition,所有数据均为1组，总行数为5，
+     第一行：小于等于1000的行数为1，因此，1/5=0.2
+     第三行：小于等于3000的行数为3，因此，3/5=0.6
+rn2: 按照部门分组，dpet=d1的行数为3,
+     第二行：小于等于2000的行数为2，因此，2/3=0.6666666666666666
+
+注意:
+score,value
+ROW_NUMBER() OVER(PARTITION BY score ORDER BY value asc) AS rn,
+SUM(1) OVER(PARTITION BY score) AS rn12,
+CUME_DIST() OVER(PARTITION BY score ORDER BY value) AS rn2 
+
+score   value   增长的序号    总数				计算的占比位置
+50		0.001	28			310863			1.0615608805164976E-4
+50		0.001	29			310863			1.0615608805164976E-4
+50		0.001	30			310863			1.0615608805164976E-4
+50		0.001	31			310863			1.0615608805164976E-4
+50		0.001	32			310863			1.0615608805164976E-4
+50		0.001	33			310863			1.0615608805164976E-4
+50		0.0011	34			310863			1.544088553478542E-4
+
+注意:
+1.相同value的值序号在累加增长。因为我们用的是ROW_NUMBER
+2.虽然相同的value序号在增加,但是最终 计算的占比位置 的计算结果是以相同的元素中最后一个元素位置/总数决定的.比如value=0.001的,是33/310863得到的最终结果
+3.因此可以得到相同的数据value可以分配相同的占比位置，不会因为相同的value因为出现的位置不同,导致结果不同的bug
+
+
+
+
 b.实现逻辑推测
 因为已经分组后按照某个字段排序了,因此只要计算group组内一共多少条数据即可,即分母需要计算,至于分子 就不断累加即可。因为已经排序好了,不需要额外的计算,
 而组内有多少条数据,其实在迭代一圈后就可以知道多少行数据了,因此先临时存储每一个分子,等待分母都计算好后,统一计算也可以,这样就可以扫描一次表,或者组内麻烦点,先扫描一下,确定count也可以
 
-b.PERCENT_RANK 百分比排名
-dept    userid   sal    rn1    当前行序号  总行数
----------------------------------------------
-d1      user1   1000    0.0     1       5
-d1      user2   2000    0.25    2       5
-d1      user3   2000    0.25    2       5
-d2      user4   4000    0.75    4       5
-d2      user5   5000    1.0     5       5
+b.PERCENT_RANK 百分比排名---基本上用CUME_DIST就可以了
+–PERCENT_RANK 分组内当前行的RANK值-1/分组内总行数-1
+应用场景不了解，可能在一些特殊算法的实现中可以用到吧。
 
-PERCENT_RANK 百分比排名
-计算公式为(当前行rank序号-1)/(总行数-1)
-该方法可以用于计算一个组内最后一条数据
-使用语法:
-PERCENT_RANK() OVER(PARTITION BY dept ORDER BY sal) AS rn2
+我自己的理解:我们可以看到数据的结果第一行rn1=0,表示第一行数据没有打败任何人,因此排序是0,而CUME_DIST表示的是自己本身在表中的位置,不存在打败的概念
+
+SELECT 
+dept,
+userid,
+sal,
+PERCENT_RANK() OVER(ORDER BY sal) AS rn1,   --分组内
+RANK() OVER(ORDER BY sal) AS rn11,          --分组内RANK值
+SUM(1) OVER(PARTITION BY NULL) AS rn12,     --分组内总行数-----注意该函数很有用,可以用于计算组内的总和
+PERCENT_RANK() OVER(PARTITION BY dept ORDER BY sal) AS rn2 
+FROM lxw1234;
+ 
+dept    userid   sal    rn1    rn11     rn12    rn2
+---------------------------------------------------
+d1      user1   1000    0.0     1       5       0.0
+d1      user2   2000    0.25    2       5       0.5
+d1      user3   3000    0.5     3       5       1.0
+d2      user4   4000    0.75    4       5       0.0
+d2      user5   5000    1.0     5       5       1.0
+ 
+rn1: rn1 = (rn11-1) / (rn12-1) 
+	   第一行,(1-1)/(5-1)=0/4=0
+	   第二行,(2-1)/(5-1)=1/4=0.25
+	   第四行,(4-1)/(5-1)=3/4=0.75
+rn2: 按照dept分组，
+     dept=d1的总行数为3
+     第一行，(1-1)/(3-1)=0
+     第三行，(3-1)/(3-1)=1
+
 
 c.记得有一个需求,要求计算第一笔投资、第二笔投资、第三笔投资 以及最后一笔投资
 我当时是使用rownum计算出来的,但是要计算两次,因为最后一笔没办法算,因此可以使用该PERCENT_RANK算法获取结果为1.0的记录就是最后一条。
 或者使用FIRST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime DESC) AS last2 方法获取最后一条数据
 继续扩展,如果要倒数第二条怎么办?
 可以用rownum计算当前行号以及使用SUM(1)计算总行数,然后根据rownum = 总行数-1,就可以算出来倒数第二笔订单
+
+比如以下sql 获取第一行、倒数第二行、最后一行三条数据
+select *
+from
+(
+select score,
+ROW_NUMBER() OVER(PARTITION BY score ORDER BY id asc) AS rn,##序号
+SUM(1) OVER(PARTITION BY score) AS rn12 ###总数
+from xxxx
+where dt = '20181203'
+limit 1000
+) a
+where rn in(1,rn12,rn12 - 1) 
+
 
 6.LAG 表示落后,即后面的可以获取前面的数据  LEAD表示超前,即前面的用户可以获取后面的数据
 a.
@@ -200,3 +282,45 @@ LAST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime)
 这几个分析函数通常用于OLAP中，不能累加，而且需要根据不同维度上钻和下钻的指标统计，比如，分小时、天、月的UV数。
 
 后续详细了解
+--------------------------
+一、NTILE和CUME_DIST综合测试demo
+select score,value,
+ROW_NUMBER() OVER(PARTITION BY score ORDER BY value asc) AS rn,###序号
+SUM(1) OVER(PARTITION BY score) AS rn12,###总数
+CUME_DIST() OVER(PARTITION BY score ORDER BY value) AS rn2,###占比
+NTILE(3) OVER(PARTITION BY score ORDER BY value) AS rn3 ###分成3组
+from biao
+value in ( 0.001 ,0.0011) ####为了测试NTILE分成3组,因此特意只选择了2个value值
+
+
+输出
+score value 序号 总数 占比位置  			NTILE结果
+50	0.001	1	22	0.3181818181818182	1
+50	0.001	2	22	0.3181818181818182	1
+50	0.001	3	22	0.3181818181818182	1
+50	0.001	4	22	0.3181818181818182	1
+50	0.001	5	22	0.3181818181818182	1
+50	0.001	6	22	0.3181818181818182	1
+50	0.001	7	22	0.3181818181818182	1
+50	0.0011	8	22	1.0					1
+50	0.0011	9	22	1.0					2
+50	0.0011	10	22	1.0					2
+50	0.0011	11	22	1.0					2
+50	0.0011	12	22	1.0					2
+50	0.0011	13	22	1.0					2
+50	0.0011	14	22	1.0					2
+50	0.0011	15	22	1.0					2
+50	0.0011	16	22	1.0					3
+50	0.0011	17	22	1.0					3
+50	0.0011	18	22	1.0					3
+50	0.0011	19	22	1.0					3
+50	0.0011	20	22	1.0					3
+50	0.0011	21	22	1.0					3
+50	0.0011	22	22	1.0					3
+
+输出解释:
+1.0.001一共7条数据  0.0011一共15条数据,一共22条数据
+2.占比位置按照相同元素最大的序号进行计算的,比如0.001的占比 = 7/22
+3.NTILE结果 平均分配元素,因此虽然2种数据value,但是最终分配了3组，同时因为不能整除3,因此第一个分组内有8条数据
+
+

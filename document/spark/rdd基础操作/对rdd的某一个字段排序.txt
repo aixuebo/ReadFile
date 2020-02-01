@@ -1,0 +1,6 @@
+rdd.sortBy(o => o._3,false).take(3)
+
+注意:
+1.o其实是一个元组。
+2.按照元组的第三个字段排序，结果还是rdd本身，只是相当于order by排序了
+3.false表示倒叙排序

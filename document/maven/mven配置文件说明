@@ -75,7 +75,7 @@ nonProxyHost：指定不需要使用代理的主机，可不设置。如果有�
 
 七、强制刷新命令
 mvn clean install -U
-
+-Dmaven.test.skip=true
 八、maven 结构
 src--main--java
 src--main--scala

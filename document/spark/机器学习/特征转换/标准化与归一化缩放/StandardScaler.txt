@@ -1,0 +1,36 @@
+一、StandardScaler 特征缩放
+注意:
+1.输入和输出都是Vector类型的列
+2.使用org.apache.spark.ml.feature包下的StandardScaler,而不是mllib下的,mllib下的不好用
+3.均值只支持DenseVector密集向量输入
+  标准差支持稀疏和密集向量
+  因此在均值的时候，需要将向量做一次map转换,转换成DenseVector
+4.计算逻辑
+均值的更新逻辑是  value-均值  ----缩放均值=0
+标准差的计算逻辑是 value * (1/标准差)---差距多少个标准差
+均值 & 标准差计算逻辑是 (value - 均值) * (1/标准差) ---缩放均值=0，标准差为1
+当标准差为0的时候,输出默认值为0
+
+    val dataArr = Array(
+      Vectors.dense(-2.0, 2.3),
+      Vectors.dense(0.0, 0.0),
+      Vectors.dense(0.6, -1.1)
+    )
+    val df = sqlContext.createDataFrame(dataArr.map(Tuple1.apply)).toDF("features")
+
+    val standardScaledModel = new StandardScaler()
+              .setWithMean(true)
+              .setWithStd(true)
+              .setInputCol("features")
+              .setOutputCol("standardScaledFeatures")
+              .fit(df) //训练模型 获取均值和标准差
+
+    val scaledData = standardScaledModel.transform(df) //特征缩放
+    scaledData.show(false)
+    
+ +----------+-----------------------------------------+
+|features  |standardScaledFeatures                   |
++----------+-----------------------------------------+
+|[-2.0,2.3]|[-1.1263148458111012,1.0951417936380465] |
+|[0.0,0.0] |[0.3427914748120742,-0.23055616708169396]|
+|[0.6,-1.1]|[0.7835233709990268,-0.8645856265563525] |

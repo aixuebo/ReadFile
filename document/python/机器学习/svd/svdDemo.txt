@@ -1,0 +1,10 @@
+一、计算SVD
+from numpy import *;
+from numpy import linalg as la;
+import numpy as np;
+A=mat([[1,2],[0,0],[0,0]])  ###定义矩阵
+print A
+U,sigma,VT=la.svd(A)
+U sigma VT 打印数据
+sigma[0]获取某一个数据
+

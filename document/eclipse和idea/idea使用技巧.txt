@@ -15,12 +15,32 @@ eclipse快捷键
      两次Ctrl+O操作可以找到包含子类的方法
 10.Alt+shift+r 替换所有变量名
 
+mac 键盘对应关系
+⌘ Command
+⇧ Shift
+⌥ Option
+⌃ Control
+↩︎ Return/Enter
+⌫ Delete
+⌦ 向前删除键（Fn+Delete）
+↑ 上箭头
+↓ 下箭头
+← 左箭头
+→ 右箭头
+⇞ Page Up（Fn+↑）
+⇟ Page Down（Fn+↓）
+Home Fn + ←
+End Fn + →
+⇥ 右制表符（Tab键）
+⇤ 左制表符（Shift+Tab）
+⎋ Escape (Esc)
 
 idea快捷键
 常用代码提示快捷键
 main-----psvm 也就是public static void main的首字母。
 for ----fori
 sout----System.out.println();
+debug 执行表达式 fn + option + F8
 更多的提示可以CTRL + j 可以查看,mac系统下是command＋j.
 
 最常用的快捷键
@@ -28,7 +48,7 @@ Alt+F1 常用工具都在这个选项里面
 Alt+F7 查找该方法或该类在哪些地方被调用了
 Ctrl+Alt+B 跳转到方法的实现处
 Alt+回车 自动import导入包
-ctrl+j 可以查找main 然后sout
+ctrl+j 可以查找main 然后sout   或者command+j
 alt + insert 可以设置set/get 重写父类等方法
 ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
 ctrl+i 导入未实现的抽象方法  code--implement method里面

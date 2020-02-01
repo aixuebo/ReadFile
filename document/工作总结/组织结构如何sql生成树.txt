@@ -1,0 +1,60 @@
+表结构
+id、name、父id、全路径path、level层级
+
+
+一、为每一个组织 根据path长度划分成多条数据，每一条增加父节点的name以及父节点的level
+select split.id,split.name,split.path,
+split.org_path_split,o.name parent_name,o.level
+from
+(
+      ###对组织架构的path进行拆分,即一行拆分成多行
+      SELECT id,name,path,level,org_path_split
+      FROM t
+      LATERAL VIEW explode(split(path,'-')) org_path_splits AS org_path_split
+) split
+join
+(
+      ###组织架构结构---组装成拆分后的父节点name
+      select id,name,level
+      FROM t
+) o on split.org_path_split = o.id
+
+二、根据一的结果,可以获取每一个level级别下所有的的结果
+select id,name,path,
+CONCAT_WS('-', collect_list(parent_name)),
+CONCAT_WS('-', collect_list(concat(parent_level,'')))
+from 一表
+group by id,name,path,level
+
+三、输出 组织id、一级name、二级name、三级name ...
+
+  select
+   id,
+   max(if(level=1,org_name,null)) as org_name_1,
+   max(if(level=2,org_name,null)) as org_name_2,
+   max(if(level=3,org_name,null)) as org_name_3
+  from t
+  group by id
+
+--------------------------------------------
+表结构
+id pathValue
+比如 1  总部-黑龙江-哈尔滨
+
+分别拆分成6层组织结构---输出
+select t_path.id,
+       t_path.value,
+       path_array[0] level1,
+       path_array[1] level2,
+       path_array[2] level3,
+       if(path_len<4,null,path_array[3]) level4,
+       if(path_len<5,null,path_array[4]) level5,
+       if(path_len<6,null,path_array[5]) level6
+  from (
+        select *,
+               split(value,'-') path_array,
+               size(split(value,'-')) path_len
+          from t
+  ) t_path
+  
+--------------------------------------------

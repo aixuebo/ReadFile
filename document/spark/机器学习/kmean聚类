@@ -1,0 +1,20 @@
+val allData = data.map(line => (line.getAs[Long]("id"), Vectors.dense(line.getAs[Double]("orders"),
+      line.getAs[Double]("orders_rate"))))
+
+    val trainData = data.map(line => Vectors.dense(line.getAs[Double]("orders"), line.getAs[Double]("orders_rate")))
+    trainData.cache()
+
+    val numClusters = 2
+    val numIterations = 200
+    val kMeansModel = KMeans.train(trainData, numClusters, numIterations)
+
+    // Evaluate clustering by computing Within Set Sum of Squared Errors
+    val WSSSE = kMeansModel.computeCost(trainData)
+    println(s"Within Set Sum of Squared Errors = $WSSSE")
+
+
+    val result = allData.map(line => {
+      val label = kMeansModel.predict(line._2)//查看该id对应的聚类标签
+      val id = line._1
+      (id, label)
+    })

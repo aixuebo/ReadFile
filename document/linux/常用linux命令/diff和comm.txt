@@ -1,0 +1,5 @@
+一、comm 显示两个文件有哪些相同，哪些不同
+comm file file
+
+二、diff 显示两个文件有哪些不同
+diff file file

@@ -1,0 +1,2 @@
+System.out.printf("aaa %s ddd %s money \r\n","sss","aaa");
+System.out.printf("aaa %d ddd %s money",33,"aaa");

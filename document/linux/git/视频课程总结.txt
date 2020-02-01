@@ -60,6 +60,12 @@ a.将分支上HEAD,即最后一次提交的内容,重新放置到缓存区中
 恢复当前版本 git reset HEAD readme.txt 
 恢复上一个版本 git reset --hard HEAD^
 恢复到某一个版本git reset --hard 3628164
+
+注意:
+如果恢复到某个版本后,更改代码是没有办法提交到远程的,因为远程的版本比你本地的版本大,因此你要强制推送到远程,副作用就是会导致有一些数据丢失了
+git push -u origin master -f  亲自测试是可以用的  
+git push -f -u origin master  网上说的,没有测试过
+
 b.将缓存区的内容,重新覆盖到工作区中
 git checkout -- readme.txt  
 注意--,如果没有--,则就是切换分支了,注意这个区别。
@@ -109,4 +115,49 @@ a.先从本地删除 git tag -d v0.9
 b.再从远程删除 git push origin :refs/tags/v0.9
 git checkout tagName 切换tag
 
-十二、分支管理到时候再看吧,暂时不做介绍
+十二、git实战常用内容
+1.查看当前在哪个分支下，以及一共有哪些分支
+git branch -a
+git branch -r 查看远程分支
+
+删除本地分支
+git branch -D branch-name
+
+删除远程分支
+git branch -r -d origin/branch-name
+git push origin :branch-name
+
+2.本地切换到一个分支
+git checkout master
+git checkout -b mirror1.32  切换到一个分支,并且如果不存在,则创建一个
+3.查看当前提交状态
+git status
+将某个新代码添加到git暂存区
+git add src/main/java/com/xxxx/xxx.java
+git add *
+或者替换revert 线上版本
+git checkout -- *
+git checkout -- src/main/java/com/xxxx/xxx.java
+4.git commit 提交到本地仓库
+5.提交到远程仓库
+git push -u origin mirror1.32
+6.merge 分支
+a.先切换到master
+b.git merge mirror1.32 将mirror1.32分支上的数据merge到master上
+c.如果出现Fast-forward,说明没有master和mirror1.32之间没有任何分支被创建,因此移动指针即可
+正常情况下都会非常麻烦的,因此不会出现这种。
+正常情况会出现Auto-merging 方式
+d.Auto-merging README方式下,merge可能会冲突，即相同的文件被两个人同时更改过,比如pom.xml
+此时应该使用idea编译器,打开冲突的文件,将以下内容的文件给手动修改
+<<<<<<< HEAD
+=======
+>>>>>>> iss53
+e.修改后使用add方法,将该对象提交到master的暂存区
+f.git status 查看merge后的文件,看看是否有测试项目,不需要提交到master远程服务器的,删除这些文件
+g.测试打包可以通过的话,则可以commit提交到master远程服务器
+
+
+十三、权限
+ssh-keygen -t rsa -C "username"
+cat ~/.ssh/id_rsa.pub 查看生成的ssh公钥	
+十三、分支管理到时候再看吧,暂时不做介绍

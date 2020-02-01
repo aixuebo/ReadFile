@@ -1,0 +1,6 @@
+一、广播
+val aaa = sc.broadcast(xxx)
+aaa.value.foreach(println(_))
+
+二、序列化
+object xxx with Serialization

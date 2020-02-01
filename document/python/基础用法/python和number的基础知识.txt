@@ -1,0 +1,43 @@
+注意:
+1.常用语法
+list = range(0,5) ### [1, 2, 3, 4]
+
+2.文档
+https://github.com/maMingNow/python_study/blob/master/readme
+参见Numpy 和 python
+
+
+3.常用导入
+import pandas as pd
+import numpy as np
+from datetime import datetime, date, time, timedelta
+from pandas.tseries.offsets import Day,Hour,Minute
+
+import sys
+stdo = sys.stdout
+reload(sys)
+sys.setdefaultencoding('utf-8')
+sys.stdout= stdo
+
+一、pyton基础知识
+type(x) 展示x的数据类型
+str(x) 将x转换成string类型
+
+数据类型:int float object string datetime unicode
+df["c1"].dtype  
+df["c1"].astype("int64") ### float64 转换成 int64
+
+二、dataframe常用工具
+df.head(3)
+df.shape ### 多少行 多少列
+df.info() ## 查看每列数据类型 以及 有没有null
+df.describe() ### 数字类型的统计分布
+
+三、正常预处理流程
+对缺失值进行处理
+删除重复数据
+异常值检测和处理
+
+四、中文问题
+margins_name = u"汇总" 前面加u,可以输出中文
+

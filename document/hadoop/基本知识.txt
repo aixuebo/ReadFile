@@ -41,3 +41,8 @@ mapreduce.input.fileinputformat.inputdir
 b.如果是hive执行的任务,可以获取任务的sql
 hive.query.string
 c.如果是非hive程序,则获取到jar包以及启动命令,就可以知道是哪个main函数触发的任务,则可以找到相关联系人
+
+11.让每一个map读取的数量更多，这样一个map可以读取更多数据块,让执行速度慢下来,防止线上执行过快,对第三方服务有压力,导致服务报警
+set mapred.max.split.size=1500000000;
+set mapred.min.split.size.per.node=1500000000;
+set mapred.min.split.size.per.rack=1500000000;

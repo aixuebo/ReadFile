@@ -1,0 +1,37 @@
+一、安装
+sudo pip install --default-timeout=100 numpy
+sudo pip install --default-timeout=100 scipy
+sudo pip install --default-timeout=100 future
+sudo pip install --default-timeout=100 pandas
+sudo pip install --default-timeout=100 scikit-learn
+
+mysql
+安装mysql
+brew install mysql 或者 brew install mysql-connector-c 
+安装python客户端
+sudo pip install --default-timeout=100 mysqlclient
+测试 import MySQLdb
+
+二、卸载
+sudo pip uninstall --default-timeout=100 numpy
+
+三、升级
+sudo pip install --default-timeout=100 --upgrade numpy
+
+
+四、Mac OSX 下安装XGBoost
+1.HomeBrew是Mac的一个包管理软件, 类似于Linux里面的apt-get
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+2.llvm是Mac下的一个编译器,可以用来编译C和C++程序.最新的llvm已经包含了OpenMP.
+注意, Mac下的XCode带有clang编译器, 但是是不支持OpenMP的,所以不能用来编译XGBoost.
+brew install llvm
+
+3.安装clang-omp
+brew install clang-omp
+
+有人提到clang-omp已经从HomeBrew移除了, 如果找不到clang-omp可以尝试
+brew install --with-clang llvm
+
+4.pip install xgboost
+
