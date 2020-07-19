@@ -1,5 +1,6 @@
 package com.maming.common.redis;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -21,8 +22,11 @@ public class Test {
 		System.out.println("ii:"+i);//287302
 	}
 
+	public void test2(){
+		System.out.println("sss");
+	}
 	public static void main(String[] args) {
 		Test test = new Test();
-		test.test1();
+		test.test2();
 	}
 }
