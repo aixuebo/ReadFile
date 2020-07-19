@@ -1,0 +1,2 @@
+查看jar包内是否有某个class全路径
+jar tvf test.jar |grep "org/apache/hadoop/fs/FileSystem.class"  | less 
