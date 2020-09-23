@@ -1,0 +1,26 @@
+
+一、参见spark的代码  org.apache.spark.ml.param.Param
+以下demo可以证明 方法有2种调研方式,
+1是.+方法名的方式，后面跟的是带有括号的参数("")
+2.空格+方法名的方式,后面跟的参数不需要加括号
+    new org.apache.spark.ml.param.Param("","","").->("s")
+    new org.apache.spark.ml.param.Param("","","") -> "s"
+
+    new org.apache.spark.ml.param.Param("","","").w("s")
+    new org.apache.spark.ml.param.Param("","","") w "s"
+
+3.看一下方法定义。为什么w等于->
+因为w方法调用的是 this -> value,即w方法调用了 -> 方法
+  /** Creates a param pair with the given value (for Java). */
+  def w(value: T): ParamPair[T] = this -> value
+
+  /** Creates a param pair with the given value (for Scala). */
+  def ->(value: T): ParamPair[T] = ParamPair(this, value)
+  
+3.多参数
+def ->(value: String,value1:String): String = value+value1
+println(this.->("aa","bb"))  输出 aabb
+println(this -> ("aa","bb") ) 输出 aabb
+多个参数需要()包上,与.方法相同
+
+  
