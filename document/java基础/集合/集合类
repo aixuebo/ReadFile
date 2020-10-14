@@ -34,7 +34,7 @@ E poll(long timeout, TimeUnit unit) 是阻塞一定时间的poll方法,超时后
 int drainTo(Collection<? super E> c) 是将满足的元素添加到参数集合内
 int drainTo(Collection<? super E> c, int maxElements) 是将满足的元素添加到参数集合内,最多满足 maxElements个元素就返回
 
-三、PriorityQueue 优先级对了
+三、PriorityQueue 优先级队列
 1.是一个无限制的优先级集合,通过动态的扩容实现无限制集合
   初始化的参数int是预估值,不是限制集合大小的参数
 2.集合的第一个元素就是集合内最小的元素
@@ -42,7 +42,18 @@ int drainTo(Collection<? super E> c, int maxElements) 是将满足的元素添�
 4.进队列和出队列的复杂度都是O(log(n)),因为他们要移动位置,比如offer、add、poll、remove
   线性方法,一个一个循环操作的是remove(Object)、contains(Object)
  常量时间的方法peek、size、element
-
+5.Comparator.reverseOrder() 用于倒序排列
+Queue<Integer> queue = new PriorityQueue<Integer>(2,Comparator.reverseOrder())  ;
+queue.add(10);
+queue.add(7);
+queue.add(9);
+queue.add(20);
+System.out.println(queue.size()+"=="+queue);
+System.out.println(queue.poll());
+System.out.println(queue.poll());
+System.out.println(queue.poll());
+System.out.println(queue.poll());
+        
 四、DelayQueue<E extends Delayed>
 参数 Delayed有2个方法,
 compare,用于比较两个Delayed对象,用于元素如何存储到优先队列中
@@ -61,5 +72,26 @@ E take() 方法阻塞的获取下一个过期的元素,也是调用peek看是否
 int drainTo(Collection<? super E> c)  需要循环所有的优先级队列元素,将满足过期的元素添加到参数中
 int drainTo(Collection<? super E> c, int maxElements) 需要循环所有的优先级队列元素,将满足过期的元素添加到参数中，最多满足参数个
 
+五、交集、并集、差集
+public static void main(String[] args) {
+    List<String> list1 = new ArrayList<String>();
+    list1.add("A");
+    list1.add("B");
+    list1.add("C");
+
+    List<String> list2 = new ArrayList<String>();
+    list2.add("C");
+    list2.add("B");
+    list2.add("D");
+    // 并集
+    list1.addAll(list2);
+    // 去重复并集
+    list2.removeAll(list1);
+    list1.addAll(list2);
+    // 交集
+    list1.retainAll(list2);
+    // 差集
+    list1.removeAll(list2);
+}
 
 

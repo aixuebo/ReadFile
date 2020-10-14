@@ -1,0 +1,23 @@
+1.数组转换成List --- 三种方式
+String[] array = {"aaaa", "bbbb", "cccc"};
+List<String> list1 = Arrays.asList(array);//只能查看,不能修改和删除
+List<String> list2 = new ArrayList<String>(Arrays.asList(array));//可以查看、删除和修改
+List<String> list3 = new ArrayList<String>(array.length); Collections.addAll(list3, array); //数量量大的时候,效率最高
+
+2.List转换成数组 -- ArrayList 有方法可以直接转换成数组  -- 2种方式
+String[] list2arr_1 = (String[])list1.toArray();//注意要强转
+String[] strings = new String[list1.size()];  list1.toArray(strings);//此时不需要强转,等于把list的内容复制到已经确定类型的数组中
+
+
+3.数组填充
+String[] array1 = {"aaaa", "bbbb", "cccc"};
+Arrays.fill(array1,"111");//已存在的数组全部转换成111
+
+
+String[] array2 = new String[10];//初始化空数组
+Arrays.fill(array2,"a");//数组内容全部转换成a
+Stream.of(array2).forEach(System.out::println);
+
+简化:
+Arrays.fill(new String[10],"a");
+        
