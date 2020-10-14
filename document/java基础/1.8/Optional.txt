@@ -1,0 +1,26 @@
+一、demo
+String ids = Optional.ofNullable(id).map(String::valueOf).orElse(null);
+
+二、Optional<T> Optional 解决java的空指针问题,将对象进行包装,因此包装后的对象可以判断是否为null
+1.静态持有一个空对象,即泛型T是null, Optional<?> EMPTY = new Optional<>();
+2.内部持有一个泛型对象value。
+3.方法 empty,返回空对象Optional<?> EMPTY = new Optional<>();
+4.创建一个Optional
+Optional.of(vo) 将非null的对象组装成Optional对象。
+Optional.ofNullable(vo) 如果vo非null,则相当于Optional.of(vo)。如果vo是null,则是EMPTY = new Optional<>();
+5.判断value是否是null
+boolean isPresent() true表示存在不是null的对象
+6.获取value的方法
+get() 如果是null,抛异常,即不允许非null调用
+orElse(T other) 相当于get操作,提供一个null的时候的默认值。
+orElseGet(Supplier<? extends T> other) 相当于get操作,提供一个null的时候的默认值。只是该值是表达式动态提供的。
+orElseThrow(Supplier<? extends X> exceptionSupplier) 相当于get操作,null的时候抛异常,该异常由表达式动态提供。
+ifPresent(Consumer<? super T> consumer) 表示不是null的时候,自动消费掉该对象,如果是null,则不消费该数据，跳过该数据,不会抛异常。
+6.高级映射方法---经过map和flatMap处理后,输入是Optional,输出依然是Optional。因此不受结果是null的影响。
+map(Function<? super T, ? extends U> mapper) 、flatMap(Function<? super T, Optional<U>> mapper)
+	如果value是null,则返回EMPTY = new Optional<>();
+  如果value不是null,则对value进行映射处理,然后将结果再次转换成Optional。即是结果是null,也可以转换。return Optional.ofNullable(mapper.apply(value));
+  
+ 三、注意
+ 开发的时候无论是否用map、flatMap、还是直接用的Optional对象本身，都是最好最后用orElse(null);赋予一个默认值。这样就避免了对象是null的问题，不会出现空指针异常bug。
+ 

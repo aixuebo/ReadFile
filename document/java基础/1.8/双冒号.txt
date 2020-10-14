@@ -1,0 +1,90 @@
+双冒号在java8中被应用于"方法引用"
+
+使用lambda表达式会创建匿名方法,但有时候需要使用一个lambda表达式只调用一个已经存在的方法,因此就需要把已存在的方法转换成类似lambda的对象,因此这才有了方法引用！
+
+一、代表消费者 Consumer<T>  即提供一个参数去消费,无需返回值
+1.引用一个class实例的某一个方法 instancename::methodname
+String[] array = {"aaaa", "bbbb", "cccc"};
+List<String> list = Arrays.asList(array);
+list.forEach(System.out::println); //println函数是一个接受一个参数,无返回值的方法,将该方法转换成Consumer函数。
+
+2.引用一个静态的方法 classname::methodname
+public void test3(){
+    String[] array = {"aaaa", "bbbb", "cccc"};
+    List<String> list = Arrays.asList(array);
+    list.forEach(Test::print);
+}
+
+public static void print(String str){
+    System.out.println(str);
+}
+
+3.对象的本类/超类方法引用语法： this/super::methodname
+public class Example extends BaseExample{
+    public void test() {
+        List<String> list = Arrays.asList("aaaa", "bbbb", "cccc");
+        /**
+         * 引用本类的某个方法 this::methodname
+         * override:aaaa
+         * override:bbbb
+         * override:cccc
+         */
+        list.forEach(this::print);
+        
+        /**
+         * 引用父类的某个方法 super::methodname
+         * aaaa
+         * bbbb
+         * cccc
+         */
+        list.forEach(super::print);
+    }
+
+    public void print(String content){
+        System.out.println("override:" + content);
+    }
+
+    public static void main(String[] args) {
+        Example test = new Example();
+        test.test();
+    }
+}
+
+class BaseExample {
+    public void print(String content){
+        System.out.println(content);
+    }
+}
+
+二、代表消费者 Function<T, R> ,将一个对象转换成另外一个对象
+String[] array = {"aaaa", "bbbb", "cccc"};
+List<String> list = Arrays.asList(array);
+list.stream().map(Test::print);//::简介,不用 变量 -> 的方式
+list.stream().map(s -> s.split(",")).map(arr -> Test.print(arr[0],arr[1]));//比较麻烦,但通用性好,可以调用任意数量的参数。因为3个以上的参数是无法黄建成Function的。
+
+public static String print(String str){
+    System.out.println(str);
+    return str;
+}
+
+三、实例化一个对象
+类构造器引用语法： classname::new 例如：ArrayList::new
+数组构造器引用语法： typename[]::new 例如： String[]:new
+
+原理解释:不一定对,自己感觉的，因为这块一直没太看懂。
+1.定义接口
+public interface InterfaceExampleTest1 {
+    Example create();
+    //Example create(String str);
+}
+2.因为接口的目的是生成Example对象,所以Example::new
+InterfaceExampleTest1 com = Example::new; //创建接口
+Example bean = com.create();//无参数构造方法  相当于new一个Example对象
+Example bean = com.create("hello world");//有参数构造方法
+bean.print("aaa");//调用Example对象的一个已存在的方法
+
+public class Example {
+    public void print(String str){
+        System.out.println("str:"+str);
+    }
+ }

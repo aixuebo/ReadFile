@@ -1,0 +1,113 @@
+Function、Predicate、Supplier和Consumer 四个函数接口对象
+
+以前只能传递对象或者字符串等对象。但无法传递一个函数。
+函数式变成需要传递函数作为参数，因此定义了java.util.funciton类,作为函数类。
+因此函数变成一个类了,就可以作为对象传递了，只需要解析器将一个字符串表达形式生成函数类即可。
+
+一、Function<T, R> 转换函数,相当于scala的map操作,把一个对象转换成另外一个对象的函数。
+1.接口解释
+R apply(T t);执行map函数逻辑
+compose 执行map函数前，先执行参数的map函数
+andThen 执行map函数后,在执行参数的map函数
+
+2.demo
+Function<Integer, Integer> times1 = i -> i * 2; //*2
+Function<Integer, Integer> times2 = times1.andThen(i -> i * i);//*2,然后平方
+Function<Integer, Integer> times3 = times1.compose(i -> i * i);//平方,然后*2
+System.out.println(times2.apply(10));//20 * 20 = 400
+System.out.println(times3.apply(10));//100 * 2 = 200
+
+注意:
+Function<Integer, Integer> times1 = i -> i * 2; i是int类型,原因是function定义的是int转换int,所以i在编译器里面就知道他是一个int类型了。
+
+二、Predicate<T> 判断函数,相当于filter.传入一个对象,返回是否boolean值。如果参数多的时候,可以把参数封装到对象里面,完成多参数的条件判断。
+1.接口解释
+boolean test(T t);给定一个对象,返回boolean
+Predicate<T> negate() boolean值!操作
+Predicate<T> and(Predicate<? super T> other)  相当于两个boolean值&&操作
+Predicate<T> or(Predicate<? super T> other)  相当于两个boolean值||操作
+
+2.demo
+Predicate<Integer> predicate = i -> i >= 5; //因为定义了Predicate<Integer>,因此知道 i表示是int类型
+System.out.println(predicate.test(10));
+
+3.注意
+为什么要有1个参数,无参数不能进行filter操作吗？答案是不能,因为无参数,函数无法判断是true还是false,所以相当于是一个固定值true/false,属于无意义的函数。
+
+三、Supplier<T> 提供者,表示一个对象的提供者函数 --- 即无参数,有返回值的方法
+1.提供无参数的get方法,返回对象 T get();
+2.demo
+Supplier<String> supplier = () -> "hello world";
+System.out.println(supplier.get());
+3.应用
+当工厂模式时,无参数的生产一个对象的时候，就可以用于该接口。
+如果工厂模式有参数的,则使用Function接口
+4.简化形式
+Supplier<String> supplier = String::new;
+在idea双击new,就可以到Supplier接口,说明::会走无参数的构造方法,会走无参数的构造方法的原因是我们声明了是Supplier对象,而Supplier对象就是无参数的意思。
+因此如果String的构造函数有多个,他只会走无参数的构造函数。
+
+四、Consumer<T> 消费者 相当于foreach,把一个对象给一个函数,只需要做处理,无需返回值。 或者常用于System.out.println
+1.接口解释
+void accept(T t) 给定对象,去消费,
+Consumer<T> andThen(Consumer<? super T> after) 消费完后,after在继续消费。相当于同一个消息进入kafka,被不同的消费者消费,只是消费者消费的时候有顺序而已。
+
+2.demo
+a.
+Consumer<String> consumer  = (i) -> {
+    StringBuffer sb = new StringBuffer();
+    sb.append(i.toLowerCase());
+    sb.append(" test");
+    System.out.println(sb.toString());
+};
+consumer.accept("aBcd");//abcd test
+
+b.先消费consumer,然后在消费andThen,消费的前提都是在参数aBcd基础上重复消费
+Consumer<String> consumerAfter = consumer.andThen((i) -> {
+    StringBuffer sb = new StringBuffer();
+    sb.append(i.toLowerCase());
+    sb.append(" after");
+    System.out.println(sb.toString());
+});
+consumerAfter.accept("aBcd");//输出2行,abcd test 、 abcd after
+
+c.
+Consumer<String> consumer1 = (s) -> System.out.println(s);
+
+3.注意
+Consumer<String> consumer  = (i) -> {} 此时i就是String类型的,因为定义的是Consumer<String>,说明函数参数类型是String。
+
+五、2个参数的情况
+a.BiFunction<T, U, R> 方法传入2个对象,返回R对象。也是一个map方法。
+    BiFunction<String,String,Integer> biFunction = (a,b) -> {
+        try{
+            return Integer.parseInt(a) + Integer.parseInt(b);
+        } catch(Exception ex){
+            ex.printStackTrace();
+        }
+        return 0;
+    };
+    System.out.println(biFunction.apply("3","10"));
+通过定义,确定a和b是String类型,返回值是Int类型。
+b.BiConsumer<T, U> 方法传入2个对象,如何去消费
+	BiConsumer<String, String> biConsumer = (a,b) -> {
+	  System.out.println(a.concat(" ").concat(b)); //aaaa bbbb
+	};
+	biConsumer.accept("aaaa","bbbb");
+c.BiPredicate<T, U> 传入2个参数,返回boolean类型
+    BiPredicate<Integer, String> biPredicate = (n, s) ->
+    {
+        if (n == Integer.parseInt(s))
+            return true;
+        return false;
+    };
+    System.out.println(biPredicate.test(2, "2"));
+
+六、其他函数
+a.定义2个double参数,输出double值
+DoubleBinaryOperator sb = (a,b) -> a * b;
+System.out.println(sb.applyAsDouble(5,6));
+b.BinaryOperator<T> extends BiFunction<T,T,T>
+minBy、maxBy 获取集合中的最大值和最小值
+
+

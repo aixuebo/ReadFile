@@ -1,0 +1,28 @@
+一、根查询节点 QueryBuilder
+   public List<T> query(QueryBuilder queryCriteria, int limit) throws IOException {
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(queryCriteria);//构建查询语句
+        searchSourceBuilder.from(0).size(limit);
+        
+        //请求
+        SearchRequest searchRequest = new SearchRequest(getIndexName());//请求哪个索引
+        searchRequest.types(getIndexType());//请求哪个类型
+        searchRequest.source(searchSourceBuilder);//请求什么查询sql语句
+        SearchResponse response = eagleRestClient.getClient().search(searchRequest);//执行,并且返回
+        SearchHits hits = response.getHits();
+        if (hits == null) {
+            return Collections.emptyList();
+        }
+        Stream.of(hits.getHits()).map(SearchHit::getSourceAsMap).forEach(System.out::println);
+        //System.out.println("propertiesMap==>"+propertiesMap);
+        logger().info("index:{},request:{},hits:{}", getIndexName(), searchRequest, hits.getTotalHits());
+        return Stream.of(hits.getHits()).map(SearchHit::getSourceAsMap).map(this::mapToBean).collect(Collectors.toList());
+    }
+    
+ 即给定一个查询条件,封装到request里面,就可以完成任务了。
+ 
+ 二、至于查询条件是什么,不重要,只要是QueryBuilder就可以。
+ 而QueryBuilder的子类包含:
+ IdsQueryBuilder 主键查询方式
+ BoolQueryBuilder 波布尔查询方式
+ 等等

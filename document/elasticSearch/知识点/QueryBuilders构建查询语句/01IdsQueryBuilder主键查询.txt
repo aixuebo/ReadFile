@@ -1,0 +1,4 @@
+一、效率极高。主键查询,根据es提供的_id查询数据。
+List<String> ids = Arrays.asList("792417138","848313138","7924171382","7924171383");
+IdsQueryBuilder idsQueryBuilder = QueryBuilders.idsQuery();
+idsQueryBuilder.addIds(ids.toArray(new String[]{}));

@@ -1,0 +1,161 @@
+本文重点要学习should的三重含义,在三个场景下不同含义,比较难理解,有难度。可以参见视频。
+
+一、BoolQueryBuilder 用于boolean查询逻辑,相当于sql,最复杂、变化最多、最长用的方式。
+BoolQueryBuilder queryCriteria = QueryBuilders.boolQuery(); //创建boolean查询对象
+
+### filter
+queryCriteria.filter(IdsQueryBuilder);//过滤数据只要_id符合参数的数据
+queryCriteria.filter(QueryBuilders.termQuery("originId", "138"));//过滤只要originId=138的数据
+queryCriteria.filter(QueryBuilders.rangeQuery("createTime").from( query.getCreateTime()).to(query.getUpdateTime()));//过滤--区间方式过滤
+
+### must、mustNot
+List<String> poiIdList = Arrays.asList("792417","848313","7924172","7924173");
+queryCriteria.must(QueryBuilders.termsQuery("poiId", poiIdList));//相当于sql的in操作
+
+###should
+queryCriteria.should(QueryBuilders.termQuery("poiId", String.valueOf("848313")));
+queryCriteria.minimumShouldMatch(1);//如果有这行代码,相当于把should变成must,必须有一个should条件要满足。如果参数是2,表示众多should条件中,最少要有2个条件被满足。满足条件的越多,相关性越高。
+        
+###返回最终组装好的sql语句。
+return queryCriteria;
+      
+二、注意
+1.filter的意义---相当于must,表示必须满足的条件,但他的速度会比must快很多,因此尽量使用filter代替must,原因如下:
+加速查询,因为filter只是过滤,效率高。
+must的性能要低一些，因为他要进行打分评估，也就是说要进行_score，而filter则不会。
+
+2.must、mustNot、should
+a.无论是must、mustNot、should,都是将查询语句加入到BoolQueryBuilder的list里面了,即BoolQueryBuilder里面有3个list,专门存储这些条件集合的。
+b.must每一个条件必须都要满足、mustNot必须都有不满足。
+c.should 表示 or ,有3层应用
+第1层,用于sql嵌套,因为嵌套时候,要确定彼此sql逻辑关系,因此需要or这个关键词,所以should用于嵌套,非常好理解。---参见demo2
+第2层,不好理解,用于非嵌套。---参见demo3
+计算文档的相关程度,命中should的文档,相关度会更高。
+第3层,更不好理解。---参见demo4
+所有 must 语句必须匹配，所有 must_not 语句都必须不匹配，但有多少 should 语句应该匹配呢？默认情况下，should是可以不用匹配的,只是匹配的文档相关性会更大。即第2层含义。
+但当没有 must 语句的时候，至少有一个 should 语句必须匹配。(也可以理解,没有必须条件了,某处一个should条件,那就应该是必须匹配,相当于must)
+我们可以通过 minimum_should_match 参数控制需要匹配的 should 语句的数量，它既可以是一个绝对的数字，又可以是个百分比。
+minimum_should_match如果是2,表示should众多条件中,必须有2个命中,才能返回结果,命中更多的should,相关性会更大。(此时无论must设置不设置,都要满足minimum_should_match数量条件)。
+
+三、demo
+1.简单的demo
+SELECT product
+FROM  products
+WHERE  (price = 20 OR productID = "XHDK-A-1293-#fJ3")
+AND  (price != 30)
+
+GET /my_store/products/_search
+{
+   "query" : {
+      "filtered" : { 
+         "filter" : {
+            "bool" : {
+              "should" : [
+                 { "term" : {"price" : 20}}, 
+                 { "term" : {"productID" : "XHDK-A-1293-#fJ3"}} 
+              ],
+              "must_not" : {
+                 "term" : {"price" : 30} 
+              }
+           }
+         }
+      }
+   }
+}
+
+2.嵌套sql
+SELECT document
+FROM   products
+WHERE  productID = "KDKE-B-9947-#kL5"
+OR ( productID = "JODL-X-1937-#pV7" AND price = 30 ) //遇到or,先用should前置,将where条件分成2组
+
+
+GET /my_store/products/_search
+{
+   "query" : {
+      "filtered" : {
+         "filter" : {
+            "bool" : {
+              "should" : [
+                { "term" : {"productID" : "KDKE-B-9947-#kL5"}}, 
+                { "bool" : { 
+                  "must" : [
+                    { "term" : {"productID" : "JODL-X-1937-#pV7"}}, 
+                    { "term" : {"price" : 30}} 
+                  ]
+                }}
+              ]
+           }
+         }
+      }
+   }
+}
+
+3.should用于非嵌套时的含义
+
+以下的查询结果返回 title 字段包含词项 quick 但不包含 lazy 的任意文档。目前为止，这与 bool 过滤器的工作方式非常相似。
+
+区别就在于两个 should 语句，也就是说：一个文档不必包含 brown 或 dog 这两个词项，但如果一旦包含，我们就认为它们 更相关。
+即should可以在查询中忽略,查询的时候只考虑must和must_not,一旦查询结果出来后,命中should的结果,相关性会更高。
+
+GET /my_index/my_type/_search
+{
+  "query": {
+    "bool": {
+      "must":     { "match": { "title": "quick" }},
+      "must_not": { "match": { "title": "lazy"  }},
+      "should": [
+                  { "match": { "title": "brown" }},
+                  { "match": { "title": "dog"   }}
+      ]
+    }
+  }
+}
+
+{
+  "hits": [
+     {
+        "_id":      "3",
+        "_score":   0.70134366, 
+        "_source": {
+           "title": "The quick brown fox jumps over the quick dog"
+        }
+     },
+     {
+        "_id":      "1",
+        "_score":   0.3312608,
+        "_source": {
+           "title": "The quick brown fox"
+        }
+     }
+  ]
+}
+
+文档 3 会比文档 1 有更高评分是因为它同时包含 brown 和 dog 。
+
+4.
+GET /my_index/my_type/_search
+{
+  "query": {
+    "bool": {
+      "should": [
+        { "match": { "title": "brown" }},
+        { "match": { "title": "fox"   }},
+        { "match": { "title": "dog"   }}
+      ],
+      "minimum_should_match": 2 
+    }
+  }
+}
+这个查询结果会将所有满足以下条件的文档返回： title 字段包含 "brown"AND "fox" 、 "brown" AND "dog" 或 "fox" AND "dog" 。即必须包含2个should条件才能被查询返回。
+如果有文档包含所有三个条件，它会比只包含两个的文档更相关。
+
+四、评分逻辑
+1.正常场景
+bool 查询会为每个文档计算相关度评分 _score ，再将所有匹配的 must 和 should 语句的分数 _score 求和，最后除以 must 和 should 语句的总数。
+must_not 语句不会影响评分；它的作用只是将不相关的文档排除。
+因此must_not相当于filter,must和should会参与计算score.命中must的文档,在同时命中should后,会相关性提高.参见上面的demo3.
+
+2.demo4的场景,即设置了minimum_should_match,都会考虑must、should都要参与文档的过滤。
+
+

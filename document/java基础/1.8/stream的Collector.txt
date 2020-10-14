@@ -1,0 +1,18 @@
+一、对象定义的概念:Collector<T, A, R> 
+Collector接口是用来定义一个可变的汇聚操作:将输入元素累加到一个可变结果容器，当所有的输入元素都被处理过后，选择性的将累加结果转换为一个最终结果。
+汇聚操作可以被串行和并行的执行。
+
+
+二、方法
+return new CollectorImpl<>((Supplier<List<T>>) ArrayList::new, List::add,
+                           (left, right) -> { left.addAll(right); return left; },
+                           CH_ID);
+1.Supplier 表示创建一个内部的list,作为存储临时结果。
+2.List::add 表示如何向Supplier的集合添加元素。
+3.表示并行时,多个集合如何merge
+
+这样就做到了如何将流中的数据并行还是串行的添加到Supplier中。
+
+三、具体实现调用关系
+List<String> list = Stream.of(array).map( v -> v.substring(0,3)).collect(Collectors.toList());
+此时collect方法会有自己的实现类，需要的参数都已经在Collectors.toList()中定义好了.比如Supplier、List::add、(left, right) -> { left.addAll(right); return left;
