@@ -1,0 +1,73 @@
+参考 https://blog.csdn.net/luoyexuge/article/details/82219700
+
+一、crf++模型训练到c++、java调用 背景介绍
+本篇blog要讲的是c++和java的接口,这里java的接口是通过jni调用c++,实际本质还是c++，
+不过也有人通过java实现了c++加载crf模型的那套逻辑，比较出名的就是在ansj中分词，就是通过java实现加载模型的逻辑自己实现了要。
+
+二、安装crf++
+1.安装sudo make install后,命令执行后,是否把头文件、so文本拷贝到 /usr/local/include  /usr/local/lib 中去,后面c++接口可以用到生成的动态文件
+
+三、java调用
+java调用必须先生成所需要的动态文件，通过jni加载，首先在 **/CRF++-0.58/java目录下执行make命令，不出意外的花的会报错，这是因为对jni.h 和 jni_md.h文件没有。
+需要执行已下3个步骤:
+
+1.copy java目录的jni.h 和 jni_md.h文件
+其中jni.h 和 jni_md.h 文件分别在java的include和include/darwin目录下面，执行下面命令拷贝到这目录下面：
+sudo cp jni.h ~/Downloads/CRF++-0.58/java/
+sudo cp jni_md.h ~/Downloads/CRF++-0.58/java/
+
+2.修改/CRF++-0.58/java/CRFPP_wrap.cxx文件
+把CRFPP_wrap.cxx下面的#include <jni.h>  改为#include "jni.h"
+
+3.make
+
+4.生成 CRFPP.jar 和 libCRFPP.so
+把jar包丢在maven中进行依赖。
+项目代码要加载so文件。
+
+四、代码demo
+import org.chasen.crfpp.Tagger;
+public class Test {
+	static {
+		System.load("/Users/Downloads/CRF++-0.58/java/libCRFPP.so");
+		System.out.println("so文件加载成功");
+	}
+ 
+	public static void main(String[] args) {
+		String text = "讲述了三个代表重要思想，我们要解放思想，实事求是，抓住机遇";
+		Tagger tagger = new Tagger("-m /Users/Downloads/crffile/model -v 3 -n2"); ### 加载模型文件
+		tagger.clear();
+		char[] ch = text.toCharArray();
+		tagger.clear();
+		StringBuffer sb = new StringBuffer();
+		for (int i = 0; i < ch.length; i++) {
+			tagger.add(String.valueOf(ch[i]));
+		}
+		tagger.parse();
+		long size = tagger.size();
+		long xsize = tagger.xsize();
+		for (long i = 0; i < size; i++) {
+			for (long j = 0; j < xsize; j++) {
+				String str = tagger.x(i, j);
+				String tag = tagger.y2(i);
+				if ("B".equalsIgnoreCase(tag)) {
+					sb.append(" ").append(str);
+				} else if ("M".equalsIgnoreCase(tag)) {
+					sb.append(str);
+ 
+				} else if ("E".equalsIgnoreCase(tag)) {
+					sb.append(str).append(" ");
+ 
+				} else if ("S".equalsIgnoreCase(tag)) {
+					sb.append(" ").append(str).append(" ");
+ 
+				}
+			}
+		}
+		System.out.println(sb.toString().trim());
+	}
+}
+
+输出:
+so文件加载成功
+讲述  了  三  个  代表  重要  思想  ，  我们  要  解放  思想  ，  实事  求是  ，  抓住  机遇

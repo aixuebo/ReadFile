@@ -1,0 +1,13 @@
+crf应用与原理
+https://zhuanlan.zhihu.com/p/34261803
+https://zhuanlan.zhihu.com/p/70067113
+https://cloud.tencent.com/developer/article/1079247
+https://blog.csdn.net/xmdxcsj/article/details/48790317
+https://blog.csdn.net/lihaitao000/article/details/51581756
+crf代码
+https://github.com/search?l=Java&q=crf&type=Repositories
+https://github.com/DutZMZ/CRFJava/blob/0.1/src/dut/ir/CRFJava/AbstractCRF.java
+https://github.com/shibing624/similarity
+https://github.com/asher-stern/CRF
+https://github.com/lihait/CRF-Spark/tree/master/src/main/scala/com/intel/ssg/bdt/nlp
+https://github.com/lihait/CRF-Spark/blob/master/src/main/scala/com/intel/ssg/bdt/nlp/Tagger.scala

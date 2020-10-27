@@ -1,0 +1,122 @@
+一、安装
+1.安装
+https://taku910.github.io/crfpp/#windows
+下载 CRF++-0.58.tar.gz
+解压包  tar -xzvf CRF++-0.58.tar.gz
+./configure   make   su make install
+
+2.定义模板
+template_file
+# Unigram
+U00:%x[-2,0]
+U01:%x[-1,0]
+U02:%x[0,0]
+U03:%x[1,0]
+U04:%x[2,0]
+U05:%x[-1,0]/%x[0,0]
+U06:%x[0,0]/%x[1,0]
+
+注意:
+a.因为我只有2列,最后一列还是tag列,因此只能用于模板的只有1列。因此标志内容都是0.
+b.row和col都是以0开头。
+
+
+训练集:train_file
+老	B
+莫	M
+西	M
+饼	E
+（	O
+火	O
+神	O
+庙	O
+店	O
+）	O
+回车\n
+
+
+测试集:test
+尚
+品
+国
+际
+（
+门
+头
+沟
+店
+）
+回车\n
+
+3.训练
+crf_learn -m 10 -f 3 -c 1.5 -a CRF test/template_file /train_file crf_test/model_file
+参数 template_file 模板文件   train_file 样本文件  model_file输出的模型文件
+-m 迭代多少轮
+
+
+4.预测
+crf_test -v2 -m 模型文件 预测文件 | head
+
+
+
+
+二、CRF模型,java如何调用
+java调用必须先生成所需要的动态文件，通过jni加载。
+1.CRF++-0.58/java目录下执行make命令，不出意外的花的会报错，这是因为对jni.h  和 jni_md.h文件没有，
+2.jni.h 和 jni_md.h 文件分别在java环境下include/darwin目录下面
+其中的include和，执行下面命令拷贝到这目录下面：
+sudo cp jni.h ~/Downloads/CRF++-0.58/java/
+sudo cp jni_md.h ~/Downloads/CRF++-0.58/java/
+3.把CRFPP_wrap.cxx下面的#include <jni.h>  改为#include "jni.h"
+4.CRF++-0.58/java目录下执行make命令
+生成CRFPP.jar 和 libCRFPP.so
+5.jar包丢在maven中进行依赖，下面写了个测试代码
+
+三、测试代码
+import org.chasen.crfpp.Tagger;
+
+public class HelloWorld {
+
+    static {
+        System.load("dev/crf/CRF++-0.58/java/libCRFPP.so");
+        System.out.println("so文件加载成功");
+    }
+
+    public static void main(String[] args) {
+
+        Tagger tagger = new Tagger("-m /crf/test/model_file_200 -v 3 -n2"); //model_file_200为模型文件
+        tagger.clear();
+
+        String text = "讲述了三个代表重要思想，我们要解放思想，实事求是，抓住机遇";
+        char[] ch = text.toCharArray();
+        StringBuffer sb = new StringBuffer();
+
+        for (int i = 0; i < ch.length; i++) {
+
+            tagger.add(String.valueOf(ch[i]));
+        }
+        tagger.parse();
+        long size = tagger.size();
+        long xsize = tagger.xsize();
+        System.out.println(size+"==="+xsize);
+        for (long i = 0; i < size; i++) {
+            for (long j = 0; j < xsize; j++) {
+                String str = tagger.x(i, j);
+                String tag = tagger.y2(i);
+                System.out.println(str+"==="+tag);
+                if ("B".equalsIgnoreCase(tag)) {
+                    sb.append(" ").append(str);
+                } else if ("M".equalsIgnoreCase(tag)) {
+                    sb.append(str);
+
+                } else if ("E".equalsIgnoreCase(tag)) {
+                    sb.append(str).append(" ");
+
+                } else if ("S".equalsIgnoreCase(tag)) {
+                    sb.append(" ").append(str).append(" ");
+                }
+            }
+        }
+        System.out.println(sb.toString().trim());
+    }
+}

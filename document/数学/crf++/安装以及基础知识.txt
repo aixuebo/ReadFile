@@ -1,0 +1,104 @@
+一、注意:
+编译的so文件,spark集群环境是centos 6.4,客户端是CentOS 7.6,因此导致编译的so文件在spark集群上无法执行。
+因此要保证spark集群和编译机器的环境是相同的。
+
+原因:
+首先，因为C/C++编译不是跨平台的，需要寻找一台与Spark执行环境一致的机器。
+在该机器上安装C/C++的库，然后在该机器上编译,比如编译so文件。
+
+二、安装
+https://taku910.github.io/crfpp/#windows
+https://taku910.github.io/crfpp/#windows
+下载 CRF++-0.58.tar.gz
+解压包  tar -xzvf CRF++-0.58.tar.gz
+./configure
+make
+sudo make install #安装的过程,就是把头文件、so文本拷贝到 /usr/local/include  /usr/local/lib 中去,后面c++接口可以用到生成的动态文件。因此安装完成后,这些目录下是有数据文件的。
+
+三、配置模板文件
+1.数据文件:
+老      B
+莫      M
+西      M
+饼      E
+（      O
+火      O
+神      O
+庙      O
+店      O
+）      O
+空行
+
+2.文件名称 template_file
+文件内容:
+# Unigram
+U00:%x[-6,0]
+U01:%x[-5,0]
+U02:%x[-4,0]
+U03:%x[-3,0]
+U04:%x[-2,0]
+U05:%x[-1,0]
+U06:%x[0,0]
+U07:%x[1,0]
+U08:%x[2,0]
+U09:%x[3,0]
+U10:%x[4,0]
+U11:%x[5,0]
+U12:%x[6,0]
+U13:%x[-1,0]/%x[0,0]
+U14:%x[-2,0]/%x[0,0]/%x[0,0]
+U15:%x[-3,0]/%x[-2,0]/%x[-1,0]
+U16:%x[-4,0]/%x[-3,0]/%x[-2,0]
+U17:%x[-5,0]/%x[-4,0]/%x[-3,0]
+U18:%x[-6,0]/%x[-5,0]/%x[-4,0]
+U19:%x[0,0]/%x[1,0]
+U20:%x[0,0]/%x[1,0]/%x[2,0]
+U21:%x[1,0]/%x[2,0]/%x[3,0]
+U22:%x[2,0]/%x[3,0]/%x[4,0]
+U23:%x[3,0]/%x[4,0]/%x[5,0]
+U24:%x[4,0]/%x[5,0]/%x[6,0]
+
+# Bigram
+B
+
+3.注意:
+a.因为我只有2列,最后一列还是tag列,因此只能用于模板的只有1列。因此标志内容都是0.
+b.U00:%x[row,col]   row和col都是以0开头。
+
+4.官方demo解释上面配置的含义
+Input: Data
+He        PRP  B-NP
+reckons   VBZ  B-VP
+the       DT   B-NP << CURRENT TOKEN ### 当前行
+current   JJ   I-NP 
+account   NN   I-NP
+
+含义解释:
+template	expanded feature
+%x[0,0]	the  ### 第0行0列是the
+%x[0,1]	DT
+%x[-1,0]	reckons
+%x[-2,1]	PRP
+%x[0,0]/%x[0,1]	the/DT
+ABC%x[0,1]123	ABCDT123
+
+三、训练
+基础命令: crf_learn template_file train_file model_file ### 模板文件、数据训练集文件、模型输出文件
+带参数的命令: crf_learn -m 200 -f 3 -c 1.5 -a CRF template_file train_file model_file
+-m表示迭代次数
+
+四、测试
+crf_test -v2 -m model_file test_file | head ### 即给定模型文件,测试文件,进行预测。
+
+五、参数
+-f, –freq=INT使用属性的出现次数不少于INT(默认为1)
+-m, –maxiter=INT设置INT为LBFGS的最大迭代次数 (默认10k)
+-c, –cost=FLOAT 设置FLOAT为代价参数，过大会过度拟合 (默认1.0)
+-e, –eta=FLOAT设置终止标准FLOAT(默认0.0001)
+-C, –convert将文本模式转为二进制模式
+-t, –textmodel为调试建立文本模型文件
+-a, –algorithm=(CRF|MIRA) 选择训练算法，默认为CRF-L2
+-p, –thread=INT线程数(默认1)，利用多个CPU减少训练时间
+-H, –shrinking-size=INT 设置INT为最适宜的跌代变量次数 (默认20)
+-v, –version显示版本号并退出
+-h, –help显示帮助并退出
