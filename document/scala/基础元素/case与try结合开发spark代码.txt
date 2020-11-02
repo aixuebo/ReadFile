@@ -1,0 +1,110 @@
+demo:
+  def testInit(): Unit ={
+    val result = try {
+      1/0
+      Some("abc")
+    } catch{
+      case e:Exception => e.printStackTrace
+        None
+    }
+    println(result.isEmpty)
+    result.filter(!_.isEmpty).foreach(println(_))
+    //None.isEmpty 返回true,所以对结果进行过滤,可以删除None的元素
+  }
+  
+
+一、kafka的每一个数据都是json字符串
+以下是sparkStreaming程序
+directKakfaStream.flatMap({ kv => kv._2
+      val jsonvo = JsonUtil.strToJson(kv._2)//将json字符串转换成json对象
+      jsonvo match {
+        case vo: JSONObject => {
+            vo.getJSONObject ("head").put ("channel", "aaa")//说明转换成功,因此对其追加一个渠道属性
+            Some (vo)//返回转换后的json对象
+        }
+        case _=> None //说明转换失败,因此返回None
+      }
+    }).foreachRDD( rdd =>
+        rdd.collect().foreach(println(_)) //打印每一个JSONObject对象内容
+    )
+注意事项
+1.上面的过程是使用flatMap,因此在foreachRDD打印的时候,将None的数据删除掉了,是看不到的
+2.如果上面的flatMap改成map,是会将None也会打印在foreachRDD里面的,这个不是我们想要的
+3.但是flatMap要求的数据是Traversable迭代器的对象,但是我们返回的是一个None或者Some对象,这有什么关系么?
+因此调用的结果是this.get,即已经是真实的值了,不需要我们在后期用Option.get方法获取对象了
+原因是Option这个对象持有一个隐式转换
+object Option {
+  import scala.language.implicitConversions
+
+  /** An implicit conversion that converts an option to an iterable value
+   */
+  implicit def option2Iterable[A](xo: Option[A]): Iterable[A] = xo.toList
+
+  //而要么是一个空集合,要么是一个元素的集合
+  def toList: List[A] = if (isEmpty) List() else new ::(this.get, Nil)
+
+二、try catch使用
+    try{
+          if(count > 0 ) product.send(messages)
+        } catch{
+          //TODO 打印日志,此时很关键
+          case e:Exception => buf += DateUtil.YMDHFM.print(System.currentTimeMillis()) + "fault" + StringUtil.printStackTrace(e)
+        }
+
+返回Option对象
+ try{
+      Some(Order())
+    } catch{
+      case e:Exception => log.info("error:"+row.toSeq.mkString(","))
+        None
+    }.filter( !_.isEmpty).map(_.get).cache() 过滤调rdd中None的Option数据
+
+因为None.isEmpty 返回true,所以对结果进行过滤,可以删除None的元素
+
+三、代码开发的细节
+
+1.rdd产生单一对象的场景
+使用flatMap方式,省略.filter(!_.isEmpty).map(_.get).cache()
+  val dataframe = df.flatMap(row => {
+    try {
+      val str = row.getAs[String]("wdc_name")
+      str match {
+        case str:String if(str.contains("东二环")) => None
+        case str:String => Some(Person(str))
+        case _=> None
+      }
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        println(row.toSeq.mkString(","))
+        None
+    }
+  }).map(vo => vo.name).foreach(println(_))
+
+try的原因也说了.确保返回的是Option。目的是确保某一条数据出问题,不影响全局
+同时flatMap会删除掉None的元素。但map不能,所以一定要用flatMap。
+同时flatMap虽然返回值是迭代器,但Option是有隐式函数,可以让其元素转换成迭代器,如果None返回的是空集合
+
+2.rdd产生集合的场景
+val dataframe = df.rdd.flatMap(row => {
+  val buffer = scala.collection.mutable.ArrayBuffer.empty[Option[Person]]
+  try {
+    val str = row.getAs[String]("wdc_name")
+    str match {
+      case str:String if(str.contains("东二环")) => None
+      case str:String =>df.rdd
+        buffer += Some(Person(str))
+        buffer += Some(Person(str))
+      case _=> None
+    }
+    buffer
+  } catch {
+    case e: Exception =>
+      e.printStackTrace()
+      println(row.toSeq.mkString(","))
+      None
+  }
+}).filter(!_.isEmpty).map(_.get).cache().foreach( vo => println(vo.name))
+此时因为返回的是ArrayBuffe[Option],所以需要将空的ArrayBuffe删除,然后获取_.get对象。
+
+该方法也是catch的时候返回None,在flatMap中已经将None删除了,所以filer不会出现None的元素,但可能出现空的ArrayBuffe集合元素。
