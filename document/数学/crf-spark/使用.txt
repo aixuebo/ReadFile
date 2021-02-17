@@ -1,0 +1,8 @@
+
+1.https://github.com/Intel-bigdata/imllib-spark
+已下载到自己的git下。https://github.com/aixuebo/imllib-spark-crf/tree/mm
+
+2.参考分支mm,修复了一些bug 以及 提供了一个demo
+a.修复大模型保存异常bug。提供根据hdfs的输入/输出流保存模型的方式。
+  即修复save/load模型方法,确保大模型也能保存。
+b.增加单一的序列去预测方法,而不是只能预测RDD和Array。

@@ -1,0 +1,104 @@
+一、读取文件,返回一行一行的内容,组成数组
+demo:
+val filepath = "";
+val templates: Array[String] = scala.io.Source.fromFile(filepath,"UTF-8").getLines().filter(_.nonEmpty).toArray
+templates.foreach(println(_))
+原理分析:
+1.传入文件路径,使用java的File,构造File对象
+2.创建输入流、以及缓冲区大小、如何reset重新读取该输入流、如何关闭输入流。
+val inputStream = new FileInputStream(file)
+    createBufferedSource(
+      inputStream,
+      bufferSize,
+      () => fromFile(file, bufferSize)(codec),
+      () => inputStream.close()
+    )(codec) withDescription ("file:" + file.getAbsolutePath) //描述信息是文件路径
+3.createBufferedSource方法,真的创建了一个缓冲区流
+new BufferedSource(inputStream, bufferSize)(codec) withReset resetFn withClose close 
+
+4.BufferedSource对象
+class BufferedSource(inputStream: InputStream, bufferSize: Int)(implicit val codec: Codec) extends Source {
+def reader() = new InputStreamReader(inputStream, codec.decoder)
+def bufferedReader() = new BufferedReader(reader(), bufferSize) 使用BufferedReader对inputStream进行了缓冲区包装
+
+BufferedReader对象是java的原生对象,支持String readLine(boolean ignoreLF)方法,该方法一个字节一个字节从缓冲区内读数据，直到遇到\r\n后结束，返回一行数据。
+
+5.templates.foreach(println(_))
+虽然templates是按照回车换行去拆分的数据,但回车换行的内容不会包含在获取的line里面,因此如果foreach中想要换行,一定加println,而不是print
+即调用的是BufferedReader类下面的函数
+public String readLine() throws IOException {
+    return readLine(false);//false是不包含回车换行的字符,即遇到回车换行后,不在读取内容,但同时也刨除了回车换行本身内容。
+}
+    
+二、读取二进制文件
+
+val file = new File("/Users/maming/Desktop/mm/dev/crf/test/test/testIo")
+val in = new FileInputStream(file)
+val bytes = new Array[Byte](file.length.toInt)
+in.read(bytes)
+in.close()
+
+三、写入一个文件,一行一行的内容输出到文件内
+val writer = new PrintWriter(filepath)
+for (line <- vo.getLines()){
+  writer.println(line)
+}
+
+原理:
+1.public PrintWriter(String fileName) throws FileNotFoundException {
+	new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName)) 创建一个缓冲区,注意此时不能自动flush,要手动flush
+	支持newLine()写入回车换行(自适应操作系统)、
+2.println细节
+a.println 调用的是BufferedWriter内部的换行内容,添加\r\n
+public void println() {
+    newLine();
+}
+
+b.添加string方法,然后添加回车换行
+public void println(String x) {
+    synchronized (lock) {
+        print(x);
+        println();
+    }
+}
+
+c.print是调用了BufferedWriter的write方法。
+一个字节一个字节的写入到缓冲区，然后手动的flush到磁盘上。
+public void print(String s) {
+    if (s == null) {
+        s = "null";
+    }
+    write(s);
+}
+
+四、误区
+1.cat看到的有回车换行,是因为格式转换的因素,其实是系统遇到回车换行的时候给人展示出来的错觉
+  def testWriteIo(): Unit ={
+    val writer = new PrintWriter("xxx")
+    writer.print("abc")
+    writer.println("def")
+    writer.print("hh")
+    writer.flush()
+    writer.close()
+
+  }
+
+  def testReadIo(): Unit ={
+    val file = new File("xxx")
+    val in = new FileInputStream(file)
+    val bytes = new Array[Byte](file.length.toInt)
+    in.read(bytes)
+    in.close()
+    bytes.foreach(println(_))
+  }
+输出:
+97
+98
+99
+100
+101
+102
+10 //回车
+104
+104
+ 

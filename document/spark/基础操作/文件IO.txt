@@ -1,0 +1,77 @@
+一、原生的FSDataOutputStream与FSDataInputStream读写字符串到文件里
+
+    val modelPath : Path = new Path(filepath)
+    val output : FSDataOutputStream = modelPath.getFileSystem(argConf).create(modelPath)
+    val input : FSDataInputStream = modelPath.getFileSystem(argConf).open(modelPath)
+
+    /**
+      * 序列化 方案1 --- 利用FSDataOutputStream本身的UTF函数,写内容,
+      * 优点是不用自己控制回车换行,并且有压缩。
+      * 缺点是无法使用正常软件读取该文件内容,因为该内容是有压缩形式的.因此也无法使用spark的textFile方式读取文件
+      */
+    //如何不想控制内容格式,而是以压缩的方式读写.因为压缩的形式UTF已经确定知道了要写入文件的内容大小,因此不用写回车换行,input流依然可以读取到每一行内容
+    output.writeInt(3) //表示有3行内容
+    output.writeUTF("第1行内容")
+    output.writeUTF("第2行内容")
+    output.writeUTF("第3行内容")
+    output.flush()
+    output.hflush()
+    output.close()
+
+    //反序列化
+    val buf = scala.collection.mutable.ArrayBuffer.empty[String]
+    val size = input.readInt() //多少行数据
+    println("read==>"+size)
+    try{
+      for(i <- (0 until size)){
+        buf += input.readUTF() //读取每一行数据
+      }
+    } catch{
+      case e:Exception => e.printStackTrace()
+    }
+    input.close()
+    
+二、自定义数据格式到文件读写
+    val modelPath : Path = new Path(filepath)
+    val output : FSDataOutputStream = modelPath.getFileSystem(argConf).create(modelPath)
+    val input : FSDataInputStream = modelPath.getFileSystem(argConf).open(modelPath)
+
+    /**
+      * 序列化 方案2 --- 自定义数据格式到文件读写。
+      * 1.支持文件下载到本地后,cat等命令根据回车换行进行解析数据
+      * 2.同时也支持spark的textFile直接根据回车换行读取数据。
+      *
+      * 优点是自定义格式,这种格式会更自定义化
+      * 缺点是需要自己控制换行字符,如果压缩也要自己做
+      */
+    //因为要写汉字,所以一定要包一层,这样我们可以控制输出文件的格式,自己控制内容以及回车换行,
+    //因为如果不自己设置回车换行,input流是不知道以什么截取一行数据的
+    val writer = new PrintWriter(output) //PrintWriter里面包含了缓冲区流,以及对string转换成char的操作
+    writer.print("第1行内容")
+    writer.println("第1行内容追加")
+    writer.print("第2行内容")
+    writer.println("第2行内容追加")
+    writer.flush()
+    writer.close()
+
+ /**
+  * 反序列化的三种方式
+  */
+  def testReadSparkIo1(args: Array[String]): Unit = {
+    val file = new File(filepath)
+    val in = new FileInputStream(file)
+    val bytes = new Array[Byte](file.length.toInt)
+    in.read(bytes)
+    in.close()
+    bytes.foreach(println(_))
+  }
+
+  def testReadSparkIo2(args: Array[String]): Unit = {
+    val file = new File(filepath)
+    val templates: Array[String] = scala.io.Source.fromFile(file,"UTF-8").getLines().filter(_.nonEmpty).toArray
+    templates.foreach(print(_))
+  }
+  
+  def testReadSparkIo3(args: Array[String]): Unit = {
+    sc.textFile("").map()
+  }

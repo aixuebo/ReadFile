@@ -5,9 +5,10 @@
 三、如何将cell数据转换成一行数据
 数据--分列
 四、插入--数据透视表
-五、=VLOOKUP(A2,Sheet2!A4:G4,3)
+五、=VLOOKUP(A2,Sheet2!A4:G4,3) ---相当于join操作
 第一个参数表示本sheet中以A2这列为参考,比如这列是时间
-第二个参数是查找另外一个sheet,名称为sheet2的sheet,查找范围是A4:G4全部行,
+第二个参数是查找另外一个sheet,名称为sheet2的sheet,查找范围是A4:G4全部行
+注意:范围的第一个列,即A4,一定是A2相同的值,即相当于join中的on
 第三个参数是如果第一个A2与sheet2中匹配的话,则将A4:G4中第三个索引值写到cell中
 注意:
 设置vlookup的时候,cell要设置在A2后面若干个cell中
