@@ -1,0 +1,25 @@
+一、lazy
+lazy val property = initProperty()
+1.实现延迟加载,类似java的单例模式
+正常代码，当发现val变量的时候，就会先执行,如果被lazy修饰后,不会被执行,只有当其他地方真的使用该变量的时候才会被初始化该变量。
+2.无论多少次调用，实例化方法只会执行一次。
+
+
+object LazyOps {
+    def init(): String = {
+        println("call init()")
+        return ""
+    }
+    def main(args: Array[String]) {
+        lazy val property = init();//使用lazy修饰
+        println("after init()")
+        println(property)
+        println(property)
+    }
+}
+
+代码说明:
+a.首先虽然init是一个方法,但lazy 修饰的是val 的变量。此时不会被真的初始化。
+b.println(property) 第一次调用的时候,会执行init()方法，发生懒加载。
+c.第二次调用println(property) 时候,不会再执行init方法,而是返回第一次执行的结果，即单例模式
+

@@ -1,4 +1,5 @@
-一、scala调用java,java的方法参数是int[],可直接使用scala的Array[Int],不用隐式转换
+一、数组
+  scala调用java,java的方法参数是int[],可直接使用scala的Array[Int],不用隐式转换
   def testJava(): Unit ={
     val arrInt : Array[Int] = Array(2, 1, 3) //初始化
     java.util.Arrays.sort(arrInt) // java需要参数数组,scala直接使用 sort(int[] a)
@@ -26,3 +27,133 @@ java的返回值是List的,可以使用scala的Buffer代替。
     val cmd: Buffer[String] = pb.command() //java返回值public List<String> command()
   }
   
+三、scala和java容器的双向转换
+Iterator               <=>     java.util.Iterator
+Iterator               <=>     java.util.Enumeration
+Iterable               <=>     java.lang.Iterable
+Iterable               <=>     java.util.Collection
+mutable.Buffer         <=>     java.util.List
+mutable.Set            <=>     java.util.Set
+mutable.Map            <=>     java.util.Map
+mutable.ConcurrentMap  <=>     java.util.concurrent.ConcurrentMap
+
+import collection.JavaConverters._
+然后使用 asScala 和 asJava 就可以在Scala容器和与之对应的Java容器之间进行隐式转换了
+
+比如:
+  /**
+    * asScala 将java对象转换成scala对象。
+    * asJava 将scala对象转换成java对象
+    */
+List.asScala 将java的list对象转换成scala对象
+val javaList = List(1, 2, 3).asJava 将scala的list对象转换成java对象
+
+
+四、应用scala和java容器的双向转换进行开发。
+场景1  java工程调用scala代码。
+先定义scala对外提供的接口。分别支持java集合对象参数、scala集合对象参数。
+注意: scala工程定义的接口最好使用java对象的集合参数。同时返回值对象也最好是java对象。因为毕竟是对java用户开放接口,参数和返回值都是java对象,对应用放更友好。同时java使用scala的对象不是很方便。
+
+  /**
+    * 参数是java对象
+    */
+  def testJavaParam(list:java.util.List[String]): Unit ={
+    import collection.JavaConverters._ //将java对象转换成scala对象。然后就可以使用scala的特性对该集合对象操作了
+    list.asScala.foreach(println(_))
+  }
+
+  /**
+    * 参数是scala对象
+    */
+  def testScalaParam(buffer:ArrayBuffer[String]): Unit ={
+    buffer.foreach(println(_))
+  }
+
+java调用:
+public static void testScala(){
+    ArrayBuffer buff = new ArrayBuffer(16);
+    buff.$plus$eq("aaa");
+    buff.$plus$eq("bbb");
+    ScalaToJava.testScalaParam(buff); //调用scala的方法,参数是scala的ArrayBuffer
+
+    for(Method m:buff.getClass().getMethods()){ //打印scala的方法,发现++=变成了$plus$eq
+        System.out.println(m.getName());
+    }
+
+    List<String> list =  new ArrayList<String>();
+    list.add("aa");
+    list.add("bb");
+    ScalaToJava.tesJavaParam(list);//调用scala的方法,参数是java list
+}
+
+场景2  scala工程调用java
+
+先定义java工程接口,因为是java工程,所以就纯粹的java代码,不会出现scala的集合对象。
+public static List<String> testList(List<String> list){
+    for(String str:list){
+        System.out.println(str);
+    }
+    return list;
+}
+
+sacla代码中,将scala集合转换成java集合对象,进行调用java函数。返回值虽然也是java对象,但为了方便使用scala对集合的序列方法,因此再转换成scala集合。
+
+import scala.collection.mutable.ArrayBuffer
+/**
+  * scala与java相互转换 scala与java的映射
+  * Iterator               <=>     java.util.Iterator
+  * Iterator               <=>     java.util.Enumeration
+  * Iterable               <=>     java.lang.Iterable
+  * Iterable               <=>     java.util.Collection
+  *mutable.Buffer         <=>     java.util.List
+  *mutable.Set            <=>     java.util.Set
+  *mutable.Map            <=>     java.util.Map
+  *mutable.ConcurrentMap  <=>     java.util.concurrent.ConcurrentMap
+  */
+object ScalaToJava {
+
+  import collection.JavaConverters._
+
+  /**
+    * asScala 将java对象转换成scala对象。
+    * asJava 将scala对象转换成java对象
+    */
+  def test(): Unit ={
+    /**
+      * 隐式函数,将ArrayBuffer转换成scala.collection.convert.Wrappers$MutableBufferWrapper,
+      * 而 scala.collection.convert.Wrappers继承 java的AbstractList
+      * 即 ArrayBuffer -> AbstractList
+      */
+    val javaList = scala.collection.mutable.ArrayBuffer("1","2","3").asJava //将buffer转换成java的list
+    println(javaList) //[1, 2, 3]
+    println(javaList.getClass) //class scala.collection.convert.Wrappers$MutableBufferWrapper
+
+    //调用java方法
+    println(CollectionTest.testList(javaList).getClass) //java的list返回值:class scala.collection.convert.Wrappers$MutableBufferWrapper
+    //因为java方法的返回值虽然是list,但最终还是在scala里面用,因此将java的返回值转换成scala
+    println(CollectionTest.testList(javaList).asScala.getClass) //class scala.collection.mutable.ArrayBuffer
+    val buf: Seq[String] = javaList.asScala //因为ArrayBuffer可以和seq无缝衔接,原因参见SeqTest
+
+
+    //同理操作map对象
+    val javaMap: java.util.Map[String, Int] = scala.collection.mutable.HashMap("abc" -> 1, "hello" -> 2).asJava
+    println(javaMap.getClass) //class scala.collection.convert.Wrappers$MutableMapWrapper
+    println(javaMap.asScala.getClass) //class scala.collection.mutable.HashMap
+  }
+}
+
+五、注意事项
+1.scala.immutable下的包,最好不要进行转换,因为在修改的时候会抛异常。
+因为Java并未区分可变容器不可变容器类型，所以，虽然能将scala.immutable.List转换成java.util.List，但所有的修改操作都会抛出“UnsupportedOperationException”
+
+2.还有一些Scala容器类型可以转换成对应的Java类型，但是并没有将相应的Java类型转换成Scala类型的能力，它们是：
+Seq           =>    java.util.List
+mutable.Seq   =>    java.util.List
+Set           =>    java.util.Set
+Map           =>    java.util.Map
+
+3.在Scala内部，这些转换是通过一系列“包装”对象完成的，这些对象会将相应的方法调用转发至底层的容器对象。所以容器不会在Java和Scala之间拷贝来拷贝去。
+一个值得注意的特性是，如果你将一个Java容器转换成其对应的Scala容器，然后再将其转换回同样的Java容器，最终得到的是一个和一开始完全相同的容器对象
+（译注：这里的相同意味着这两个对象实际上是指向同一片内存区域的引用，容器转换过程中没有任何的拷贝发生）。
+
+

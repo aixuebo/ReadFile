@@ -1,0 +1,46 @@
+一、返回值是具体类型的方法
+def 表示定义一个方法,包含参数,以及返回值是int
+
+  def test1(lowerBound: Double) : Int ={
+    0
+  }
+  
+二、返回值是一个方法的方法
+  def lt(lowerBound: Double) : (Int,Int) => Boolean = {
+    (value:Int,value2:Int) => value1 + value2 > lowerBound
+  }
+  println(lt(6))  // <function2>
+  返回值是 (Int,Int) => Boolean,说明返回值是,接受2个参数,返回boolean的一个方法。
+  函数体:定义了接受两个参数后，如何返回boolean,其中方法内可以使用具体的参数变量 以及 lt方法参数变量
+  
+三、如果返回值是一个方法,并且更通用泛型化呢?
+  def getDouble1[T](value:T) : Double = value match {
+    case x: Int => x.toDouble
+    case x: Long => x.toDouble
+    case x: Float => x.toDouble
+    case x: Double => x.toDouble
+    case x: String => x.toDouble
+    case _ =>
+      throw new IllegalArgumentException("error")
+  }
+
+  def gt[T](lowerBound: Double) : (T,T) => Boolean = {
+    (value:T,value2:T) => getDouble1(value) + getDouble1(value2) > lowerBound 
+  }
+  
+    println(gt(3)) // <function2>
+    println(gt(10)("5","6")) // true,因为 5+6 > 10
+  1.返回值是 (T,T) => Boolean,说明返回值是,接受2个参数(方法类型是泛型,只有真正传入参数的运行阶段才知道具体是什么类型),返回boolean的一个方法。
+  2.函数体:定义了接受两个参数后，如何返回boolean,其中方法内可以使用具体的参数变量 以及 gt方法参数变量
+  3.因为具体参数只有运行中才能知道,所以需要match case,去处理各种类型时，返回一个具体的值。
+  4.gt[T] 中的T表示泛型，具体T是什么类型,由(T,T)决定，即在调用gt(10)("5","6")时候决定是字符串
+
+四、如果泛型是多个类型呢?
+  def gt2[T,A](lowerBound: Double) : (T,A) => Boolean = {
+    (value:T,value2:A) => getDouble1(value) + getDouble1(value2) > lowerBound
+  }
+    println(gt2(3))
+    println(gt2(3)("5",9))
+  因为参数定义了T和A泛型，表示两个类型,因此调用的时候可以传入2个类型参数。
+  同时gt2[T,A]标注上该方法需要运行时具体的类型。
+ 

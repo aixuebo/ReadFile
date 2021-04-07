@@ -12,6 +12,14 @@ object SeqTest {
     val arrInt : Array[Int] = Array(1, 2, 3)
     val seq: Seq[Int] = arrInt //因此需要Seq的参数,完全可以使用Array代替掉
 
+    //直接填充seq
+    val seq2 : Seq[String] = Array.fill(5)("s") //填充5个s的元素数组,转换成seq
+    seq2.foreach(println(_))
+
+    //直接填充seq
+    val seq3 : Seq[(String,String)] = Array.fill(5)(("s","c")) //填充5个(s,c)的元组元素数组,转换成seq
+    seq3.foreach(println(_))
+
     //简单的定义Seq
     //定义的序列size=3,每一个元素是一个元组,存储元组的可以是多种数据类型
     val a = Seq((7, "US", 18, 1.0),

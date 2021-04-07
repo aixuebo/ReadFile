@@ -1,0 +1,40 @@
+一、传入的参数可以是方法体
+
+1.参数是方法，并且是有参数的方法
+delta有感
+
+  //参数是一个方法,该参数方法要求传入一个参数OptimisticTransaction对象,输出一个T
+  //即整体方法表示对参数方法封装一个事物层包装,具体执行还是参数方法
+  def withNewTransaction[T](thunk: OptimisticTransaction => T): T = {
+    try {
+      update()
+      val txn = new OptimisticTransaction(this) //开启事物
+      OptimisticTransaction.setActive(txn)
+      thunk(txn) //调用参数方法,输出就是整个方法的返回值
+    } finally {
+      OptimisticTransaction.clearActive() //关闭事物
+    }
+  }
+  
+  
+  override def run(sparkSession: SparkSession): Seq[Row] = {
+    deltaLog.withNewTransaction { txn =>  //整个方法使用withNewTransaction封装了一层事物。
+      //具体理解就是传入一个参数txn:OptimisticTransaction,如何处理逻辑自己实现。
+      val actions = write(txn, sparkSession) 
+      val operation = DeltaOperations.Write(mode, Option(partitionColumns), options.replaceWhere)
+      txn.commit(actions, operation)
+    }
+    Seq.empty //返回一个Seq,是空的原因是该run方法返回值是Seq[Row],但本身该方法逻辑没有返回值,所以返回一个空值
+  }
+  
+ 2.参数是方法，但是无参数
+ 在线程安全的锁下,执行无参数的body方法
+   def lockInterruptibly[T](body: => T): T = {
+	    deltaLogLock.lockInterruptibly()
+	    try {
+	      body
+	    } finally {
+	      deltaLogLock.unlock()
+	    }
+  }
+ 
