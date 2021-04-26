@@ -1,0 +1,28 @@
+ import hiveContext.implicits._
+    hiveContext.sql("set hive.exec.dynamic.partition=true")
+    hiveContext.sql("set hive.exec.dynamic.partition.mode=nostrick")
+
+    val sql = s"""select food_name
+       |from biao
+       |limit 10000
+    """.stripMargin
+
+    val featureDf = hiveContext.sql(sql).repartition(partitionNum)
+                  .rdd
+                  .map( row => row.getAs[String]("food_name"))
+                  .map(_.split(" ").toSeq).cache()
+
+    val model = new Word2Vec().fit(featureDf)
+    println(featureDf.flatMap( r => r.toIterator).distinct().count())
+    //model.save(sc,path)
+    println("炸鸡------")
+    val synonyms = model.findSynonyms("炸鸡", 40)
+    for((synonym, cosineSimilarity) <- synonyms) {
+      println(s"$synonym $cosineSimilarity")
+    }
+
+    println("烧烤------")
+    val synonyms2 = model.findSynonyms("烧烤", 40)
+    for((synonym, cosineSimilarity) <- synonyms2) {
+      println(s"$synonym $cosineSimilarity")
+    }
