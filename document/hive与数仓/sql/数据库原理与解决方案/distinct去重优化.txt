@@ -1,0 +1,20 @@
+一、单个去重指标的计算--只有COUNT(DISTINCT)没有其它聚合函数
+select dealid, count(distinct uid) num from order group by dealid;
+1.map阶段,key组成元组key<group字段,distinct字段>，value<任意默认值>。
+2.依然按照group by字段分发数据,因此partitionan按照key.1分区。
+3.local节点本地先merge,过滤重复,保留一份数据分发出去。
+4.远程reduce节点获取结果,计算同一个group by分组内count(distinct)计算数量。
+
+
+上述方案的风险是如果没有group by,则相当于全局一个reduce节点在做聚合。
+因此在不考虑其它因素的情况下，通常我们的优化方案是先group by再count 。
+原始sql:SELECT gid, count(DISTINCT age) FROM TestAggregate group by gid
+优化后的sql:SELECT gid, count(age)  FROM  (SELECT gid, age FROM TestAggregate group by gid, age) group by gid
+
+二、多个去重指标的计算
+select dealid, count(distinct uid), count(distinct date) from order group by dealid;
+有难度，暂时不分析。
+
+三、终极解决方案
+自定义udf,使用bitmap方式去重。
+相当于sum一样，map节点根据group by的字段聚合,聚合数据写入到bitmap中。reduce阶段直接merge数据即可。

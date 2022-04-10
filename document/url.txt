@@ -102,6 +102,19 @@ http://x-goder.iteye.com/blog/2036364
 redis
 http://mp.weixin.qq.com/s?__biz=MzI4OTU3ODk3NQ==&mid=2247484008&idx=1&sn=259e6f0767a0f98925c3037021ab781c&chksm=ec2c48d8db5bc1ce6745ea5f49196f71c1fbb33fd59a05a89f15e374763c354dd42f804986fb&mpshare=1&scene=23&srcid=040735KMyu2vm7FFKFAfvDYI#rd
 
+lucene
+https://github.com/zzboy/lucene/blob/master/lucene%E5%80%92%E6%8E%92%E7%B4%A2%E5%BC%95%E7%BC%93%E5%86%B2%E6%B1%A0%E7%9A%84%E7%BB%86%E8%8A%82.md
+http://qindongliang.iteye.com/category/317466
+http://blog.51cto.com/sbp810050504/1440572
+http://blog.51cto.com/sbp810050504/1440510
+https://blog.csdn.net/asdfsadfasdfsa/article/details/80212864
+打分
+http://blog.51cto.com/sbp810050504/1363567
+https://www.cnblogs.com/forfuture1978/archive/2010/03/07/1680007.html
+https://www.biaodianfu.com/lucene-score.html
+https://www.cnblogs.com/tiwlin/archive/2010/08/31/1813676.html
+https://my.oschina.net/BreathL/blog/51498
+
 
 未来要录制的视频
 1.redis使用 canal视频

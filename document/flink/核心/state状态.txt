@@ -1,0 +1,38 @@
+一、状态类型
+UNKNOWN,
+VALUE,//仅仅是一个类型的值
+LIST,//List<T>
+REDUCING,//ReduceFunction<T> 输入和输出类型相同
+FOLDING,//FoldFunction<T, ACC> 输入和输出不同类型,并且输出有默认初始化的元素类型来确定
+AGGREGATING,//AggregateFunction<IN, ACC, OUT> aggFunction;每一个输入都参与聚合,输入和输出类型不同,高级版的REDUCING、FOLDING
+MAP //Map
+
+
+二、一个key,共享一个值对象
+ValueState<Integer> valueState;// 定义一个具体的值对象。 定义一个变量名称与类型
+valueState = getRuntimeContext().getState(new ValueStateDescriptor<Integer>("my-int", Integer.class));
+
+Integer count = valueState.value();//获取当前状态值
+++count; //状态值+1
+valueState.update(count); //更新状态值
+
+三、一个key,共享List/map对象
+private ListState<String> myListState = getRuntimeContext().getListState(new ListStateDescriptor<String>("my-list", String.class));//定义一个list对象
+private MapState<String, Double> myMapState = getRuntimeContext().getMapState(new MapStateDescriptor<String, Double>("my-map", String.class, Double.class));;//定义一个map对象
+
+
+  for(String str: myListState.get()){  // list state 获取list中的元素
+    System.out.println(str);
+  }
+  myListState.add("hello");//向list追加元素
+  
+      // map state 获取map元素
+      myMapState.get("1");
+      myMapState.put("2", 12.3);//添加元素
+      myMapState.remove("2");
+      myMapState.clear();
+
+四、一个key,共享一个聚合对象
+//定义一个聚合对象  注意 要生命一个reduce函数,当reduce.add元素的时候,会调用该函数做merge操作
+private ReducingState<SensorReading> myReducingState = getRuntimeContext().getReducingState(new ReducingStateDescriptor<SensorReading>("my-reduce", ReduceFunction<T> reduceFunction, SensorReading.class));
+myReducingState.add(value);//向聚合函数中追加一个新的元素,那么myReducingState会调用merge方法。

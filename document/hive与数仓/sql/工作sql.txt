@@ -1,0 +1,74 @@
+1.成明查询注册后30天内投资、赎回情况,以及30-60天投资、赎回情况,等等
+以往查询担心性能问题,要写mr,现在发现这样也还没什么性能问题,因为没有用到笛卡尔积就没问题
+select 	a.userid,
+		to_date(a.reg_time) as reg_day,
+		to_date(a.invest1st_time) as invest1st_day,
+		a.province,
+		a.channnel,
+		sum(case when datediff(b.create_date,a.reg_time)<=30 then b.investamount else 0 end) as month1invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)<=30 then b.redeemamount else 0 end) as month1redeem_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>30 and datediff(b.create_date,a.reg_time)<=60 then b.investamount else 0 end) as month2invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>30 and datediff(b.create_date,a.reg_time)<=60 then b.redeemamount else 0 end) as month2redeem_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>60 and datediff(b.create_date,a.reg_time)<=90 then b.investamount else 0 end) as month3invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>60 and datediff(b.create_date,a.reg_time)<=90 then b.redeemamount else 0 end) as month3redeem_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>90 and datediff(b.create_date,a.reg_time)<=120 then b.investamount else 0 end) as month4invest_amount,
+		sum(case when datediff(b.create_date,a.reg_time)>90 and datediff(b.create_date,a.reg_time)<=120 then b.redeemamount else 0 end) as month4redeem_amount
+from dim.dim_user_info a
+left join dim.topic_user b on a.userid=b.userid
+where a.channel is not null and a.channel!='null' and a.channel!='' and a.channel!='invitation' and to_date(a.reg_time)>='2016-01-01'
+group by a.userid,to_date(a.reg_time),to_date(a.invest1st_time),a.province,a.channnel
+
+2.字符串聚合
+select t.userid,
+collect_set(case when activity_type = 1 and participation is not null then concat(participation,preference) else null end),
+collect_set(case when activity_type = 2 and participation is not null then concat(participation,preference) else null end),
+collect_set(case when activity_type = 3 and participation is not null then concat(participation,preference) else null end)
+from biao
+group by t.userid
+可以得到00009c2cb69144aa84dfedd55bbfc200        []      ["CC"]  []数据,因此在对字符串进行聚合的时候,应该用这个。
+
+并且collect_set(case when activity_type = 1 and participation is not null then concat(participation,preference) else null end)[0],如果内容不存在,也会返回null,不会有异常
+当然第二种方式用max(case when activity_type = 1 and participation is not null then concat(participation,preference) end)也是可以的
+
+3.出同比数据
+
+//用(当月销售额-上个月销售额)/上个月销售额 就是同比数据
+select uid,actual_price,actual_price_last,(actual_price-actual_price_last)/actual_price_last
+from
+(
+//获取每一个user,当月的销售额、上个月的销售额
+select uid,actual_price,
+LAG(actual_price,1,0.0) OVER(PARTITION BY uid ORDER BY wk) AS actual_price_last
+from 表
+) t
+
+
+4.20分位取值--可以一次获取多个分位点的数值
+计算20%分为点
+select *
+from 
+(
+select *,ROW_NUMBER() OVER(PARTITION BY userid ORDER BY search_count desc) AS rn
+from 表
+) t join
+(
+
+select userid,count(*) c
+from biao
+group by userid
+) a on t.uid = a.uid
+where t.rn = ceil(122402*0.2)
+
+a.先对数据排序,以及join 每一个分组的总数
+即数据变成原始数据字段、分组内序号、分组的总条数
+
+b.对结果集进行where筛选
+where rn = ceil(c*0.2) or rn = ceil(c*0.3) or rn = ceil(c*0.5) 
+这样可以获取每个分组的第20%、30%、50%的值,并且取整
+
+c.现在一个分组内只有3行数据,因此在对其进行ROW_NUMBER() OVER(PARTITION BY userid ORDER BY search_count desc) AS rn排序,
+因此第1个就是20%点分位值,第2个点就是30%点分位值
+
+d.将其行转列--使用case when then 方式
+输出 select  uid、基础属性、cast when rn = 1 then 20%点对应的分位值,同理rn = 2 是30%点对应的分位值
+

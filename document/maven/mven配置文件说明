@@ -1,15 +1,51 @@
 一、仓库
 默认有一个central仓库
 增加一个额外仓库
-	<repository>
-	  <id>scala-tools.org</id>
-	  <name>Scala-Tools Maven2 Repository</name>
-	  <url>https://oss.sonatype.org/content/repositories/public/</url>
-	</repository>
+
+    <profile>  
+       <id>scala-tools</id>  
+       <repositories>
+            <repository>
+                <id>scala-tools.org</id>
+            	<name>Scala-Tools Maven2 Repository</name>
+            	<url>http://scala-tools.org/repo-releases</url>
+                <releases>
+                    <enabled>false</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>false</enabled>
+                </snapshots>
+            </repository>
+        </repositories>
+     </profile> 
+	
+    <profile>  
+       <id>central</id>  
+       <repositories>
+            <repository>
+                <id>Central</id>
+                <name>Central</name>
+                <url>http://repo1.maven.org/maven2/</url>
+                <releases>
+                    <enabled>false</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>false</enabled>
+                </snapshots>
+            </repository>
+        </repositories>
+     </profile> 
+	
+	### 配置哪些profile生效
+    <activeProfiles>
+		<activeProfile>scala-tools</activeProfile>
+        <activeProfile>central</activeProfile>
+    </activeProfiles>
+	
 二、仓库需要密码
 在<servers>标签中配置仓库对应的用户名和密码
 <id>设置的内容就是对应仓库的id
-三、镜像
+三、镜像  由于一个仓库，可能公司创建了私服,因此优先加载该仓库内容时，走私服。即配置一个mirror，用于重定向。
 <mirror>
       <id>nexus</id>
       <mirrorOf>central</mirrorOf>
@@ -25,7 +61,7 @@ id表示镜像的名称,同一个仓库的镜像加载顺序是通过id决定的
 匹配所有远程仓库。 这样所有pom中定义的仓库都不生效
 2.<mirrorOf>external:*</mirrorOf> 
 匹配所有远程仓库，使用localhost的除外，使用file://协议的除外。也就是说，匹配所有不在本机上的远程仓库。 
-3.<mirrorOf>repo1,repo2</mirrorOf> 
+3.<mirrorOf>repo1,repo2</mirrorOf>  说明该镜像重定向的仓库，可以覆盖多个仓库
 匹配仓库repo1和repo2，使用逗号分隔多个远程仓库。 
 4.<mirrorOf>*,!repo1</miiroOf> 
 匹配所有远程仓库，repo1除外，使用感叹号将仓库从匹配中排除。 

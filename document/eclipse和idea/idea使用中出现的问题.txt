@@ -1,0 +1,7 @@
+一、导入pom.xml后,Project中没有src目录结构。
+1.查看pom文件是否报错。删除报错信息。
+查看pom文件是否引用了parent标签,是否可以删除。
+核心是确保pom文件没有问题。
+2.mvn clean compile 加载相应的jar环境。
+3.删除.idea目录内容,重新加载，看是否已经有src目录结构了。
+4.确定 主界面File——>Project Structure——>modules 是否有对应的信息。

@@ -50,3 +50,9 @@ control+空格
 
 七、强制关闭APP
 Command+Option+Esc
+
+八、声音异常
+sudo kill -9 `ps ax|grep 'coreaudio[a-z]'|awk '{print $1}'`
+
+九、quickTime Player
+快进 Option + 快进

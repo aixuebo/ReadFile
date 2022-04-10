@@ -1,0 +1,64 @@
+一、设置reduce数量
+set mapred.reduce.tasks = 5;
+
+注意:
+1.一定要在-------------之前设置,否则会抛异常
+2.set mapred.reduce.tasks = 5;前面一定不能是-----,否则会说解析语法错误,就直接设置set mapred.reduce.tasks = 5;即可
+
+hive <<EOF
+
+set mapred.reduce.tasks = 5;
+
+-------------
+sql
+
+quit;
+EOF
+
+二、自动map端join优化
+set hive.auto.convert.join = true;
+set hive.mapjoin.smalltable.filesize = 30000000.  30M
+默认是开启join在map端自动优化功能的,但是有时候会因为内存不够,导致出现 java.lang.OutOfMemoryError: GC overhead limit exceeded
+因此有时候需要将其关闭掉,即set hive.auto.convert.join = false;
+
+一般出现的异常输出提示是:Starting to launch local task to process map join;      maximum memory =
+导致重试很多次map端在本地执行任务,都失败,失败次数超过了一定伐值,因此任务fault,没有reduce输出产生。
+  
+
+三、设置引擎是tez
+set hive.execution.engine=tez;
+
+
+四、设置hive的执行名字
+set mapred.job.name='topic_order-detail-1-${create_time}';
+五、设置hive的输出文件后缀
+set hive.output.file.extension=.c1;
+
+六、设置动态分区
+a.set hive.exec.dynamic.partition.mode=nostrick;
+set hive.exec.max.dynamic.partitions=5000 最大的分区数量
+set hive.exec.max.dynamic.partitions.pernode=2000
+b.insert overwrite table dim.topic_user_partition partition(log_day)
+c.select的最后几个字段的值就是分区的值
+
+七、set hive.mapred.mode=nostrict; 取消hive的约束,即查询分区表的时候,如果不写分区字段,也是允许执行的
+
+八、更换队列
+set mapreduce.job.queuename=xstorm;
+
+九、为结果生成title
+set hive.cli.print.header=true;
+
+十、hive.exec.parallel
+默认是false,将其设置为true,可以让一个sql中包含的多个job,而很多job是没有关系的，可以同时执行，但是缺点是消耗更多的资源。
+比如
+select r1.a
+from (
+   select t.a from sunwg_10 t join sunwg_10000000 s on t.a=s.b) r1 
+   join 
+   (select s.b from sunwg_100000 t join sunwg_10 s on t.a=s.b) r2 
+   on (r1.a=r2.b);
+但是可以看出来其实两个子查询中的sql并无关系,可以并行的跑
+
+十一、设置让presto使用hive的窗口函数语法
+set compatible.grammar=sparksql;

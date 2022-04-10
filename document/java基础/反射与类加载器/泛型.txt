@@ -1,0 +1,90 @@
+
+一、泛型方法
+Map<String,Integer> map 和 Map<String,String> map 其实都是map.泛型类型其实只是在编译阶段校验使用,运行期真正执行的是Map map。即泛型类型会被擦除。
+因此map参数的泛型其实是没有意义的,设置T代替即可.但是要确定T是什么类型,因此方法前面要表示<T exends Object> 或者 <T>
+擦除后相当于public static Object getStringMapByKey1(Map<String,Object> map, Object key, Object defaultValue)
+
+public static <T extends Object,E> T getStringMapByKey1(Map<E,T> map, T key, T defaultValue){
+
+    T value = map.get(key);
+
+    if(value != null ){
+        System.out.println(value.getClass());
+        System.out.println("".equals(value));
+
+    }
+    if(value == null || "".equals(value)){
+        return defaultValue;
+    }
+
+    return value;
+}
+
+public static Object getStringMapByKey2(Map<Object,Object> map, Object key, Object defaultValue){
+    Object value = map.get(key);//虽然是object对象,但是class反映的是具体的子class
+
+    if(value != null ){
+        System.out.println(value.getClass());
+        System.out.println("".equals(value));
+
+    }
+    if(value == null || "".equals(value)){
+        return defaultValue;
+    }
+
+    return value;
+}
+    
+   public static void main(String[] args) {
+
+        Map<String,Object> map = new HashMap<String,Object>();
+        map.put("aa","bb");
+        map.put("dd",333);
+
+        System.out.println(StringUtil.getStringMapByKey1(map,"aa","xxx"));
+        System.out.println(StringUtil.getStringMapByKey1(map,"cc","xxx"));
+
+        System.out.println(StringUtil.getStringMapByKey1(map,"dd","xxx"));
+    }
+    
+输出:
+class java.lang.String
+false
+bb
+
+xxx
+
+class java.lang.Integer
+false
+333
+
+结论:
+1.getStringMapByKey1和getStringMapByKey2是相同的
+一个是泛型的方式,一个是擦除泛型的方式
+2.Object value = map.get(key);//虽然是object对象,但是class反映的是具体的子class
+比如value是3,虽然是object,但类型class是具体的类型class java.lang.Integer
+
+二、泛型擦除
+1.java的泛型会被擦除.
+比如 以下2个方法,擦除后参数都是List aa,因此抛异常
+public void aa(List<String> aa) {}
+public void aa(List<Integer> aa) {}
+
+擦除后:public void aa(List aa) {}
+
+2.真实情况编译器编译后的会是什么样子的
+注意:如果没有规定T是哪个类的子类或者超类，就会替换为Object
+定义类
+class Test<T extends Comparable & Serializable> {
+  private T value;
+  public T getValue() { return value; }
+  public void setValue(T value) { this.value = value; }
+}
+
+擦除后
+class Test {
+  private Comparable value;
+  public Comparable getValue() { return value; }
+  public void setValue(Comparable value) { this.value = value; }
+}
+

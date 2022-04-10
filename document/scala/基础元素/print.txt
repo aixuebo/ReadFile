@@ -1,0 +1,4 @@
+printf("Starting CRF Iterations ( sentences: %s, features: %d, labels: %d ) \n","aa",2, 3)
+注意 他不能回车换行,因此需要自己加入\n
+
+println(s"Prediction Accuracy: $score / $total")

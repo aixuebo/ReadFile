@@ -1,0 +1,343 @@
+
+一、PrimitiveObjectInspectorUtils
+1.PrimitiveTypeEntry对象
+PrimitiveObjectInspector.PrimitiveCategory primitiveCategory;二级分类
+Class<?> primitiveJavaType; java原始对象,比如int long等
+Class<?> primitiveJavaClass; java包装对象,比如Integer String等
+Class<?> primitiveWritableClass; hadoop序列化对象
+String typeName; 为每一个PrimitiveTypeEntry对象设置一个typename
+
+
+2.该类有所有hive支持的typename、java原始class、java包装对象、hadoop序列化对象的对应关系,即定义了PrimitiveTypeEntry
+    //二级分类与PrimitiveTypeEntry的映射
+  static final Map<PrimitiveCategory, PrimitiveTypeEntry> primitiveCategoryToTypeEntry = new HashMap<PrimitiveCategory, PrimitiveTypeEntry>();
+    //java原始类型与PrimitiveTypeEntry的映射
+  static final Map<Class<?>, PrimitiveTypeEntry> primitiveJavaTypeToTypeEntry = new HashMap<Class<?>, PrimitiveTypeEntry>();
+    //java的class对象与PrimitiveTypeEntry的映射
+  static final Map<Class<?>, PrimitiveTypeEntry> primitiveJavaClassToTypeEntry = new HashMap<Class<?>, PrimitiveTypeEntry>();
+    //hadoop的序列化对象与PrimitiveTypeEntry的映射
+  static final Map<Class<?>, PrimitiveTypeEntry> primitiveWritableClassToTypeEntry = new HashMap<Class<?>, PrimitiveTypeEntry>();
+  //typeName与PrimitiveTypeEntry的映射
+  private static final Map<String, PrimitiveTypeEntry> typeNameToTypeEntry = new HashMap<String, PrimitiveTypeEntry>();
+
+例如:
+  public static final PrimitiveTypeEntry binaryTypeEntry = new PrimitiveTypeEntry(
+      PrimitiveCategory.BINARY, serdeConstants.BINARY_TYPE_NAME, byte[].class,
+      byte[].class, BytesWritable.class);
+  public static final PrimitiveTypeEntry stringTypeEntry = new PrimitiveTypeEntry(
+      PrimitiveCategory.STRING, serdeConstants.STRING_TYPE_NAME, null, String.class,
+      Text.class);
+  public static final PrimitiveTypeEntry booleanTypeEntry = new PrimitiveTypeEntry(
+      PrimitiveCategory.BOOLEAN, serdeConstants.BOOLEAN_TYPE_NAME, Boolean.TYPE,
+      Boolean.class, BooleanWritable.class);
+  public static final PrimitiveTypeEntry varcharTypeEntry = new PrimitiveTypeEntry(
+      PrimitiveCategory.VARCHAR, serdeConstants.VARCHAR_TYPE_NAME, null, HiveVarchar.class,
+      HiveVarcharWritable.class);
+
+3.通过2,可以通过任意一个类型,获取对应的PrimitiveTypeEntry对象
+4.两个类型的比较
+boolean comparePrimitiveObjects(Object o1,PrimitiveObjectInspector oi1, Object o2, PrimitiveObjectInspector oi2) 该方法只是比较,不会进行类型转换
+@param o1 表示第1个对象的实现
+@param o1 表示第1个对象的类型
+@param o2 表示第2个对象的实现
+@param o1 表示第2个对象的类型
+比较两个类型,如果两个类型有一个是null或者两个对象类型不一样,则返回false
+true表示两个原始类型的值是相同的
+
+boolean comparePrimitiveObjectsWithConversion(Object o1,PrimitiveObjectInspector oi1, Object o2, PrimitiveObjectInspector oi2)
+允许将不同类型的对象进行转换,然后在比较
+有任意一个是null,则返回false
+类型相同,则进行comparePrimitiveObjects值比较
+类型不相同,则转换成double后比较
+    
+5.该类可以将任意一个对象实例和对象类型,转成成任意hive支持的对象
+将实例对象和实例对象类型,转换成double值
+将实例对象和实例对象类型,转换成boolean
+将实例对象和实例对象类型,转换成byte值
+将实例对象和实例对象类型,转换成short值
+将实例对象和实例对象类型,转换成int值
+将实例对象和实例对象类型,转换成long值
+将实例对象和实例对象类型,转换成float值
+将实例对象和实例对象类型,转换成String值
+将实例对象和实例对象类型,转换成HiveChar值
+将实例对象和实例对象类型,转换成HiveVarchar值
+将实例对象和实例对象类型,转换成BytesWritable值
+将实例对象和实例对象类型,转换成HiveDecimal值
+将实例对象和实例对象类型,转换成Date值
+将实例对象和实例对象类型,转换成Timestamp值
+将实例对象和实例对象类型,转换成HiveIntervalYearMonth值
+将实例对象和实例对象类型,转换成HiveIntervalDayTime值
+将Text对象类型,转换成BytesWritable值
+将String类型,转换成Timestamp值
+
+例如:
+  /**
+   * Convert a primitive object to double.
+   * 将原始对象转换成double值
+   * @param o 是要将o这个对象转换成double
+   * @param oi 是o这个对象的类型
+   */
+  public static double convertPrimitiveToDouble(Object o, PrimitiveObjectInspector oi) {
+    switch (oi.getPrimitiveCategory()) {
+    case BOOLEAN:
+      return ((BooleanObjectInspector) oi).get(o) ? 1 : 0;
+    case BYTE:
+      return ((ByteObjectInspector) oi).get(o);
+    case SHORT:
+      return ((ShortObjectInspector) oi).get(o);
+    case INT:
+      return ((IntObjectInspector) oi).get(o);
+    case LONG:
+      return ((LongObjectInspector) oi).get(o);
+    case FLOAT:
+      return ((FloatObjectInspector) oi).get(o);
+    case DOUBLE:
+      return ((DoubleObjectInspector) oi).get(o);
+    case STRING:
+      return Double.valueOf(((StringObjectInspector) oi).getPrimitiveJavaObject(o));//String类型对应的double
+    case TIMESTAMP:
+      return ((TimestampObjectInspector) oi).getPrimitiveWritableObject(o)
+          .getDouble();//时间戳转换成double
+    case DECIMAL:
+      return ((HiveDecimalObjectInspector) oi).getPrimitiveJavaObject(o).doubleValue();//decimal转换成double
+    case DATE:  // unsupported conversion
+    default:
+      throw new NumberFormatException();
+    }
+  }
+6.定义原始类型组
+  public static enum PrimitiveGrouping {
+    NUMERIC_GROUP, STRING_GROUP, BOOLEAN_GROUP, DATE_GROUP, INTERVAL_GROUP, BINARY_GROUP,
+    VOID_GROUP, UNKNOWN_GROUP
+  };
+7.PrimitiveGrouping getPrimitiveGrouping(PrimitiveCategory primitiveCategory) 给定参数类型,返回所属类型组
+
+
+
+二、PrimitiveObjectInspectorConverter  原始类型的转换
+1.将输入类型的参数转换成boolean类型的输出
+ 将输入类型的参数转换成Byte类型的输出
+ 将输入类型的参数转换成Short类型的输出
+ 将输入类型的参数转换成int类型的输出
+ 将输入类型的参数转换成long类型的输出
+ 将输入类型的参数转换成float类型的输出
+ 将输入类型的参数转换成double类型的输出
+ 将输入类型的参数转换成Date类型的输出
+ 将输入类型的参数转换成Timestamp类型的输出
+ 将输入类型的参数转换成HiveIntervalYearMonth类型的输出
+ 将输入类型的参数转换成HiveIntervalDayTime类型的输出
+ 将输入类型的参数转换成HiveDecimal类型的输出
+ 将输入类型的参数转换成Binary类型的输出
+ 将输入类型的参数转换成String类型的输出
+ 将输入类型的参数转换成HiveVarchar类型的输出
+ 将输入类型的参数转换成HiveChar类型的输出
+去将任意类型的对象转换成Text类型的输出
+例如
+将输入类型的参数转换成boolean类型的输出
+ /**
+   * A converter for the byte type.
+   * 将输入类型的参数转换成boolean类型的输出
+   */
+  public static class BooleanConverter implements Converter {
+    PrimitiveObjectInspector inputOI;//输入对象类型
+    SettableBooleanObjectInspector outputOI;//可以设置值,并且知道输出对象类型
+    Object r;//转换后的值实例对象
+
+    public BooleanConverter(PrimitiveObjectInspector inputOI,
+        SettableBooleanObjectInspector outputOI) {
+      this.inputOI = inputOI;
+      this.outputOI = outputOI;
+      r = outputOI.create(false);//根据输出对象类型,初始化输出对象实例
+    }
+
+      //转换,将输入对象的实例,该对象的类型详参见inputOI
+    @Override
+    public Object convert(Object input) {
+      if (input == null) {//如果输入不是null,则要进行转换
+        return null;
+      }
+      try {
+          /**
+           * 对输出类型的实例r,进行重新设置,重新设置的值是PrimitiveObjectInspectorUtils.getBoolean(input,inputOI)确定的
+           * PrimitiveObjectInspectorUtils.getBoolean(input,inputOI)该方法就是将输入对象和输入参数转换成对应的boolean类型对象
+           */
+        return outputOI.set(r, PrimitiveObjectInspectorUtils.getBoolean(input,inputOI));
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+  }
+  
+  三、PrimitiveObjectInspectorFactory
+1.定义了最终的hadoop序列化类和java序列化类
+public static final WritableBooleanObjectInspector writableBooleanObjectInspector = new WritableBooleanObjectInspector();
+public static final JavaBooleanObjectInspector javaBooleanObjectInspector = new JavaBooleanObjectInspector();
+2.定义PrimitiveTypeInfo与具体的WritableBooleanObjectInspector映射关系
+private static ConcurrentHashMap<PrimitiveTypeInfo, AbstractPrimitiveWritableObjectInspector> cachedPrimitiveWritableInspectorCache = new ConcurrentHashMap<PrimitiveTypeInfo, AbstractPrimitiveWritableObjectInspector>();
+cachedPrimitiveWritableInspectorCache.put(TypeInfoFactory.getPrimitiveTypeInfo(serdeConstants.BOOLEAN_TYPE_NAME),writableBooleanObjectInspector);
+
+四、MapEqualComparer对map类型的进行比较接口
+    /**
+     * 比较两个map对象是否相同,谁大谁小
+     * @param o1 map1对象
+     * @param moi1 map1对象的类型,即key-value类型,以及数量 获取每一个key-value
+     * @param o2  map2对象
+     * @param moi2 map2对象的类型,即key-value类型,以及数量 获取每一个key-value
+     */
+  public int compare(Object o1, MapObjectInspector moi1,
+      Object o2, MapObjectInspector moi2);
+
+实现类
+1.SimpleMapEqualComparer最简单的实现类
+  /**
+     * @param o1 map1对象
+     * @param moi1 map1对象的类型,即key-value类型,以及数量 获取每一个key-value
+     * @param o2  map2对象
+     * @param moi2 map2对象的类型,即key-value类型,以及数量 获取每一个key-value
+     */
+  @Override
+  public int compare(Object o1, MapObjectInspector moi1, Object o2, MapObjectInspector moi2) {
+
+    //获取map的size
+    int mapsize1 = moi1.getMapSize(o1);
+    int mapsize2 = moi2.getMapSize(o2);
+    if (mapsize1 != mapsize2) {
+      return mapsize1 - mapsize2;
+    }
+
+      //获得value类型
+    ObjectInspector mvoi1 = moi1.getMapValueObjectInspector();
+    ObjectInspector mvoi2 = moi2.getMapValueObjectInspector();
+    Map<?, ?> map1 = moi1.getMap(o1);
+    for (Object mk1: map1.keySet()) {//循环map1的每一个key
+
+      //moi1.getMapValueElement(o1, mk1) 在map1中查询key,返回value值,mvoi1表示value的类型
+      //moi2.getMapValueElement(o2, mk1), mvoi2 表示在map2中也查找该key对应的value值
+      int rc = ObjectInspectorUtils.compare(moi1.getMapValueElement(o1, mk1), mvoi1, 
+          moi2.getMapValueElement(o2, mk1), mvoi2, this);
+      if (rc != 0) {
+        return rc;
+      }
+    }
+    return 0;
+  }
+  
+  2.FullMapEqualComparer 先按照key排序,相同key的按照对应的value排序比较,复杂的排序
+  
+public class FullMapEqualComparer implements MapEqualComparer {
+
+  //对key进行排序
+  private static class MapKeyComparator implements Comparator<Object> {
+
+    private ObjectInspector oi;//key的类型
+
+    MapKeyComparator(ObjectInspector oi) {
+      this.oi = oi;
+    }
+
+    //根据key的类型,和key的具体值,进行排序
+    @Override
+    public int compare(Object o1, Object o2) {
+      return ObjectInspectorUtils.compare(o1, oi, o2, oi);
+    }
+  }
+
+  @Override
+  public int compare(Object o1, MapObjectInspector moi1, Object o2, MapObjectInspector moi2) {
+    //获取map的size,并且比较大小
+    int mapsize1 = moi1.getMapSize(o1);
+    int mapsize2 = moi2.getMapSize(o2);
+    if (mapsize1 != mapsize2) {
+      return mapsize1 - mapsize2;
+    }
+
+    //获取map的key类型
+    ObjectInspector mkoi1 = moi1.getMapKeyObjectInspector();
+    ObjectInspector mkoi2 = moi2.getMapKeyObjectInspector();
+
+    //获取map的value类型
+    ObjectInspector mvoi1 = moi1.getMapValueObjectInspector();
+    ObjectInspector mvoi2 = moi2.getMapValueObjectInspector();
+
+    //获取map的数据内容
+    Map<?, ?> map1 = moi1.getMap(o1);
+    Map<?, ?> map2 = moi2.getMap(o2);
+
+    //按照key的类型,对key进行排序
+    Object[] sortedMapKeys1 = map1.keySet().toArray();
+    Arrays.sort(sortedMapKeys1, new MapKeyComparator(mkoi1));
+
+    Object[] sortedMapKeys2 = map2.keySet().toArray();
+    Arrays.sort(sortedMapKeys2, new MapKeyComparator(mkoi2));
+
+    //因为key顺序都排好了,因此先按照key排序,相同key的按照对应的value排序比较
+    for (int i = 0; i < mapsize1; ++i) {
+      Object mk1 = sortedMapKeys1[i];
+      Object mk2 = sortedMapKeys2[i];
+      int rc = ObjectInspectorUtils.compare(mk1, mkoi1, mk2, mkoi2, this);
+      if (rc != 0) {
+        return rc;
+      }
+      Object mv1 = map1.get(mk1);
+      Object mv2 = map2.get(mk2);
+      rc = ObjectInspectorUtils.compare(mv1, mvoi1, mv2, mvoi2, this);
+      if (rc != 0) {
+        return rc;
+      }
+    }
+    return 0;
+  }
+  
+  3.CrossMapEqualComparer 该排序map是最耗时的,与FullMapEqualComparer排序差不多,只不过没有预先对key进行排序,而是通过for  for两层循环进行key排序的
+  
+public class CrossMapEqualComparer implements MapEqualComparer {
+  @Override
+  public int compare(Object o1, MapObjectInspector moi1, Object o2, MapObjectInspector moi2) {
+    //获取map的size,并且比较大小
+    int mapsize1 = moi1.getMapSize(o1);
+    int mapsize2 = moi2.getMapSize(o2);
+    if (mapsize1 != mapsize2) {
+      return mapsize1 - mapsize2;
+    }
+    //获取key的类型
+    ObjectInspector mkoi1 = moi1.getMapKeyObjectInspector();
+    ObjectInspector mkoi2 = moi2.getMapKeyObjectInspector();
+
+    //获取value的类型
+    ObjectInspector mvoi1 = moi1.getMapValueObjectInspector();
+    ObjectInspector mvoi2 = moi2.getMapValueObjectInspector();
+
+    //获取map的key-value内容
+    Map<?, ?> map1 = moi1.getMap(o1);
+    Map<?, ?> map2 = moi2.getMap(o2);
+
+    for (Object mk1 : map1.keySet()) {//循环map1的所有key
+      boolean notFound = true;
+      for (Object mk2 : map2.keySet()) {
+        int rc = ObjectInspectorUtils.compare(mk1, mkoi1, mk2, mkoi2, this);//比较key是否相同
+        if (rc != 0) {//如果key不相同,则继续寻找下一个key
+              continue;
+          }
+        notFound = false;//代码走到这里,说明找到key相同的了
+
+        //对于key相同的,比较value
+        //获取对应的vlaue值
+        Object mv1 = map1.get(mk1);
+        Object mv2 = map2.get(mk2);
+        rc = ObjectInspectorUtils.compare(mv1, mvoi1, mv2, mvoi2, this);
+        if (rc != 0) {
+          return rc;
+        } else {
+          break;
+        }
+      }
+      if (notFound) {//说明没有发现key相同的,则直接返回1,因为已经比较好大小了
+        return 1;
+      }
+    }
+    return 0;
+  }
+
+}
+
+五、

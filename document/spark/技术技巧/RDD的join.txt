@@ -1,0 +1,33 @@
+
+总结
+1.reduce收集到的数据，用文件保存好每一个key对应的各个数据源集合内容。---此时会出现内存溢出情况，所以有必要需要输出到文件里。
+然后再一个key,一个key的处理Iterator[(K, Array[Iterable[_]]) 数据。--- 此时不会出现内存溢出情况。就是一个操作,速度会很快。
+2.reduce是可以识别每一个流是左边的还是右边的，他们是根据关联时的顺序决定的。即reduce是可以识别两个流的来源的。
+
+
+
+org.apache.spark.rdd.PairRDDFunctions
+
+  def cogroup[W](other: RDD[(K, W)], partitioner: Partitioner)
+      : RDD[(K, (Iterable[V], Iterable[W]))] = self.withScope { //两个RDD做join,相同的key,生产两个不同的迭代器,迭代器是不耗费内存的
+    if (partitioner.isInstanceOf[HashPartitioner] && keyClass.isArray) {
+      throw new SparkException("Default partitioner cannot partition array keys.")
+    }
+    val cg = new CoGroupedRDD[K](Seq(self, other), partitioner)
+    cg.mapValues { case Array(vs, w1s) =>
+      (vs.asInstanceOf[Iterable[V]], w1s.asInstanceOf[Iterable[W]])
+    }
+  }
+  
+reduce中收到各个流数据后，如何做merge处理的。
+
+spark.shuffle.spill=true,则走ExternalAppendOnlyMap。默认是false
+一、基于内存存储数据
+1.内存有一个Map<key,Array[ArrayBuffer]>,即每一个key,对应一个ArrayBuffer数组。 比如有2个流做join,那么两个流相同的key,分别存储在各自的数组中。
+2.因此join的结果返回的是map的迭代器。
+Iterator[(K, Array[Iterable[_]]) = map.iterator
+即每一次调用next,都会返回一个key 对应的每一个流的迭代器。
+
+二、数据量过大,不能基于内存做排序。则借助外部存储。
+创建一个ExternalAppendOnlyMap，该Map会将内存存储不下的数据,存储到文件中。因此不会出现内存溢出情况。
+

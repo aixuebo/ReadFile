@@ -22,3 +22,41 @@ job.setGroupingComparatorClass(StringStringGroup.class);
         return result!=0 ? result : -this.getSecondKey().compareTo(o.getSecondKey());
     }
 
+-------总结 
+核心是定义一个可二次排序的对象PairWritable。这样到reduce中他就是天然排序好的数据。
+然后只需要reduce阶段可以识别哪些PairWritable是归属同一个key的即可。即job.setGroupingComparatorClass。
+此时是没有性能消耗的，因为他是一行一行处理数据，所以天然依然是迭代器。
+
+hadoop的二次排序
+1.数据源是key,value。
+2.创建一个对象1,包含key和value，整体作为key。并且支持排序。
+3.同时创建一个partition对象，按照原始的key做为分区，确保原始的key传输到同一个reduce中。
+4.由于reduce本身是支持key排序的，因此reduce内接收到的数据是对象1排序后的文件。
+此时他们已经是完全经过二次排序的数据了。
+但reduce内是按照对象1对象进行分组的，很显然这是不对的，我们要按照原始的key进行分组，所以要设置一个二次分组对象。
+public class FirstGroupingComparator 
+    implements RawComparator<PairWritable>{
+
+    public int compare(PairWritable o1, PairWritable o2) {
+        return Integer.valueOf(o1.getFirst()).compareTo(o2.getFirst());
+    }
+
+    public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
+        return WritableComparator.compareBytes(b1, 0, l1 - 4, b2, 0, l2 - 4);
+    }
+
+}
+即reduce中接受到的PairWritable对象，如何进行分组
+
+
+job.setMapOutputKeyClass(PairWritable.class);
+job.setMapOutputValueClass(IntWritable.class);
+job.setMapperClass(SecondarySortMapper.class);
+
+
+job.setPartitionerClass(FirstPartitioner.class);## 何如按照key分组
+job.setGroupingComparatorClass(FirstGroupingComparator.class);##reduce节点如何二次分组
+
+job.setOutputKeyClass(IntWritable.class);
+job.setOutputValueClass(IntWritable.class);
+job.setReducerClass(SecondarySortReducer.class);

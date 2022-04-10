@@ -1,0 +1,13 @@
+一、在SQL环境下Catalog和Schema都属于抽象概念，可以把它们理解为一个容器或者数据库对象命名空间中的一个层次
+1.数据库包含多个Catalog，每个Catalog又包含多个Schema，而每个Schema又包含多个数 据库对象（表、视图、字段等）。
+2.因此可以得到表的全路径为 Catalog名称.Schema名称.表名称。
+
+二、从实现的角度来看，各种数据库系统对Catalog和Schema的支持和实现方式千差万别
+比较简单而常用的实现方式是使用数据库名作为Catalog名，使用用户名作为Schema名。
+比如mysql 没有Catalog,Schema为数据库名
+
+三、场景不同,schema的含义不同。
+1.数据建模领域，schema表示的是数据库的元数据信息。即表的schema,表示表的字段、类型等信息。
+2.在SQL环境下，Schema是一组相关的 数据库对象的集合，Schema的名字为该组对象定义了一个命名空间。
+schema表示命名全路径的关系，即Catalog名称.Schema名称.表名称。
+3.Schema 可以粗略的理解成数据库。table理解成数据库表，因为大多数实现都不存在Catalog的概念。

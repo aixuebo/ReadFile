@@ -1,0 +1,76 @@
+一、struct
+定义一个复杂对象struct
+地址:省份、城市以及住址，住址又包接到门牌号等
+current_address <province:String,city:String,street_address:<street_number:int,street_name:string,street_type:string> >
+
+如何查询:
+     SELECT
+     current_address.street_address.street_number,
+     current_address.street_address.street_name,
+     current_address.street_address.street_type,
+     current_address.province,
+     current_address.city
+     FROM struct_demo;
+
+使用.方式就可以不断递归查询下去了
+
+二、union
+CREATE TABLE union_test(foo UNIONTYPE<int, double, array<string>, struct<a:int,b:string>>);
+SELECT foo FROM union_test;
+
+{0:1}
+{1:2.0}
+{2:["three","four"]}
+{3:{"a":5,"b":"five"}}
+{2:["six","seven"]}
+{3:{"a":8,"b":"eight"}}
+{0:9}
+{1:10.0}
+
+create_union函数表示创建三个union类型的列---下标从0开始计数
+第一个列存储的是key对应的值
+第二个列存储的是根据key的大小,获取2.0还是value
+第三个列存储的是一个struct,默认没有指定名字,因此是col1和col2
+
+insert overwrite table tmp.union_test
+select create_union(0, birthday),create_union(if(birthday<100, 0, 1), 2.0, birthday), create_union(1, "a", struct(2, "b")), create_union(1, "a", named_struct("aa",2, "bb","b"))
+from database.dim_user_info
+limit 2;
+输出
+{0:-2}  {0:2.0} {1:{"col1":2,"col2":"b"}}       {1:{"aa":2,"bb":"b"}}
+{0:-2}  {0:2.0} {1:{"col1":2,"col2":"b"}}       {1:{"aa":2,"bb":"b"}}
+
+
+插入数据
+insert overwrite table tmp.union_test
+select create_union(0, birthday,2.0,array("aa","bb"),named_struct("a",2, "b","b"))
+from database.dim_user_info
+limit 2;
+
+查询
+select foo:1
+from tmp.union_test
+但是上面的查询报错,按道理代码上应该是这么查询,但是暂时不清楚到底如何查询
+
+三、数组array
+CREATE TABLE Products
+(
+id INT,
+ProductName STRING,
+ProductColorOptions ARRAY<STRING>
+);
+
+SELECT 1, 'Widgets', array('Red', 'Blue', 'Green')
+UNION ALL
+SELECT 2, 'Cogs', array('Blue', 'Green', 'Yellow');
+
+SELECT id, productname, productcoloroptions[0] FROM default.products;
+
+四、map
+hive> create table employee(id string, perf map<string, int>)
+    > ROW FORMAT DELIMITED
+    > FIELDS TERMINATED BY '\t'
+    > COLLECTION ITEMS TERMINATED BY ','
+    > MAP KEYS TERMINATED BY ':';
+
+select perf['person'] from employee; 获取存储的person对应的value值

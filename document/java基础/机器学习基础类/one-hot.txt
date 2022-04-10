@@ -1,0 +1,22 @@
+一、用于生成one-hot
+test.test2("S,D2,A,B2,D1,D3,,C1,C2,B1","A");//0,0,1,0,0,0,0,0,0,0
+
+
+	public void test2(String conf,String value) {
+	 
+	    //创建数组
+		Integer[] oneHotArr = new Integer[conf.split(",").length];
+		Arrays.fill(oneHotArr,0); //初始化为0
+		
+		 //list查找value是否存在
+		 List<String> list = Arrays.asList(conf.split(","));
+		 int index = list.indexOf(value);
+		 
+		 //存在则更新
+		 if(index >= 0){
+			 oneHotArr[index] = 1;
+		  }
+		  
+		 //输出 
+		 System.out.println(StringUtils.join(oneHotArr,","));
+	}

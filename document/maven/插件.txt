@@ -185,3 +185,133 @@
             </plugin>
         </plugins>
     </build>
+
+    
+ log4j
+       <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+          <version>1.7.2</version>
+      </dependency>
+      
+ 6.如何发现依赖的jar包有冲突
+ 检查相同的class，出现在不同的类里时的加载冲突
+         <dependency>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>extra-enforcer-rules</artifactId>
+            <version>1.0-beta-6</version>
+        </dependency>
+        
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-enforcer-plugin</artifactId>
+  <version>1.4.1</version>
+  <executions>
+    <execution>
+      <id>enforce</id>
+      <configuration>
+        <rules>
+          <dependencyConvergence/>
+        </rules>
+      </configuration>
+      <goals>
+        <goal>enforce</goal>
+      </goals>
+    </execution>
+    <execution>
+      <id>enforce-ban-duplicate-classes</id>
+      <goals>
+        <goal>enforce</goal>
+      </goals>
+      <configuration>
+        <rules>
+          <banDuplicateClasses>
+            <ignoreClasses>
+              <ignoreClass>javax.*</ignoreClass>
+              <ignoreClass>org.junit.*</ignoreClass>
+              <ignoreClass>net.sf.cglib.*</ignoreClass>
+              <ignoreClass>org.apache.commons.logging.*</ignoreClass>
+              <ignoreClass>org.springframework.remoting.rmi.RmiInvocationHandler</ignoreClass>
+            </ignoreClasses>
+            <findAllDuplicates>true</findAllDuplicates>
+          </banDuplicateClasses>
+        </rules>
+        <fail>true</fail>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+ 
+ 7.如何排除拥有相同class的jar版本---解决冲突
+ 问题排查和解决
+1.如果有异常堆栈信息，根据错误信息即可定位导致冲突的类名，然后在eclipse中CTRL+SHIFT+T或者在idea中CTRL+N就可发现该类存在于多个依赖Jar包中
+2.若步骤1无法定位冲突的类来自哪个Jar包，可在应用程序启动时加上JVM参数-verbose:class或者-XX:+TraceClassLoading，
+日志里会打印出每个类的加载信息，如来自哪个Jar包
+3.定位了冲突类的Jar包之后，通过mvn dependency:tree -Dverbose -Dincludes=<groupId>:<artifactId>查看是哪些地方引入的Jar包的这个版本
+4.确定Jar包来源之后，
+如果是第一类Jar包冲突,即不同的版本jar冲突，则可用<excludes>排除不需要的Jar包版本或者在依赖管理<dependencyManagement>中申明版本；
+若是第二类Jar包冲突，即相同的路径在不同的jar中出现，这种问题比较难搞,需要规范代码，如果可排除，则用<excludes>排掉不需要的那个Jar包，若不能排，则需考虑Jar包的升级或换个别的Jar包。
+
+8.强大的字节码修改器--解决依赖冲突问题---并且打包成jar
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>3.1.0</version>
+    <executions>
+        <execution>
+            <phase>package</phase>
+            <goals>
+                <goal>shade</goal>
+            </goals>
+            <configuration>
+                <relocations>
+                    <relocation>
+                        <pattern>com.google.common</pattern>
+                        <shadedPattern>xx_guava.common</shadedPattern>
+                    </relocation>
+                </relocations>
+                <filters>
+                    <filter>
+                        <artifact>*:*</artifact>
+                        <excludes>
+                            <exclude>META-INF/maven/**</exclude>
+                        </excludes>
+                    </filter>
+                </filters>
+             <finalName>${project.artifactId}-${project.version}-jar-with-dependencies</finalName>
+                <transformers>
+                    <transformer
+                            implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                        <resource>META-INF/spring.handlers</resource>
+                    </transformer>
+                    <transformer
+                            implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                        <resource>META-INF/spring.schemas</resource>
+                    </transformer>
+                </transformers>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+参考我的简书--maven--spark-network包在1.6时依赖guava 与 guava包冲突解决方案
+
+9.打包jar名字 以及 把resources下面哪些文件打包进来
+        <finalName>${project.artifactId}-${project.version}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>*.json</include>
+                    <include>*.xml</include>
+                    <include>base/*.xml</include>
+                    <include>META-INF/*.properties</include> ### 注意 表示把META-INF下的properties文件也打包到jar里
+                </includes>
+            </resource>
+            <resource><!--此处设置是配置相应配置文件夹的路径-->
+                <directory>src/main/resources/${conf-dir}</directory>
+                <includes>
+                    <include>*.*</include>
+                </includes>
+            </resource>
+        </resources>
+

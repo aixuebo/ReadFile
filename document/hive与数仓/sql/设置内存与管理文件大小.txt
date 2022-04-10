@@ -1,0 +1,5 @@
+SET spark.executor.memory=16g;
+
+SET spark.driver.memory=8g;
+
+distribute by abs(hash(id) % 10)

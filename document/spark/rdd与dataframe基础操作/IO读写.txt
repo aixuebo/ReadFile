@@ -1,0 +1,22 @@
+一、hdfs上读取文件--读出流，如何写入文件
+tython版本
+
+1.异常信息
+sc.binaryFiles("hdfs://xxx.model",1).saveAsTextFile("aaaa.model") 
+a.此时是像hdfs上存储aaaa.model文件
+b.此时aaaa.model不是一个文件,而是一个目录。因此下游用的时候不能用。
+
+2.如果是目标文件,则读取hdfs上的文件后,返回流文件,将流文件输出成文件。
+
+3.如何读取hdfs上文件
+aa = sc.binaryFiles("hdfs://xxx.model",1) ### 1个partition读取数据,确保数据是完整的 --- <class 'pyspark.rdd.RDD'>
+bb = aa.take(1) ### <class 'list'>  
+type(bb[0]) ### <class 'tuple'>
+cc = bb[0][1] ### <class 'bytes'>
+len(cc)  ### 输出字节数组长度
+
+scala版本
+val input : InputStream = new ByteArrayInputStream(sc.binaryFiles("hdfs://xxx.model",1).take(1).apply(0)._2.toArray())
+
+4.如果要是想使用一个文件,则通过submit.txt的内容。
+--py-files xxx.py,hdfs://1/2/xxx.model 直接上传该文件即可。最终上传到任务节点和driver节点的文件名，就是xxx.model,没有前面的1和2目录结构

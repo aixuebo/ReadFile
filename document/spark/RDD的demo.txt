@@ -102,5 +102,21 @@ sortBy( rowEle => rowEle.getString(1)) 中rowEle 表示一个Row对象,而1位�
 
 如果二次排序不是基于一个字段,而是基于若干个字段,比如两个字段,则将排序里面设置元组即可,例如 rows.sortBy(row => (row.lastName, row.firstName))
 
+如果二次排序不是基于一个字段,而是基于若干个字段,比如两个字段,并且排序规则有升序,也有降序.
+则需要定义排序函数Ordered
+class SortByTwice(val first: Int, val second: Int) extends Ordered[SortByTwice] with Serializable {
+  def compare(that: SortByTwice): Int = {
+    if (this.first - that.first != 0) {
+      return that.first - this.first
+    } else {
+      return this.second - that.second
+    }
+  }
+}
+ val dataset = //your dataset
+ dataset.map(line => (new SortByTwice(line._1.toInt, line._2.toInt))).sortBy(x => x) ###对排序的函数进行排序
+   .map(x => (x.first, x.second)) ### 此时的结果集就是排序好的结果集
+   .collect.foreach(println)
+
 3.spark 如何保证每一个key获取属于该key的最大值
 即一个key对应一个数据,可以给T转换成一个函数,函数是要最大值即可,比如reduceByKey(mix(value))

@@ -1,0 +1,9 @@
+1.missvalue的解释
+val dmat = new DMatrix(matrix.split(",").map(_.toFloat),1,3921,missing = Float.NaN) //预测
+1.预测的时候，要设置missing等于任意一个固定值,具体是什么，取决于默认值。
+相当于模型预测的时候，需要提供给模型2个参数。1个是向量，第二个是missvalue。
+missvalue的含义是，向量中的值与missvalue相同的时候，xgb会走miss缺失值逻辑，相当于叶子节点有一个是"其他"。
+
+2.svmlib格式:
+0:0.25552 1:9.0 2:52.71218 3:19.0 4:16.62953 5:1.0 7:70.0 201:0.04167 202:0.26316 203:0.10345 
+在训练数据的时候，我们初始化成svmlib，因此如果某一个数组维度下标，没有在svmlib中,说明他是null，此时拿svmlib作为数据源喂给模型做训练的时候，模型会自动设置null为missvalue。

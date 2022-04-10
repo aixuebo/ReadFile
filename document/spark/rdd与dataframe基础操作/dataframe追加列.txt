@@ -1,0 +1,18 @@
+一、dataframe追加列
+udf追加一列
+
+import org.apache.spark.sql.functions.udf
+
+//定义函数
+val suspectedBrandType = udf((poiName:String) => {
+  var modelName = CrfClient.crfParse(poiName).trim
+  if(StringUtils.isBlank(modelName)) 0 else 1
+})
+
+//因为withColumn是产生一个新的dateframe,因此可以支持追加方式,此时用col获取字段值
+  val df = hiveContext.sql(sql)
+          .withColumn("suspected_brand_type", col = suspectedBrandType(col("wdc_name"))).cache()
+
+//如果不是追加的方式,而是用上一个df的基础上,产生新的dataframe,则用df获取字段值
+val newDf = df.withColumn("suspected_brand_type", col = suspectedBrandType(df("wdc_name"))) //从df中获取wdc_name列
+

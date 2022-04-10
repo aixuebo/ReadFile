@@ -1,0 +1,41 @@
+一、正常写法
+from xx
+left join  
+(     
+  select id,scid
+  from 
+  (
+    select id,name,
+    ROW_NUMBER ()over(partition by id order by id desc) rank 
+    from table
+  ) a
+  where rank = 1
+) b on xx.id = b.id
+
+这种写法很难看,因为rank=1要单独嵌套一层。
+
+二、改写
+from xx
+left join  
+(     
+    select id,name,
+    ROW_NUMBER ()over(partition by id order by id desc) rank 
+    from table
+) b on xx.id = b.id and b.rank = 1
+
+三、注意事项
+1.on条件只是用于如何关联子表。
+因此改写后，表示主表的每一行数据，要与子表关联的条件是，满足id相同，并且子表rank=1.
+因此改写结果是没有问题的。
+
+2.改写后的缺点
+a.可能会影响性能，xx会和b多行进行shuffle,最后在进行rank过滤，因此影响性能。
+即shuffle时，会发生数据膨胀。尤其多对多的时候。
+因此如果明确知道是少量情况会出现多条数据时，可以这样写，但重复非常多的数据时，建议不要这么优化。
+b.后期修改代码的时候，容易将rank = 1误删除掉，造成数据一对多，导致的错误。
+
+3.如果on条件是 a.rank = 1。则无效，最终结果依然会存在a.rank=2的数据。
+即left join时,on条件只是针对如何查找关联的子表，所有的条件都是对子表进行过滤，而不是针对主表进行过滤。
+
+要想对主表进行过滤，一定在写到where中。或者写到主表的查询where中，而不是写到on里。(inner join除外)。
+

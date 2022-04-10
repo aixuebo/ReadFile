@@ -1,0 +1,42 @@
+java与scala相互转换
+import collection.JavaConverters._
+
+Seq           =>    java.util.List
+mutable.Seq   =>    java.util.List
+Set           =>    java.util.Set
+Map           =>    java.util.Map
+
+比如:
+val jul: java.util.List[Int] = ArrayBuffer(1, 2, 3).asJava
+val buf: Seq[Int] = jul.asScala
+
+
+一、sliding ---相当于Word2vector
+对aaaa进行一定范围的拆分
+    val aaaa = Array[Double](1.0,3.5,6.8,10.2,45.2)
+    val buckets = aaaa.sliding(2).map(bucket => bucket.mkString(", ")).toArray
+    buckets.foreach(println(_))
+ 输出:
+1.0, 3.5
+3.5, 6.8
+6.8, 10.2
+10.2, 45.2
+
+ val buckets = aaaa.sliding(3).map(bucket => bucket.mkString(", ")).toArray
+ buckets.foreach(println(_))
+ 输出:
+1.0, 3.5, 6.8
+3.5, 6.8, 10.2
+6.8, 10.2, 45.2
+
+二、List拆分成前后两部分。
+    val list = scala.collection.mutable.ListBuffer.empty[Int]
+    list += 1
+    list += 10
+    val (a,b) = (list.toList.head,list.toList.tail)
+
+可以用于可变参数的方法,
+比如df.groupBy("label").agg(Column,Column*),此时就可以传入a和b即可
+df.groupBy("label").agg(a,b:_*).
+//注意:不能传入list,因为虽然他是一个数组,可以代表可变数组,但scala的编译器是不认识的,让编译器认识可变数组,必须强制加入类型:_*,即把list强制转换成可变数组。
+    

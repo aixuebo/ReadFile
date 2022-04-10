@@ -1,0 +1,85 @@
+一、新闻分类
+
+1.获取训练样本数据源
+id、title、内容、分类标签
+2.数据处理
+a.title和内容 如果是null,则设置为‘’
+b.处理内容 --- 与业务特征有关系
+删除内容中的特殊字符  re.sub(r'<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});','',raw_text)
+c.将title+处理后的内容连接在一起,使用空格分隔，即 title + " " + 处理后的内容。---起名叫mergeContext
+
+3.text2sample方法
+针对label和处理后的mergeContext进行处理。拼接成一个训练样本。格式是lable+" " + deal(mergeContext)
+deal(mergeContext)逻辑如下:
+a.替换特殊字符 text = text.replace('\u2028', '|').replace('\u2029', '|').replace('\n', '|')
+b.转换小写 text = text.lower()
+c.创建单词list
+将文本内容进行bigram转换。添加到list中。
+提取本文中的英文单词,追加到list中。
+如果发现文本中存在正常手机号码,向list中添加"phone_number"字符串 --- 业务上非常依赖手机号码
+如果发现文本中存在400、800等号码,向list中添加"phone_number"和"special_phone_number"字符串 --- 业务上非常依赖手机号码
+
+注意:
+# 标点符号不能完全清洗，因为有类似+v这样的重要信息
+# 手机号信息需要作为一个重要的信息保留，是否含有手机号
+d.将list转换成字符串,用空格分隔。
+' '.join(text_list)
+
+一条样本的最终输出结果是 lable + " " + ' '.join(text_list)
+
+4.对3的结果数据进行随机抽样，生成训练集、测试集
+训练集保存路径 /home/data/comm_topic_cate_train_sample.txt
+测试集保存路径 /home/data/comm_topic_cate_test_sample.txt
+
+5.训练数据,生成模型 comm_topic_cate_fasttext_model_20210511_v2.bin
+/fastText-0.9.2/fasttext supervised -input comm_topic_cate_train_sample.txt -output comm_topic_cate_fasttext_model_20210511_v2 -lr 0.01 -epoch 1000 -dim 100 -loss hs -ws 20 -minCount 2
+
+6.加载模型进行预测，以及效果评估
+import fasttext
+model = fasttext.load_model('/home/data/comm_topic_cate_fasttext_model_20210511_v2.bin')
+
+def get_predict_proba(row):
+    row['predict_label']=model.predict(text2sample(row['merge_content']))[0][0]
+    row['predict_proba']=model.predict(text2sample(row['merge_content']))[1][0]
+    return row
+test_df = test_df.apply(get_predict_proba, axis=1)
+
+from sklearn.metrics import confusion_matrix,precision_score,recall_score
+
+unique_labels=['__label__二手转让',
+               '__label__代运营',
+               '__label__加盟信息',
+               '__label__招聘信息',
+               '__label__未知']
+
+confusion_matrix(test_df['label'],test_df['predict_label'],labels=unique_labels)
+
+precision_score(test_df['label'],test_df['predict_label'],labels=unique_labels,average='micro')
+
+recall_score(test_df['label'],test_df['predict_label'],labels=unique_labels,average='micro')
+
+# pip install xlsxwriter
+
+train_df.to_excel('/home/data/train_data.xlsx',engine='xlsxwriter')
+
+test_df.to_excel('/home/data/test_data.xlsx',engine='xlsxwriter')
+
+test_df.loc[(test_df['label']!=test_df['predict_label'])].shape
+
+test_df.loc[(test_df['label']!=test_df['predict_label'])].to_excel('/home/data/predict_not_same_data.xlsx',engine='xlsxwriter')
+
+7.java应用模型
+
+<dependency>
+<groupId>com.mayabot.mynlp</groupId>
+<artifactId>fastText4j</artifactId>
+<version>3.1.2</version>
+</dependency>
+
+​
+import com.mayabot.nlp.fasttext.FastText;
+File fastTextFile = new File("fasttext_model_20201206.bin");
+FastText model = FastText.Companion.loadCppModel(fastTextFile);
+String text="江南 南大 大院 酸辣 辣土 土豆 豆丝 米饭 糖醋 醋里 里脊 嘟嘟 嘟四 四季 季豆"; ## 这部分需要处理,处理逻辑与训练逻辑相同,参见text2sample
+System.out.println(model.predict(Arrays.asList(text.split(" ")),5,0));
+​

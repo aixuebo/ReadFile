@@ -1,0 +1,16 @@
+
+一、方法
+  def agg(expr: Column, exprs: Column*): DataFrame = {
+    toDF((expr +: exprs).map {
+      case typed: TypedColumn[_, _] =>
+        typed.withInputType(df.exprEnc, df.logicalPlan.output).expr
+      case c => c.expr
+    })
+  }
+  
+二、调用
+agg(Column,Column,Column),无论多少个都可以，因为参数是可变的。
+
+三、注意:
+虽然是可变参数,但是不能传入list,因为scala的编译器是不认识的,让编译器认识可变数组,必须强制加入类型:_*,即把list强制转换成可变数组。
+df.groupBy("label").agg(columnArr.toList.head,columnArr.toList.tail:_*).show(10)

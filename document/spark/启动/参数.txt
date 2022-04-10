@@ -1,0 +1,6 @@
+一、文件上传
+--jars viewfs:///user/hadoop/CRFPP.jar
+--files viewfs:///user/hadoop/libCRFPP.so,viewfs:///user/hadoop/model_file_train80_200
+
+代码获取
+SparkFiles.get("CRFPP.jar")

@@ -1,0 +1,157 @@
+一、ObjectInspector 表示对象的一级分类
+   PrimitiveObjectInspector 表示对象类型
+       IntObjectInspector  具体获取该对象的值,比如获取int的值
+             SettableIntObjectInspector  设置int的值,该对象可以设置对象,同时也确定了对象的类型
+	         	WritableIntObjectInspector 具体实现类
+		        JavaIntObjectInspector 具体实现类
+
+
+ObjectInspector
+1.参数和返回值都是object,因此可以做到通用化,具体类型会有具体的实现类,该类可以转换成对应的数据
+2.最上层的抽象
+3.  public static enum Category {
+    PRIMITIVE, LIST, MAP, STRUCT, UNION
+  };
+4.Category getCategory();可以知道一个对象是什么类型的对象
+5.String getTypeName();//可以知道该最上层的抽象到底是什么类型的对象,直接映射成TypeInfo对象,比如 PrimitiveTypeInfo对象
+
+PrimitiveObjectInspector
+1.第二层的抽象,属于二级分类
+2.
+  public static enum PrimitiveCategory {
+    VOID, BOOLEAN, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, STRING,
+    DATE, TIMESTAMP, BINARY, DECIMAL, VARCHAR, CHAR, INTERVAL_YEAR_MONTH, INTERVAL_DAY_TIME,
+    UNKNOWN
+  };
+3.PrimitiveCategory getPrimitiveCategory();
+获取二级分类
+4.public PrimitiveTypeInfo getTypeInfo();
+可以知道该抽象到底是指代什么具体的class
+5.从PrimitiveTypeInfo中可以获取到该抽象类在实例化生成对应的java或者hadoop对象的时候,最终类型是什么class类型
+Class<?> getPrimitiveWritableClass();
+Class<?> getJavaPrimitiveClass();
+6.给定对象生成对应的java和hadoop对象
+Object getPrimitiveWritableObject(Object o);
+Object getPrimitiveJavaObject(Object o);
+Object copyObject(Object o);
+7.boolean preferWritable();
+true,表示该对象更宁愿返回hadoop的对象
+false,表示更想返回java对象
+8.用于HiveDecimalUtils时候控制小数点
+int precision();
+int scale();
+
+IntObjectInspector
+1.int get(Object o);
+给定一个object对象,返回int,即获取对象的值
+对object进行强转,返回对应的int值即可
+
+SettableIntObjectInspector
+1.类的目的
+通过value设置和创建一个对象
+2.Object create(int value);
+用给定的值,创建新的对象
+3.Object set(Object o, int value);
+用给定的value值,重新设置o对象,返回一个对象,值是参数value的值
+大多数情况下value都是针对参数o设置的,不会创建一个新的对象,但是当o对象是不可变对象的时候除外,会产生新的对象，比如JavaIntObjectInspector,java原生的对象作为参数
+
+
+
+二、Map类型
+ObjectInspector
+	MapObjectInspector定义基本读取接口
+		SettableMapObjectInspector定义写接口
+			StandardMapObjectInspector具体实现
+			
+1.MapObjectInspector 定义基本读取接口
+ ObjectInspector getMapKeyObjectInspector(); key类型
+ ObjectInspector getMapValueObjectInspector(); value类型
+ Object getMapValueElement(Object data, Object key); 获取key对应的value
+ Map<?, ?> getMap(Object data); 返回map的内容
+ int getMapSize(Object data); 返回参数map的大小
+ 
+ 注意:
+  其中data Map<?, ?> map = (Map<?, ?>) data; 即data就是全局的对象,在该类中要强制转换成Map即可
+2.SettableMapObjectInspector 定义写接口
+Object create(); 创建一个HashMap
+Object put(Object map, Object key, Object value); 将key-value 添加到map中,需要强转成Map<?, ?> map
+Object remove(Object map, Object key); 从map中移除key
+Object clear(Object map);清空map
+3.StandardMapObjectInspector 具体实现
+
+三、List
+ObjectInspector
+	ListObjectInspector 定义基本读取接口
+		SettableListObjectInspector 定义写接口
+			StandardListObjectInspector 具体实现
+		
+1.ListObjectInspector 定义基本读取接口
+ObjectInspector getListElementObjectInspector(); 元素类型
+Object getListElement(Object data, int index); 获取data这个List的第index个元素
+int getListLength(Object data);集合元素数量
+List<?> getList(Object data);集合元素内容
+
+2.SettableListObjectInspector 定义写接口
+Object create(int size);创建List
+Object set(Object list, int index, Object element);设置list的第index位置元素为element
+Object resize(Object list, int newSize); 重新设置list大小
+
+3.StandardListObjectInspector 具体实现
+
+四、Struct & StructField
+ObjectInspector
+	StructObjectInspector 定义基本读取接口
+		SettableStructObjectInspector 定义写接口
+			StandardStructObjectInspector 具体实现
+
+特别
+StructField 定义一个属性
+String getFieldName();包含属性名称
+int getFieldID();第几个属性
+ObjectInspector getFieldObjectInspector();属性类型
+String getFieldComment();属性的备注
+  
+
+1.StructObjectInspector 定义基本读取接口
+a.public abstract List<? extends StructField> getAllStructFieldRefs();存储每一个属性信息,不包含属性值
+b.public abstract StructField getStructFieldRef(String fieldName);通过属性name,获取对应的属性对象StructField
+c.public abstract Object getStructFieldData(Object data, StructField fieldRef);
+获取该属性对应的value值
+因为data是一个(List<Object>) data,即data是该所有属性对应的value值集合,因此获取该data集合的fieldRef.index位置的值即可
+d.public abstract List<Object> getStructFieldsDataAsList(Object data);
+因为data是一个(List<Object>) data,即data是该所有属性对应的value值集合,因此返回data即可
+
+2.SettableStructObjectInspector 定义写接口
+a.public abstract Object create();
+为每一个属性创建一个Object对象,存储属性对应的值,因此也是初始化一个数组,大小与属性一样
+ArrayList<Object> a = new ArrayList<Object>(fields.size());
+b.public abstract Object setStructFieldData(Object struct, StructField field,Object fieldValue);
+为该属性分配一个对象值
+其中struct是一个数组,该数组存储的是每一个属性的值,因此直接将struct数组对应的属性的index,替换成fieldValue即可
+
+3.StandardStructObjectInspector 具体实现
+  
+五、Union
+ObjectInspector
+	UnionObjectInspector 定义基本读取接口
+		SettableUnionObjectInspector 定义写接口
+			StandardUnionObjectInspector 具体实现
+
+1.UnionObjectInspector 定义基本读取接口
+a.List<ObjectInspector> getObjectInspectors(); 该对象的存储的类型集合
+b.byte getTag(Object o);获取对象的tag
+每一个元素都是一个(UnionObject) o对象,而参数就是(UnionObject) o对象
+c.Object getField(Object o);返回每一个元素对应的值
+每一个元素都是一个(UnionObject) o对象,结果 (UnionObject) o).getObject
+
+2.SettableUnionObjectInspector 定义写接口
+a.public abstract Object create();
+创建ArrayList<Object> a = new ArrayList<Object>();即可
+b.public abstract Object addField(Object union, ObjectInspector oi);
+union参数就是ArrayList<Object> a = (ArrayList<Object>) union;
+该方法执行 a.add(oi);
+
+3.StandardUnionObjectInspector 具体实现
+a.List<ObjectInspector> ois;构造函数初始化该对象的存储的类型集合
+
+六、

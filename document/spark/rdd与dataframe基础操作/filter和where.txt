@@ -1,0 +1,27 @@
+import org.apache.spark.sql.functions._
+import sqlContext.implicits._   //支持$
+
+一、filter --- 应用于某一个列,从该列出发的一系列操作。
+1.df.filter(row => true) 这个比较简单。
+
+2.df.filter(Column())
+参数是Column对象，而且只能是一个Column对象,因此相当于列对象通过各种运算后,依然是Column对象被返回。
+比如df.filter(($"key1">"aaa").and($"key1">"aaa")),$"key1"返回key1列对象,调用>方法,提供参数,返回过滤后的列对象,然后调用and方法,继续传入另外一个列对象
+
+3.df.filter(string) 
+参数是字符串,可执行函数的字符串。
+df.filter("id = 7825692 and label = 1")
+df.filter("id != id - 1 and label = 1")
+
+
+4.注意:
+a.等号与不等号
+===表示等于方法
+=!=表示不等于方法,他们都是column列对象的方法
+df.filter($"id"=!="7825692")
+
+b.filter可以用于两个不同列之间的关系比较
+df.filter($"id"=!=$"age" - 1)
+
+二、where --- 应用于整个表,每一个列可以单独使用,这个是与filter的本质区别
+使用方式与filter的2和3是一样的。

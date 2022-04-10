@@ -1,0 +1,36 @@
+总结:
+1.持有一个定时任务优先队列。
+2.向队列中不断追加任务。
+3.内部有一个线程，每次从优先队列获取待执行的任务，执行，然后再获取下一个任务。。不断重复
+
+
+弊端:
+1.首先优先队列的插入和删除的时间复杂度是O(logn)，当数据量大的时候，频繁的入堆出堆性能有待考虑。
+2.单线程执行，那么如果一个任务执行的时间过久则会影响下一个任务的执行时间。
+3.从代码可以看到对异常没有做什么处理，那么一个任务出错的时候会导致之后的任务都无法执行。
+
+一、class TimerTask implements Runnable
+表示一个定时任务
+nextExecutionTime 持有下次执行时间点。用于定时任务优先级排序。
+
+二、TaskQueue 
+1.内部使用数组存储new TimerTask[128]。数组不断扩容。
+2.add(TimerTask task)方法向队列追加定时任务。
+此时会按照TimerTask的nextExecutionTime进行数组排序。
+3.因此数组是一个优先队列。
+
+
+三、TimerThread extends Thread
+1.持有TaskQueue优先队列。
+2.不断的单线程阻塞的方式,从优先队列中获取TimerTask。执行任务，再获取下一个任务。
+因此任务到期后，只能保证他会执行，但不会保证立刻执行，取决与任务前排队的任务集合 以及 每一个任务的执行耗时情况。
+3.如果TimerTask任务是一个周期性执行的任务，还要重新向TaskQueue优先队列添加下一次任务执行时间。
+
+四、Timer
+TaskQueue queue = new TaskQueue();
+TimerThread thread = new TimerThread(queue);
+public Timer(String name) {
+	thread.start(); 启动线程,执行优先队列中的TimerTask定时任务
+}
+schedule(TimerTask task, long delay)
+schedule(TimerTask task, long delay, long period) 

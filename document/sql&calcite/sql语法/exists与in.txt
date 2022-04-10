@@ -1,0 +1,31 @@
+
+找到用户---订单购买金额大于500元的用户
+一、EXISTS
+SELECT name,age
+FROM user 
+WHERE EXISTS EXISTS ( SELECT.user_id from order where user.id = order.user_id and order.price > 500)
+
+先查询user表,一个一个遍历user表数据，拿到每一个userid后查询子查询，如果子查询结果返回数据大于1条,则返回true。
+
+二、in
+SELECT name,age
+FROM user 
+WHERE userid in  ( SELECTuser_id from order where price > 500)
+
+先查询子查询,找到所有订单大于500的用户集合,然后与主表进行笛卡尔查询,所以性能会慢。
+
+
+三、总结
+区别:
+EXISTS 先执行主表，然后遍历子表，只要存在数据则返回。
+in 先执行子表，然后与主表进行笛卡尔。
+
+使用场景:
+看子表还是主表谁小。
+比如 如果订单表很小,那么in操作比较合适，先缩小范围，然后与主表进行笛卡尔。 所以in经常用于枚举值，因为比较小。
+如果订单表很大，但订单表有索引，查询很快，那么用户表不管大还是小都很快，因为用户表遍历后，每一个id去订单表根据索引查，效率会很高。
+
+四、注意:
+1.EXISTS 前面不需要有字段,比如id EXISTS (xxx) 这样的语法是错误的，但in前面是要有字段的，比如 id in (xxxx)
+
+

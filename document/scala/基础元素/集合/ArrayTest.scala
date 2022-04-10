@@ -65,4 +65,22 @@ object ArrayTest {
   def main(args: Array[String]): Unit = {
     testJava()
   }
+  
+  //定义数组---里面元素是元组  ---以及如何获取数组下标进行循环
+  def test1(args: Array[String]): Unit ={
+
+    //定义数组--存储元组
+    val fieldArray = Array(("docid", "filed"), ("title", "filed"), ("summary", "filed"), ("date", "filed"))
+
+    println(fieldArray.indices) //Range(0, 1, 2, 3)
+    for (i <- fieldArray) {
+      println(i._1+"==="+i._2) //docid===filed
+    }
+    
+    for (i <- fieldArray.indices) {
+      println(i) //打印下标
+      if (fieldArray(i)._2 == "filed") println("是filed")
+    }
+    
+  }
 }

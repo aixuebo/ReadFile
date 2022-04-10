@@ -1,0 +1,37 @@
+参见AggregateApplyAllWindowFunction、ReduceApplyAllWindowFunction
+
+一、ReduceFunction
+1.输入和输出类型相同。
+T reduce(T value1, T value2)
+2.使用方式
+public void apply(W window, Iterable<T> input, Collector<R> out) throws Exception {
+  T curr = null;
+  for (T val: input) {
+  	if (curr == null) {
+ 		 curr = val;
+  	} else {
+  	curr = function.reduce(curr, val);
+  	}
+}
+
+二、AggregateFunction<IN, ACC, OUT>  相当于综合了flod与ReduceFunction的能力。
+1.输入和输出类型可以不相同。
+IN 输入类型
+ACC 中间类型,初始化类型,相当于fold
+OUT 输出类型。
+如果in与out、ACC都相同,则可以表达是ReduceFunction。
+
+2.核心函数
+ACC createAccumulator() 创建中间值。相当于flod初始化的值。
+ACC add(IN value, ACC accumulator); 每次迭代,新元素都与中间状态值做计算，输出中间状态类型的值
+OUT getResult(ACC accumulator);最终将中间状态的结果值,进行计算,转换成输出类型
+ACC merge(ACC a, ACC b);用于两个分布式节点的结果进行合并
+
+3.使用方式
+public void apply(W window, Iterable<T> values, Collector<R> out) throws Exception {
+		ACC acc = aggFunction.createAccumulator();//创建中间结果值
+		for (T value : values) {
+			acc = aggFunction.add(value, acc);
+		}
+    out.collect(aggFunction.getResult(acc));
+}

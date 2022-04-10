@@ -1,0 +1,65 @@
+
+一、基础操作
+1.数据清洗 -- 字段提取、统一格式、过滤不符合条件的数据。
+filter、map、flatMap、reduce
+2.多流合并与关联。
+join、union
+3.数据分发，比如按照设备id,分发到不同的流内进行处理。
+keyBy 或 groupBy
+4.数据存储到kafka中
+foreach、output
+
+
+二、操作demo
+1.reduce
+“聚合”用于将数据流中的数据按照指定方法进行聚合。它最典型的业务场景是，比如计算一段时间窗口内的订单数量、交易总额、人均消费额等。
+同样以社交活动分析为例，这次我们需要每秒钟统计一次 10 秒内用户活跃事件数。
+
+DataStream<Tuple2<String, Integer>> countStream = socialWebStream
+    .map(x -> Tuple2.of("count", 1))
+    .returns(Types.TUPLE(Types.STRING, Types.INT))
+    .timeWindowAll(Time.seconds(10), Time.seconds(1))
+    .reduce((count1, count2) -> Tuple2.of("count", count1.f1 + count2.f1));
+    
+我们使用 timeWindowAll 指定每隔 1 秒钟，对 10 秒钟窗口内的数据进行一次计算
+
+2.join
+相比关系型数据库表间 join 操作，由于流的无限性，大多数使用场景下，我们需要引入“窗口”来对关联的流数据进行时间同步，即只对两个流中处于指定时间窗口内的数据进行关联操作。
+即使引入了窗口，流数据的关联依旧复杂。当窗口时间很长，窗口内的数据量很大（需要将部分数据存入磁盘），而关联的条件又比较宽泛（比如关联条件不是等于而是大于）时，
+那么流之间的关联计算将非常慢（不是相对于关系型数据库慢，而是相对于实时计算的要求慢），基本上你也别指望能够非常快速地获得两个流关联的结果了。
+
+
+以社交网络分析为例子，这次我们需要将两个不同来源的事件流，按照用户 id 将它们关联起来，汇总为一条包含用户完整信息的数据流
+关联两个表，user=user，将关联的结果发送到下游。
+DataStream<JSONObject> joinStream = socialWebStream.join(socialWebStream2)
+    .where(x1 -> x1.getString("user"))
+    .equalTo(x2 -> x2.getString("user"))
+    .window(TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(1)))
+    .apply((x1, x2) -> {
+        JSONObject res = new JSONObject();
+        res.putAll(x1);
+        res.putAll(x2);
+        return res;
+    });
+然后使用 window 指定每隔 1 秒钟，对 10 秒钟窗口内的数据进行关联计算。
+
+注意：
+流的关联是一个我们经常想用，但又容易让人头疼的操作。因为稍不注意，关联操作的性能就会惨不忍睹。
+关联操作需要保存大量的状态，尤其是窗口越长，需要保存的数据越多。因此当使用流数据的关联功能时，应尽可能让窗口较短。
+
+3.keyBy 分组，相同的数据到同一个节点计算
+
+DataStream<Tuple2<String, Integer>> keyedStream = transactionStream
+    .map(x -> Tuple2.of(x.getString("product"), x.getInteger("number")))
+    .returns(Types.TUPLE(Types.STRING, Types.INT))
+    .keyBy(0)
+    .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+    .sum(1);
+transactionStream 代表了交易数据流，在取出了分别代表商品和销量的 product 和 number 字段后，我们使用 keyBy 方法根据商品对数据流进行分组，
+然后每 10 秒统计一次 10 秒内的各商品销售总量。
+
+
+
+    
+
+

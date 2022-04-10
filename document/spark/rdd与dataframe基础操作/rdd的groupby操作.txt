@@ -1,0 +1,43 @@
+一、目标
+使用rdd，写出类似sql:
+select id,max(age),min(xxx)
+from biao
+group by id
+
+
+二、rdd执行
+import org.apache.spark.sql.functions._
+
+1.多个字段进行分组,可以是字符串,也可以是Col对象
+df.groupBy("a","b") 
+df.groupBy(col("a"),col("b"))
+
+2.针对select中写入其他聚合函数
+df.groupBy("a","b").agg(max(col("pro")).as("max_pro"),min(col("pro")).as("min_pro")) 起别名
+agg函数,参数是一系列Col对象,max(col("pro")) 表示max("pro"),返回的是Col对象。
+
+3.输出: a、b、max_pro、min_pro 组成的新的dataframe,每一行数据还是row
+.rdd.map(row => row.getAs("max_pro").toString).collect().foreach(println(_))
+
+
+三、聚合函数知识扩展
+1.agg里面写col数组
+df.groupBy("a","b").agg(max(col("pro")).as("max_pro"),min(col("pro")).as("min_pro")) 
+
+2.添加map参数,写入列名->聚合函数名.
+.agg(Map("label_pre" -> "max", "label" -> "min","pro" -> "avg")).schema.foreach(println(_))
+注意:都是字符串,并且输出的结果不能起别名,尽量少用。
+StructField(max(label_pre),StringType,true)
+StructField(min(label),StringType,true)
+StructField(avg(pro),DoubleType,true)
+
+3.使用元组的方式，替换Map
+.agg(("label_pre","max"),("label","min"),("pro","avg")).schema.foreach(println(_))
+注意:
+也是无别名。
+StructField(max(label_pre),StringType,true)
+StructField(min(label),StringType,true)
+StructField(avg(pro),DoubleType,true)
+
+2和3的输出，因为没有别名，因此输出的名字是以下内容:avg(pro)
+比如 rdd.map(row => row.getAs("avg(pro)").toString) 

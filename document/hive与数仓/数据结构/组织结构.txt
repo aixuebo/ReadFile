@@ -1,0 +1,69 @@
+目标:给定任意组织节点id,返回组织节点下所有path链路      
+1.组织结构schema,
+知道id、name、父id、第几层级、path全路径
+id	主键	int
+parent_id	父节点id	int
+name	组织节点名	string
+level	组织节点级别	int
+is_leaf	是否为叶子节点	int
+path	节点继承路径	string 比如 15998-1-3
+
+2.将path数据打平
+select split.id,split.name,split.path,split.org_path_split,
+o.name parent_name,o.level
+from
+(
+      ###对组织架构的path进行拆分,即一行拆分成多行
+      SELECT id,name,path,level,org_path_split
+      FROM biao
+      LATERAL VIEW explode(split(path,'-')) org_path_splits AS org_path_split
+      where dt = '20210602'
+) split
+join
+(
+      ###组织架构结构---组装成拆分后的父节点name
+      select id,name,level
+      FROM biao
+      where dt = '20210602'
+) o on split.org_path_split = o.id
+
+即:1变多:
+每一个id、name、父id、第几层级、path全路径、追加path路径信息,以及父节点信息
+
+3.因此按照group by id分组后,可以获取1-n层数据。
+select 
+o.org_id,o.name,o.path,o.level,
+org_name_1,org_name_2,org_name_3,org_name_4,org_name_5,
+org_name_6,org_name_7,org_name_8,org_name_9,org_name_10,
+org_name_11,org_name_12,org_name_13,org_name_14,org_name_15,
+org_name_id_1,org_name_id_2,org_name_id_3,org_name_id_4,org_name_id_5,
+org_name_id_6,org_name_id_7,org_name_id_8,org_name_id_9,org_name_id_10
+from 
+(
+    select id org_id,name,path,level
+    from biao
+    where dt = '20210602'
+) o 
+left join
+(
+    select id org_id,
+    max(if(parent_level = 1,parent_name,null)) as org_name_1,
+    max(if(parent_level = 2,parent_name,null)) as org_name_2,
+    max(if(parent_level = 3,parent_name,null)) as org_name_3,
+    max(if(parent_level = 4,parent_name,null)) as org_name_4,
+    max(if(parent_level = 5,parent_name,null)) as org_name_5,
+    max(if(parent_level = 6,parent_name,null)) as org_name_6,
+    max(if(parent_level = 7,parent_name,null)) as org_name_7,
+    max(if(parent_level = 8,parent_name,null)) as org_name_8,
+    max(if(parent_level = 9,parent_name,null)) as org_name_9,
+    max(if(parent_level = 10,parent_name,null)) as org_name_10,
+    max(if(parent_level = 1,parent_id,null)) as org_id_1,
+    max(if(parent_level = 2,parent_id,null)) as org_id_2,
+    max(if(parent_level = 3,parent_id,null)) as org_id_3,
+    max(if(parent_level = 4,parent_id,null)) as org_id_4,
+    max(if(parent_level = 5,parent_id,null)) as org_id_5,
+    max(if(parent_level = 6,parent_id,null)) as org_id_6
+    from biao_merge
+    where dt = '20210602'
+    group by id
+) org_name_path on o.org_id = org_name_path.org_id

@@ -1,0 +1,36 @@
+一、maven
+
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>2.9.4</version>
+        </dependency>
+        
+二、
+
+import org.joda.time.format.DateTimeFormat
+import org.joda.time.{DateTime, Days, Months}
+
+  //构造
+  val dateTime = new DateTime() //当前时间
+  val formatDate = DateTime.parse("2016-07-09", DateTimeFormat.forPattern("yyyy-MM-dd")) //根据指定格式 以及 日期构造
+
+  //对象支持任意格式输出
+  println(dateTime.toString("yyyy-MM-dd HH:mm:ss"))
+
+  //支持日期的加减法
+  val beforeDateTime = dateTime.minusDays(94)
+  println(beforeDateTime.toString("yyyy-MM-dd HH:mm"))
+
+  //两个日期输出之间的天、月、年差距
+  val d = Days.daysBetween(dateTime, beforeDateTime).getDays // beforeDateTime - dateTime 差多少天
+  println(d)
+  val m = Months.monthsBetween(dateTime, beforeDateTime).getMonths // beforeDateTime - dateTime 差多少月
+  println(m)
+
+  //输出日期的毫秒
+  println(beforeDateTime.getMillis) //13位 精确到毫秒
+  
+三、获取某个单位对应的毫秒数
+long outfilePartitionMs = java.util.concurrent.TimeUnit.HOURS.toMillis(24);//86400000
+比如24小时有多少毫秒

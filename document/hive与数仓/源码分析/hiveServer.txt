@@ -1,0 +1,12 @@
+1.HiveServer或者HiveServer2，客户端可以在不启动CLI的情况下对Hive中的数据进行操作，两者都允许远程客户端使用多种编程语言如Java、Python向Hive提交请求，取回结果
+原因是内部实现的thrift实现的
+2.虽然都是基于thrift实现的,但是HiveSever有时被称为Thrift server，而HiveServer2却不会
+3.既然已经存在HiveServer为什么还需要HiveServer2呢
+这是因为HiveServer不能处理多于一个客户端的并发请求，这是由于HiveServer使用的Thrift接口所导致的限制，不能通过修改HiveServer的代码修正。
+因此在Hive-0.11.0版本中重写了HiveServer代码得到了HiveServer2，进而解决了该问题。
+HiveServer2支持多客户端的并发和认证，为开放API客户端如JDBC、ODBC提供了更好的支持。
+4.了解一下HiveServer的使用方法。在命令中输入hive --service help
+可以使用hive <parameters> --service serviceName <serviceparameters>启动特定的服务，如cli、hiverserver、hiveserver2等。
+5.HiveServer和HiveServer2都有两种模式，分别为嵌入式和单机服务器模式，对于嵌入式URI为"jdbc:hive://"或者"jdbc:hive2://"，
+单机服务器模式的URI为"jdbc:hive://host:port/dbname"或者"jdbc:hive2://host:port/dbname"。
+HiveServer使用的JDBC驱动类为org.apache.Hadoop.hive.jdbc.HiveDriver，而HiveServer2使用的驱动类为org.apache.hive.jdbc.HiveDriver。

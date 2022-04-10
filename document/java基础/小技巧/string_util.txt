@@ -1,0 +1,28 @@
+一、java8的Objects
+Objects::nonNull
+Objects::isNull
+Objects::requireNonNull
+
+二、StringUtils
+<!-- StringUtil工具包-->
+<dependency>
+<groupId>commons-lang</groupId>
+<artifactId>commons-lang</artifactId>
+<version>2.6</version>
+</dependency>
+
+import org.apache.commons.lang3.StringUtils;
+StringUtils.isBlank更常用
+StringUtils.isBlank(String str) 判断某字符串是否为空或长度为0或由空白符(whitespace) 构成
+System.out.println(StringUtils.isBlank(null));        //true
+System.out.println(StringUtils.isBlank(""));          //true
+System.out.println(StringUtils.isBlank("   "));       //true
+System.out.println(StringUtils.isBlank("dd"));        //false
+
+StringUtils.isEmpty(String str) 判断某字符串是否为空，为空的标准是 str==null 或 str.length()==0
+System.out.println(StringUtils.isEmpty(null));        //true
+System.out.println(StringUtils.isEmpty(""));          //true
+System.out.println(StringUtils.isEmpty("   "));       //false
+System.out.println(StringUtils.isEmpty("dd"));        //false
+StringUtils.isNotEmpty(String str) 等价于 !isEmpty(String str)
+

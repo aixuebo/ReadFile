@@ -1,0 +1,6 @@
+一、读取工程中任意目录下文件流。
+String path = "com/xxx/autosql/key_value.properties"
+InputStream inStream = ProertiesUtil.class.getClassLoader().getResourceAsStream(path);//默认就是根目录
+
+可以参考 Java基础/IO/Properties
+

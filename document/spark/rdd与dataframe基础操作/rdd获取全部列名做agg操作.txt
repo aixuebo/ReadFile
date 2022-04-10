@@ -1,0 +1,24 @@
+一、背景
+df.groupby().agg操作的时候,需要按顺序每一个变量都添加进去,计算统计值。
+当模型列有100多个的时候,其实是很麻烦的。
+
+二、目标
+自动输出每一个变量的统计信息。
+
+三、方案实现
+    import org.apache.spark.sql.functions._
+    import sqlContext.implicits._
+
+    val columnArr = scala.collection.mutable.ArrayBuffer.empty[Column] //存储所有的列对象
+    
+    //循环每一个schema,装载列对象的avg方法,可以扩展min、max等方法
+    df.schema.foreach(field =>{
+      columnArr += avg(col(field.name))
+    })
+
+    //调用agg方法,需要传入column对象,以及*可变的column数组对象
+    df.groupBy("label").agg(columnArr.toList.head,columnArr.toList.tail:_*).show(10)
+    
+    //注意:不能传入list,因为虽然他是一个数组,可以代表可变数组,但scala的编译器是不认识的,让编译器认识可变数组,必须强制加入类型:_*,即把list强制转换成可变数组。
+    
+    

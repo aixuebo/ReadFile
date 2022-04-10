@@ -1,0 +1,29 @@
+bin目录的命令讲解 --- 学习源码可以从命令开始入手。
+
+一、flink 核心命令行，相当于spark 、hadoop的命令行。一切执行命令都要从flink命令开始。
+
+二、start-cluster.sh、stop-cluster.sh 启动/关闭集群
+
+三、jobmanager.sh taskmanager.sh
+开启jobmanager、taskmanager.sh
+
+四、yarn-session.sh yarn模式启动集群
+
+五、其他
+-rw-r--r--@ 1 maming  staff  2010313 May 11 04:45 bash-java-utils.jar
+-rwxr-xr-x@ 1 maming  staff    20216 May 10 21:40 config.sh
+-rwxr-xr-x@ 1 maming  staff     1318 Sep 13  2020 find-flink-home.sh
+-rwxr-xr-x@ 1 maming  staff     3679 May 10 21:40 flink-console.sh
+-rwxr-xr-x@ 1 maming  staff     6569 May 10 21:40 flink-daemon.sh
+-rwxr-xr-x@ 1 maming  staff     1564 Aug  5  2019 historyserver.sh
+-rwxr-xr-x@ 1 maming  staff     1715 May 10 21:40 kubernetes-session.sh
+-rwxr-xr-x@ 1 maming  staff     1133 Apr  8 16:01 mesos-appmaster-job.sh
+-rwxr-xr-x@ 1 maming  staff     1137 Apr  8 16:01 mesos-appmaster.sh
+-rwxr-xr-x@ 1 maming  staff     1956 May 10 21:40 mesos-jobmanager.sh
+-rwxr-xr-x@ 1 maming  staff     1889 May 10 21:40 mesos-taskmanager.sh
+-rwxr-xr-x@ 1 maming  staff     3738 May 10 21:40 sql-client.sh
+-rwxr-xr-x@ 1 maming  staff     2006 Apr  8 16:01 standalone-job.sh
+-rwxr-xr-x@ 1 maming  staff     3310 May 10 21:40 start-scala-shell.sh
+-rwxr-xr-x@ 1 maming  staff     1854 Aug  5  2019 start-zookeeper-quorum.sh
+-rwxr-xr-x@ 1 maming  staff     1845 Aug  5  2019 stop-zookeeper-quorum.sh
+-rwxr-xr-x@ 1 maming  staff     2405 Apr  8 16:01 zookeeper.sh

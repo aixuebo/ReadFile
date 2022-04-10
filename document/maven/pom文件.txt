@@ -1,0 +1,88 @@
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.xxx.x</groupId>
+    <artifactId>xxxx</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <scala.version>2.10.4</scala.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.xxx</groupId>
+                <artifactId>xxxx</artifactId>
+                <version>1.3.9</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-common</artifactId>
+                <version>xxxx</version>
+                <scope>provided</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+            <version>2.10.4</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-math3</artifactId>
+                </exclusion>
+            </exclusions>
+           <scope>provided</scope>
+        </dependency>
+
+一、<dependencyManagement>
+1.确定包的版本号，提供依赖使用。依赖时不需要设置版本号。
+
+2.使用dependencyManagement可以统一管理项目的版本号，确保应用的各个项目的依赖和版本一致，不用每个模块项目都弄一个版本号，不利于管理。
+当需要变更版本号的时候只需要在父类容器里更新，不需要任何一个子项目的修改；
+如果某个子项目需要另外一个特殊的版本号时，只需要在自己的模块dependencies中声明一个版本号即可。子类就会使用子类声明的版本号，不继承于父类版本号。
+--即子类可以覆盖,子类优先级更高。,但是尽量不要这样配置,属于不科学的管理
+
+3.与Dependencies不同,dependencyManagement里只是声明依赖，并不自动实现引入，因此子项目需要显示的声明需要用的依赖
+
+4.dependencyManagement 可以统一管理jar包依赖的scope,比如容器或者hadoop依赖的jar统一设置为provided
+<scope>provided</scope>
+
+二、<scope>provided</scope> ---针对package时候
+最终jar包将哪些依赖的jar打包进去
+1.compile 默认,所有依赖的jar都要被编译,打包。
+2.test 表示有一些jar包只能在测试中使用，真实环境不用,因此该依赖包test环境才被打入进去,非test环境都不打该依赖
+3.provided 意味着该包不会被打包到系统中,因为系统运行环境已经有该包了,比如servlet、spark、hadoop等。
+项目不需要打包这些环境包到package里面,本地环境编译是需要该包的，所以引用该依赖,设置provided
+
+注意:比如spark项目线上有,所以打包的时候不需要把spark代码加入到包里,因此设置的<scope>provided</scope>,
+因此class中虽然引用了spark项目代码，但因为编译时是有spark代码的，所以编译是成功的。
+但spark项目没有被打入到jar包中,因此在执行class的时候,(本地运行的时候也一样),class虽然被编译成功了,但执行的时候是需要spark包的,因此会报错。
+
+解决方法:
+a.使用classpath的方,把需要的jar包添加进来,main函数就可以执行了。
+缺点 单一jar可以,但如果spark下还有依赖，但自己是不知道依赖的，所以就会出现问题，没有办法把依赖全部加完。
+b.在pom中定义一个变量,测试的时候切换为provided,上线切换成compile。这种方式改动是最小的。
+<scope>provided</scope> <scope>compile</scope>
+使用的时候 <scope>${scope}</scope>
+
+4.system 和provided相同，只是依赖不是来自于maven,而是来自于系统本地，一定需要配合systemPath属性使用
+
+三、问题
+管理jar包依赖,遇到的问题
+1.A 依赖 B-1.1
+  C 依赖 B-2.1
+  因此只能全局是有一个依赖,比如B-2.1,如何设置,每一个依赖设置exclusions很恶心。
+但是没有一个插件可以解决该问题。
+我想可以有一个插件，设置确定的包以及版本号，再加载多个版本包的时候，去除其他包。即是rm物理删除包也好。但是目前没有该插件。

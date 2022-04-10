@@ -1,0 +1,12 @@
+<dependency>
+    <groupId>org.chasen</groupId>
+    <artifactId>crfpp</artifactId>
+    <version>1.0.0</version>
+    <scope>system</scope>
+    <systemPath>${project.basedir}/src/main/lib/CRFPP.jar</systemPath>
+</dependency>
+
+${project.basedir}/src/main/lib/CRFPP.jar 表示在系统内部添加该jar。这样maven就能读取到。
+
+注意:
+git经常会添加忽略jar的配置,因此如果有这个配置,在向git添加jar的时候,先将该配置注释掉。

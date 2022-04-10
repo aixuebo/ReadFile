@@ -1,0 +1,57 @@
+一、Aggregate（聚合）实现
+1. 可下推到TableScan的聚合函数SUM、COUNT、MAX、MIN的处理
+计算层做一次reduce处理即可---map端扫表时,直接聚合。
+
+2.AVG的处理
+优化阶段将AVG(col)拆分为AVG_SUM(col), AVG_COUNT(col), 之所以命名成AVG_SUM，是为了跟普通的SUM和COUNT函数做区分。
+在执行阶段识别出AVG_SUM、AVG_COUNT后再做处理, 整体设计比较tricky。
+
+原始SQL  SELECT gid, avg(age) FROM TestAggregate group by gid;
+优化后的SQL
+ SELECT gid, expr1 / expr2 as avg(age)
+FROM  
+ (
+ SELECT gid, AVG_SUM(age) as expr1, AVG_COUNT(age) as expr2 
+ FROM TestAggregate group by gid 
+ )
+ 即先在map端计算好预聚合--count和sum
+
+
+二、Distinct实现
+将distinct算子直接转成group by处理：因为group by隐含了对group by columns的去重逻辑。
+
+原始SQL: SELECT distinct age FROM TestAggregate;
+转换后的SQL: SELECT age FROM TestAggregate group by age
+
+
+原始SQL:SELECT gid, distinct age FROM TestAggregate GROUP BY gid;
+转换后的SQL:SELECT gid, age FROM TestAggregate GROUP BY gid, age;
+
+三、Aggregate Distinct实现
+对于count(distinct)、sum(distinct) 这样的聚合函数，处理逻辑是将算子展开成子查询，将distinct列放置到内层查询的group by列后，然后在外层查询做一次count聚合处理。
+
+1 只有COUNT(DISTINCT)没有其它聚合函数
+原始sql:SELECT gid, count(DISTINCT age) FROM TestAggregate group by gid
+优化后的sql:SELECT gid, count(age)  FROM  (SELECT gid, age FROM TestAggregate group by gid, age) group by gid
+
+
+2 COUNT(DISTINCT)和其它聚合函数同时出现，但是参数列一致
+原始sql:SELECT gid, sum(age), count(DISTINCT age) FROM TestAggregate group by gid
+优化后的sql:
+
+-- 这个子查询是把每个gid、age组中的age做了求和
+SELECT gid, SUM(expr1) as SUM(age), COUNT(age) 
+FROM 
+(SELECT gid, age, SUM(age) as expr1 FROM TestAggregate GROUP BY gid, age) GROUP BY gid;
+
+
+3 COUNT(DISTINCT)和其它聚合函数同时出现，但是参数列不一致
+原始sql:SELECT gid, sum(height), count(DISTINCT age) FROM TestAggregate group by gid
+优化后的sql:
+ -- 这个子查询是把每个gid、age组中的height做了求和   
+SELECT gid, SUM(expr1) as SUM(height), COUNT(age) 
+FROM
+ (SELECT gid, age, SUM(height) as expr1 FROM TestAggregate GROUP BY gid, age) GROUP BY gid;
+ 
+ 
+ 

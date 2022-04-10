@@ -30,6 +30,9 @@ demo
 cat file | sed 's/"//g'  | sed '1d' >out.log
 表示读取文件,然后将双引号取消,然后删除第一行数据,将结果输出重定向到out.log中
 
+7.读取文件的5-10行
+sed -n '5, 10d' spark-sql
+
 二、替换
 将双引号取消
 sed 's/"//g' file

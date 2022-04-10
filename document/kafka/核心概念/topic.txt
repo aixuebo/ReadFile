@@ -1,0 +1,15 @@
+topic记录topicName以及每一个partition的信息。
+partition记录着leader节点信息
+
+
+topic元数据对象TopicMetadata:
+
+String topic; 记录topic的name
+List[kafka.javaapi.PartitionMetadata] partitionsMetadata 记录每一个partition的信息。
+
+
+PartitionMetadata元数据:
+int partitionId
+Broker leader 该partitionId的leader节点信息。
+List[Broker] replicas 该partitionId的备份节点集合
+List[Broker] isr 该partitionId的备份isr节点集合

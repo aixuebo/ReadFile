@@ -1,6 +1,24 @@
-debug的watch
+debug
+0.Show Execution Point,回到当前执行到的那一行
+（有时候在代码间点来点去，可能会找不到执行到什么地方了，点这个就跳转回来了）
+1.Step Over,跳过一行代码,如果该代码是方法也会被跳过。
+2.Step Into,跳进方法体.
+3.Force Step Into 跳进方法体的加强版,不管什么方法都会跳进去,比如System.out.println("打印")，点这个按钮会进入调用打印命令的 println() 方法中。
+4.Step Out 跳出方法体,用于该方法不想看了,跳出方法体后继续看下一行代码
+5.Drop Frame,跳出方法体,但返回到上一步,继续执行该方法体,用于重复看一下该方法如何实现的。(可能上一步没看懂,但代码走过了,因此重新回来看)
+6.Evaluate Expression 弹出计算表达式框。这个功能可以查看变量的值、改变变量的值。
+7.run to cursor,回到光标处,如果代码走查过头了,回到上一步的逻辑，则光标设置在该地方即可,很方便。
+
+debug小工具
+1.view breakpoints(2个红圈以及冒号)
+a.查看所有的断点的详情，
+重要作用:condition中可以设置断点的条件，当i==4的时候，才停下。查看具体断点内容。
+条件填写的保证返回值是true即可。
+b.或者在设置断点时,鼠标右键，也可以弹出来condition设置窗口。
+2.watch
 用于将关心的变量单独显示出来,这样无论该变量变化成什么值了,都可以在debug区域内展示出来
 
+----------
 
 eclipse快捷键
 1、Ctrl+Shift+G 查看方法在什么地方调用过。前提是方法被光标选中以后再进行操作。
@@ -36,12 +54,24 @@ End Fn + →
 ⎋ Escape (Esc)
 
 idea快捷键
+经常用的
+1.提示main函数
+输入 main 然后 control+j
+2.Alt+回车 自动import导入包
+3.control+回车  寻找覆盖父类方法、实现父类抽象方法、覆盖父类的equals、tostring方法
+4.control+h查看一个类的继承关系，用于阅读代码很有效---只能看继承关系，不能看实现了哪些接口
+5.类的子窗口
+view --> tool windows --> structure 类中的方法集合  或者 navigate  --> file structure  或者 快捷键Fn+command+F12,其中Fn表示切换F12音乐键盘的
+view --> tool windows --> Hierarchy 类的子类集合  或者 Navigate -> Type Hierarchy 或者 ctrl+H显示该类的继承关系
+
+
 常用代码提示快捷键
 main-----psvm 也就是public static void main的首字母。
 for ----fori
 sout----System.out.println();
 debug 执行表达式 fn + option + F8
 更多的提示可以CTRL + j 可以查看,mac系统下是command＋j.
+查找Ctrl + Shift + F 查询字符串 edit-find-find in path
 
 最常用的快捷键
 Alt+F1 常用工具都在这个选项里面
@@ -49,7 +79,7 @@ Alt+F7 查找该方法或该类在哪些地方被调用了
 Ctrl+Alt+B 跳转到方法的实现处
 Alt+回车 自动import导入包
 ctrl+j 可以查找main 然后sout   或者command+j
-alt + insert 可以设置set/get 重写父类等方法
+alt + insert 或者 command+n 可以设置set/get 重写父类等方法
 ctrl+w可以选中作用于内所有代码  ctrl+shift+w取消选择的代码
 ctrl+i 导入未实现的抽象方法  code--implement method里面
 Ctrl+/或Ctrl+Shift+/注释（//或者/**/） 再次按这个快捷键,可取消备注
@@ -70,6 +100,7 @@ view--toolbar
 Ctrl+Tab 切换一大堆的tab页面,即class类
 ctrl+N 可以查找class,即navigate--class
 Shift+Shift 即可在一个弹出框中搜索任何东西，包括类、资源、配置项、方法等等。
+Ctrl + Shift + F 查询字符串 edit-find-find in path
 ctrl + F12获取该类所有的方法,再次F12,则显示父类的所有方法
 structure 上 随意点一个方法,然后就可以搜索一个类上哪一个方法了
 Ctrl+Shift+ALT+N 表示在一个class里面获取对应的方法或者变量
@@ -84,7 +115,6 @@ Ctrl+Shift+空格  自动补全代码
 Ctrl+Alt+空格  类名自动完成
 
 不是经常使用的快捷键
-ctrl+H显示该类的继承关系
 Ctrl+Shift+A可以查找所有Intellij的命令，并且每个命令后面还有其快捷键,所以它不仅是一大神键，也是查找学习快捷键的工具。
 Ctrl+Alt+L 格式化代码
 Ctrl+Alt+O 将无效的import清除掉
@@ -131,6 +161,10 @@ setting---File Encodings---找到src等位置,设置编码
 1.设置背景颜色
 选项 --> 会话选项 --> 终端 --> 仿真 -->  勾选“ANSI 颜色” 以及勾选”使用颜色方案“
 选项 --> 会话选项 --> 终端 --> 外观 -->  设置颜色为Floral white/dark cyan 或者中文的 花白/暗青,以及设置字体为consolas 12号字体
+
+四、部分编译 -- 即使用到哪个类,对哪个类进行编译class
+1.file -- setting -- compiler -- java compiler,设置javac变成eclipse。
+2.run-configuration 设置build,将build或者build project 改变成 no error check方式。
 
 
 

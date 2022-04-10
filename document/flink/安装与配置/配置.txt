@@ -1,0 +1,27 @@
+主要讲解conf目录
+
+一、masters
+配置jobmanager信息 比如 localhost:8081
+二、workers
+配置taskmanager信息,比如 flink_node1,flink_node2
+
+三、zoo.cfg 配置zookeeper信息
+
+
+四、flink-conf.yaml 核心配置
+1.配置jobmanager服务器
+jobmanager.rpc.address: localhost  
+jobmanager.rpc.port: 6123
+
+2.配置JobManager、taskmanager的总内存,包含JVM堆内内存，以及对外内存
+jobmanager.memory.process.size: 1600m 
+taskmanager.memory.process.size: 1728m
+
+3.配置默认并行度
+parallelism.default: 1
+
+4.配置每一个taskmanager有多少个slot
+taskmanager.numberOfTaskSlots: 1
+
+5.配置高可用的hdfs目录
+high-availability.storageDir: hdfs:///flink/ha/

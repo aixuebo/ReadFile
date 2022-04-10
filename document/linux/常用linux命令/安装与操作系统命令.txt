@@ -1,0 +1,13 @@
+1.安装rz命令
+yum install lrzsz
+yum install openssh-server
+2.sudo apt-get install git
+
+3.apt-get
+apt-get 所下载的用于安装的软件包，在
+/var/cache/apt/archives 中。如果执行过 apt-get clean ，那么原始下载的包就找不到了。
+
+4.dpkg -L <package name> 如果包安装成功的话，会列出所有文件的位置。
+
+5.查看操作系统
+CentOs版本号 cat /etc/redhat-release

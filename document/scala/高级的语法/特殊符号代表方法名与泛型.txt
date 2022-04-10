@@ -1,6 +1,6 @@
 
 一、参见spark的代码  org.apache.spark.ml.param.Param
-以下demo可以证明 方法有2种调研方式,
+以下demo可以证明 方法有2种调用方式,
 1是.+方法名的方式，后面跟的是带有括号的参数("")
 2.空格+方法名的方式,后面跟的参数不需要加括号
     new org.apache.spark.ml.param.Param("","","").->("s")

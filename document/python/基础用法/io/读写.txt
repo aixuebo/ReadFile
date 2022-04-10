@@ -1,0 +1,62 @@
+一、hdfs上读取文件
+1.异常信息
+sc.binaryFiles("hdfs://xxx.model",1).saveAsTextFile("aaaa.model") 
+a.此时是像hdfs上存储aaaa.model文件
+b.此时aaaa.model不是一个文件,而是一个目录。因此下游用的时候不能用。
+
+2.如果是目标文件,则读取hdfs上的文件后,返回流文件,将流文件输出成文件。
+
+3.如何读取hdfs上文件
+aa = sc.binaryFiles("hdfs://xxx.model",1) ### 1个partition读取数据,确保数据是完整的 --- <class 'pyspark.rdd.RDD'>
+bb = aa.take(1) ### <class 'list'>  
+type(bb[0]) ### <class 'tuple'>
+cc = bb[0][1] ### <class 'bytes'>
+len(cc)  ### 输出字节数组长度
+
+汇总:
+dd = sc.binaryFiles("hdfs://xxx.model",1).take(1)[0][1] ### <class 'bytes'>
+
+二、写文件
+import os
+文件写
+1.写字符串  
+f = open("test11.model", 'w')
+f.write('zhang\nphil\n2019')
+f.close()
+
+2.写字节数组
+f = open("test11.model", 'bw')
+f.write(cc) ### cc是上面hdfs的输出 <class 'bytes'>
+
+三、读文件
+读文件
+1.读取字符串
+a = open("test11.model",'r') 
+type(a.readline())
+
+
+2.读取字节
+b = open("test11.model",'br')
+b.readline() ### b'\x80\x03csklearn.linear_model.logistic\n' 输入一行字节数组内容
+
+3.循环读取
+f = open("./image/abc.txt")
+line = f.readline()
+while line:
+    print line
+    line = f.readline()
+f.close()
+
+4.如果要是想使用一个文件,则通过submit.txt的内容。
+--py-files xxx.py,hdfs://1/2/xxx.model 直接上传该文件即可。最终上传到任务节点和driver节点的文件名，就是xxx.model,没有前面的1和2目录结构
+
+四、读取目录下所有文件名---用于排查线上找不到文件的bug
+import os
+os.listdir("./")
+或者
+for i,j,k in os.walk("./"):
+	print(i,j,k)
+	
+五、获取pwd绝对路径
+import os
+os.getcwd() 

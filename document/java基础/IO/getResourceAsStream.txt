@@ -1,0 +1,7 @@
+
+1.读取resource目录下文件,即根目录下文件
+InputStream input = this.getClass().getClassLoader().getResourceAsStream("IKAnalyzer.cfg.xml");
+
+2.读取一个路径下文件,注意不用以/开头
+ InputStream is = this.getClass().getClassLoader().getResourceAsStream("org/wltea/analyzer/dic/main2012.dic");
+ 

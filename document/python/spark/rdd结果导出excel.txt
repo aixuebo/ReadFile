@@ -1,0 +1,7 @@
+
+    total_data = spark.sql(total_sql).cache()
+    total_data_local = total_data.toPandas()  转换成Pandas
+    
+    import pandas as pd
+    with pd.ExcelWriter('output.xlsx') as writer:  
+    total_data_local.to_excel(writer, sheet_name='全部城市',index=False)

@@ -1,0 +1,72 @@
+一、使用hive命令去关联sql产生的依赖信息
+explain dependency
+insert overwrite table dim.dim_user_info
+select a.*
+from dim.dim_user_info a
+left join dim.dim_user_info b on a.userid=b.userid
+left join
+(
+select *
+from dim.topic_user
+where log_day='20150406'
+) c  on a.userid=c.userid
+
+说明依赖哪些表,以及哪些分区
+{"input_partitions":[{"partitionName":"dim@topic_user@log_day=20150406"}],"input_tables":[{"tablename":"dim@dim_user_info","tabletype":"MANAGED_TABLE"},{"tablename":"dim@topic_user","tabletype":"MANAGED_TABLE"}]}
+
+二、可能遇到的问题
+设计一个场景----流程
+user表----满足条件后进入风险表----风险表满足条件后进入流失表---流失表内满足条件后要删除掉
+其中user表进入风险表时候要先确保user表要进入的数据 不再风险表和流失表中存在,因此相当于要关联流失表和风险表
+即:总用户集合---进入风险区一部分用户----从风险区进入流失区集合一部分数据----从流失区集合中删除一部分不满足流失的数据
+
+
+1.自己关联自己,即创建自己的时候 依赖自己,比如上面的demo
+解决方案:
+在依赖关系中忽略自己,就变成了该insert只是依赖dim@topic_user的某一个分区,一旦该分区数据存在了,就可以执行
+
+比如:
+删除流失内数据
+insert 流失
+select *
+from 流失
+
+自己依赖自己,好办,就相当于自己不依赖任何,随时都可以操作，优先级最高。
+如果自己依赖自己,而且还依赖其他表,那么就忽略依赖自己的部分,一旦其他表准备好了,就开始执行
+
+另外解决方案:不需要删除,只是不添加即可
+今天计算的流失数据总和
+今天计算出来的要退出流失的数据内容 做join,当退出的存在,则不添加该userid的记录
+即where 退出表的.userid is null 时候才进行添加
+
+2.环形关联
+insert 风险表
+select *
+from user_info,风险表,流失表
+where userid 不再风险表和流失表存在
+
+insert 流失表
+select *
+from 风险表
+
+将流失表内信息已经不流失了,打回风险表中
+insert 风险
+select *
+from 流失 风险
+
+即风险表 依赖 流失表和风险表。
+而流失表又依赖风险表的情况
+而流失表中又会删除一部分数据,重新打回到风险表中
+
+解决方案:
+1.使用分区,因此每次依赖的是一个分区,此时风险表创建时候依赖的肯定是昨天的分区,因此只要昨天分区存在就可以跑。
+而流失表依赖的是今天产生的风险表分区
+因此最后是先执行风险表，在执行流失表这种正确sql逻辑
+
+而最后一个sql,依赖是当天的流失表中过滤一部分数据,追加到当天的风险表中,因此应该是最后一个执行该sql
+
+2.设置一个字段,叫做优先级,让用户去自己决定先跑哪个,后跑哪个,即用户自定义血统.该ETL依赖哪些ETL的name让用户填写即可
+
+三、对数据库中生成的依赖关系,用流程图(Flowcharts)画出来
+比如开源工具mermaid
+https://github.com/knsv/mermaid

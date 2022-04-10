@@ -1,0 +1,29 @@
+一、在工程中创建properties文件
+比如 com/xxx/autosql/key_value.properties
+二、
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
+public class ProertiesUtil {
+
+	//path = com/xxx/autosql/key_value.properties
+	public static Properties parse(String path) {
+		InputStream inStream = ProertiesUtil.class.getClassLoader().getResourceAsStream(path);//默认就是根目录
+		Properties prop = new Properties();    
+		try {
+			prop.load(inStream);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}    
+		prop.list(System.out);
+		return prop;
+	}
+	
+	public static void main(String[] args) {
+		String path = "com/xxx/autosql/key_value.properties";
+		ProertiesUtil.parse(path);
+
+	}
+	

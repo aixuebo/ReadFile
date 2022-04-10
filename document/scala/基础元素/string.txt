@@ -1,0 +1,21 @@
+一、Scala多行字符串
+val s1 = s"""|This is
+        |my first time
+        |to learn Scala""".stripMargin
+    println(s1)
+
+1.没有|和stripMargin,每行开头会有空格问题。
+2.|也可以被其他字符代替,比如#,因此stripMargin('#')要这样写。
+3.Scala的多行，其实在每个换行的字符串之间生成\n的换行符，可以将替换掉，eg.
+val s3 ="""This is
+              #my first time
+              #to learn Scala""".stripMargin('#').replaceAll("\r\n", " ")
+    println(s3)
+4.字符串最前面有s后,可以在""""""里面引入变量,比如$predictDate
+
+二、字符串里引用变量,不需要$,直接变量
+"INSERT OVERWRITE TABLE " + param.outPut + ""
+
+三、字符串 word2vector
+ val text = "aa vv cc"
+text.toCharArray.sliding(2).map(_.mkString("")).foreach(println(_))

@@ -1,0 +1,117 @@
+一、数据提取----从字符串中提取指定的数字---提取多组满足条件的数字
+demo1:
+提取叶子分类后面的数字
+String regex = "叶子分类\\s*(\\d+)"; //考虑空格可以有多个，也可以没有空格的情况
+//String str = "设置分类: 分类IDs：1级分类19,叶子分类 170 (主分类) | 1级分类19,叶子分类 171 | 1级分类19,叶子分类 172";//170,171,172
+String str = "设置分类: 分类IDs：1级分类19,叶子分类 170 (主分类) |";//170
+		
+		Pattern p = Pattern.compile(regex);//正则表达式
+		Matcher m = p.matcher(str.toString());//要匹配的字符串
+	
+	    StringBuffer sb = new StringBuffer();//输出
+	    if (m.find()) {//找到第一个满足的
+	    	MatchResult mr = m.toMatchResult();
+	    	sb.append(mr.group(1));//提取第一个括号匹配的
+	    }
+	    while (m.find()) {//不断继续查找,每次找到后前面追加逗号
+	    	MatchResult mr = m.toMatchResult();
+	    	sb.append(",").append(mr.group(1));//提取第一个括号匹配的
+	    }
+	    System.out.println(sb.toString());
+	   
+demo2:匹配前面的子表达式零次或一次，或指明一个非贪婪限定符。要匹配 ? 字符，请使用 \?。
+String regex = "(.*)=>(.*?\\s+)"; //提取到=>第一个空格就结束,所以注意?号的使用，非贪婪模式，每次都要查看后面是不是空格,遇到空格就结束
+String str = "快送=>加盟 xxxxx,延迟时间为0 ID=7475836 配送方式=加盟";
+		
+		Pattern p = Pattern.compile(regex);
+		Matcher m = p.matcher(str.toString());
+	    StringBuffer sb = new StringBuffer();
+	    if (m.find()) {//找到第一个满足的
+	    	MatchResult mr = m.toMatchResult();
+	    	sb.append(mr.group(1)).append(",").append(mr.group(2));//快送,加盟
+	    }
+	    
+二、数据提取并且替换
+
+		String regex = "(ID=\\d+)";//数字替换成aaaa
+		String str = "xxxx ID=929210 dads";
+		String replacementString = "aaaa";
+		
+		Pattern p = Pattern.compile(regex);
+		Matcher m = p.matcher(str.toString());
+	
+	    StringBuffer sb = new StringBuffer();
+	    while (m.find()) {
+	    	m.appendReplacement(sb, replacementString);
+	    }
+	   m.appendTail(sb);//最后剩余部分追加
+	   System.out.println(sb.toString());//xxxx aaaa dads
+	   
+三、(?:pattern)与(?=pattern)区别
+		//String regex = "(?:xxxx|bbbb)\\s*:\\s*(.*?)=>(.*?);";//输出结果0,1是我们要的
+		String regex = "[xxxx|bbbb]\\s*:\\s*(.*?)=>(.*?);";//输出结果14060,0,是错误的
+		String str = "[字段变更] aaab: 14060 => 0;rrnn[字段变更] bbbb: 0 => 1;";
+
+		Pattern p = Pattern.compile(regex);
+		Matcher m = p.matcher(str.toString());
+	
+	    StringBuffer sb = new StringBuffer();
+	    if (m.find()) {//找到第一个满足的
+	    	MatchResult mr = m.toMatchResult();
+	    	sb.append(mr.group(1).trim()).append(",").append(mr.group(2).trim());//提取第一个括号匹配的
+	    }
+
+因为我们要或者关系，但是[aa|bb]是说  在表达式前面有[]里面的任意一个元素都匹配的意思。因此不能表达或者的含义。
+1.(?:pattern) 
+非获取匹配，匹配pattern但不获取匹配结果，不进行存储供以后使用。这在使用或字符“(|)”来组合一个模式的各个部分时很有用。
+例如“industr(?:y|ies)”就是一个比“industry|industries”更简略的表达式。
+2.(?=pattern)
+非获取匹配，正向肯定预查，在任何匹配pattern的字符串开始处匹配查找字符串，该匹配不需要获取供以后使用。
+例如，“Windows(?=95|98|NT|2000)”能匹配“Windows2000”中的“Windows”，但不能匹配“Windows3.1”中的“Windows”。
+预查不消耗字符，也就是说，在一个匹配发生后，在最后一次匹配之后立即开始下一次匹配的搜索，而不是从包含预查的字符之后开始。
+3.(?!pattern)
+非获取匹配，正向否定预查，在任何不匹配pattern的字符串开始处匹配查找字符串，该匹配不需要获取供以后使用。
+例如“Windows(?!95|98|NT|2000)”能匹配“Windows3.1”中的“Windows”，但不能匹配“Windows2000”中的“Windows”。
+4.(?<=pattern)
+非获取匹配，反向肯定预查，与正向肯定预查类似，只是方向相反。
+例如，“(?<=95|98|NT|2000)Windows”能匹配“2000Windows”中的“Windows”，但不能匹配“3.1Windows”中的“Windows”。
+python的正则表达式没有完全按照正则表达式规范实现，所以一些高级特性建议使用其他语言如java、scala等
+5.(?<!patte_n)
+非获取匹配，反向否定预查，与正向否定预查类似，只是方向相反。
+例如“(?<!95|98|NT|2000)Windows”能匹配“3.1Windows”中的“Windows”，但不能匹配“2000Windows”中的“Windows”。
+python的正则表达式没有完全按照正则表达式规范实现，所以一些高级特性建议使用其他语言如java、scala等
+
+注意:
+1.(?=pattern) 与 (?:pattern)区别
+a.(?:pattern) 匹配得到的结果包含pattern，(?=pattern) 则不包含
+对字符串："industry abc"的匹配结果：
+industr(?:y|ies) ---> "industry"
+industr(?=y|ies) ---> "industr"
+b.是否消耗字符 
+(?:pattern) 消耗字符，下一字符匹配会从已匹配后的位置开始。 
+(?=pattern) 不消耗字符，下一字符匹配会从预查之前的位置开始。 
+即后者只预查，不移动匹配指针
+2.4和5可以用2和3代替
+因为4和5可能很多引擎不支持,所以要用2和3代替他们。
+
+四、常用正则表达式
+for(String str:set) {
+    		if(str.matches("^[a-zA-Z]+$")) {//纯英文
+    			a1 = a1 + 1;
+    		}else if(str.matches("^\\d{1,}$")) {//纯数字
+    			a2 = a2 + 1;
+    		}else if(str.matches("^[\\u4e00-\\u9fa5]+$")) {//纯汉字
+    			a3 = a3 + 1;
+    			System.out.println(str);
+    		}else if(str.matches("^[a-zA-Z]+[\\u4e00-\\u9fa5]+$")) {//英文+汉字
+    			a4 = a4 + 1;
+    		}else if(str.matches("^\\d{1,}[\\u4e00-\\u9fa5]+$")) {//数字+汉字
+    			a5 = a5 + 1;
+    		}else if(str.matches("^\\d{1,}[a-zA-Z]+$")) {//数字+英文
+    			a6 = a6 + 1;
+    		}else if(str.matches("^\\d{1,}[\\u4e00-\\u9fa5]+$")) {//数字+汉字
+    			a7 = a7 + 1;
+    		} else {
+    			a8 = a8 + 1;
+    		}
+    	}

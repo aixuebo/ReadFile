@@ -10,8 +10,8 @@
     )).toDF("id", "category")
 
     val indexer = new StringIndexer()
-      .setInputCol("category")
-      .setOutputCol("categoryIndex")
+      .setInputCol("category") //哪个列是离散的，对该列进行处理,转换成连续的编号
+      .setOutputCol("categoryIndex") //编号输出列
       .fit(df) //先对数据源进行lable排序--按照出现的词频排序
       
     val indexed = indexer.transform(df) //对lable进行编号

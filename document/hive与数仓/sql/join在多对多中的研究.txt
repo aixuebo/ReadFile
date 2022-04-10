@@ -1,0 +1,58 @@
+一、背景
+针对1对1，1对多的场景下，join都很好理解，主表1，从表1或者多，因此产生的结果数量取决于从表。
+但一旦涉及到多对多的情况，有一些乱，因此本文目标是梳理好结论。
+
+
+
+二、join、left join 、full join的关系
+join 要求 主表存在 && 从表存在。 即2个表都要有相关记录匹配，如果一个表无匹配数据，则不会出现在结果集中。
+left join ，要求以主表为准，主表能关联到从表数据，则展示从表数据；无法关联从表，则展示null。
+full join:有on时，不是笛卡尔乘积，无on时才是笛卡尔乘积。
+a.先join，即2个表都有的数据，
+b.然后主表有 从表无的数据.
+c.最后从表有，主表无的数据。
+
+
+三、join、left join 、full join 到底主表的一行数据，需要关联到从表多少行？
+答案是有多少行，就关联多少行。
+循环每一个主表数据，然后在从表中找到on对应匹配的所有数据进行关联。
+
+四、在什么场景下，full join 和 join的结果是相同的?
+当主表和从表数据都能有映射关系时，结果是相同的。即不会出现A表的数据在B表无关联时，结果是相同的。
+一旦出现无关联情况，full join肯定数据量会多。
+
+五、demo
+1.A表:商圈id、商圈userid
+2.B表:商家id、商家归属商圈id、商家userid
+
+请写出 商圈内，非商家的用户。即商家归属的商圈的所有用户 - 商家自身用户。
+
+select *
+from
+(
+  #### 首先要将商圈id、商圈userid分配给商圈的每一个商家。
+  select poi_id,area_id,user_id
+  from 
+  (
+	select poi_id,area_id
+    from B
+    group by poi_id,area_id
+  ) a 
+  (full) join ### 此时full join 与 join结果相同
+  (
+    select area_id,user_id
+    from A
+    group by area_id,user_id
+  ) b on a.area_id = b.area_id
+) a
+left join
+  (
+  	### 商家自身购买的用户
+    select poi_id,area_id,user_id
+    from B
+    group by poi_id,area_id,user_id
+  ) b on a.area_id = b.area_id
+  and a.poi_id = b.poi_id
+  and a.user_id = b.user_id
+  where b.poi_id is null ### b不存在映射关系，说明商圈的user，在b中不存在，则是结果。
+  

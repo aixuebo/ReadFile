@@ -1,0 +1,28 @@
+val sql = "select * from (select * from biao) a join (select * from biao ) b on a.id = b.id"
+val dataDf = hiveContext.sql(sql).cache()
+dataDf.schema.zipWithIndex.foreach( record => println(record._1.name + "==" + record._1.dataType + "==" + record._1.metadata+"=="+record._2))
+
+输出:字段name、字段类型、字段元数据(基本是无,除非该字段有其他元数据信息)、下标序号
+
+注意:
+1.a和b中相同的字段,在输出里也会多次出现,只能通过下标序号进行判断--比如下面的id
+
+id==LongType=={}==0
+exposure==DoubleType=={}==1
+visit==DoubleType=={}==2
+order==DoubleType=={}==3
+repo==DoubleType=={}==4
+exposure_score==DoubleType=={}==5
+visit_score==DoubleType=={}==6
+order_score==DoubleType=={}==7
+repo_score==DoubleType=={}==8
+dt==StringType=={}==9
+id==LongType=={}==10
+exposure_score==DoubleType=={}==11
+visit_score==DoubleType=={}==12
+order_score==DoubleType=={}==13
+repo_score==DoubleType=={}==14
+service_score==DoubleType=={}==15
+dt==StringType=={}==16
+
+2.df.schema(index).dataType.asInstanceOf[StructType]

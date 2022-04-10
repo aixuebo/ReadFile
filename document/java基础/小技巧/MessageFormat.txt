@@ -1,3 +1,10 @@
+
+基础打印
+System.out.println(String.format("Starting CRF Iterations ( sentences: %s, features: %d, labels: %d ) \n","aa",2, 3));
+或者 System.out.printf("Starting CRF Iterations ( sentences: %s, features: %d, labels: %d ) \n","aa",2, 3); 
+注意 printf是没有回车的,需要自己加\n
+
+
 String value = MessageFormat.format("删除【{0}】","10");  //输出 删除【10】---即从0开始计数
 
 一、如何将date类型的转换成各种字符串形式

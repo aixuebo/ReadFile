@@ -3,8 +3,11 @@ sudo apt-get install git
 
 二、git的初始化
 $ git config --global user.name "Your Name"
+$ git config --system user.name "Your Name"
 $ git config --global user.email "email@example.com"
 $ git config --list 查找配置的所有信息内容
+git config -l 包含system、global、local所有参数
+git config --global -l 查看某一个级别下的文件
 
 三、git的仓库建立
 git init 
@@ -126,10 +129,11 @@ git branch -D branch-name
 删除远程分支
 git branch -r -d origin/branch-name
 git push origin :branch-name
+注意::branch-name 其中branch-name不用加origin/
 
 2.本地切换到一个分支
 git checkout master
-git checkout -b mirror1.32  切换到一个分支,并且如果不存在,则创建一个
+git checkout -b xxxx1.32  切换到一个分支,并且如果不存在,则创建一个
 3.查看当前提交状态
 git status
 将某个新代码添加到git暂存区
@@ -143,8 +147,8 @@ git checkout -- src/main/java/com/xxxx/xxx.java
 git push -u origin mirror1.32
 6.merge 分支
 a.先切换到master
-b.git merge mirror1.32 将mirror1.32分支上的数据merge到master上
-c.如果出现Fast-forward,说明没有master和mirror1.32之间没有任何分支被创建,因此移动指针即可
+b.git merge new_branch 将new_branch分支上的数据merge到master上
+c.如果出现Fast-forward,说明没有master和new_branch之间没有任何分支被创建,因此移动指针即可
 正常情况下都会非常麻烦的,因此不会出现这种。
 正常情况会出现Auto-merging 方式
 d.Auto-merging README方式下,merge可能会冲突，即相同的文件被两个人同时更改过,比如pom.xml

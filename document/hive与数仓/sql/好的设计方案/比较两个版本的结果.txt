@@ -1,0 +1,21 @@
+数据对比，比较两个表的数据差异
+select
+    case when t1.md5 is NULL then t2.type else t1.type end as type,
+    case when t1.md5 is NULL then t2.table_name else t1.table_name end as table_name, 
+    case when t1.md5 is NULL then t2.字段 else t1.字段 end as 字段
+from
+    (
+			select md5(concat(coalesce(obj_to_json(字段1), 'null'), coalesce(obj_to_json(字段2), 'null')) md5,
+      '测试表' type, biao1 table_name,
+      字段....
+      from biao 
+    )  t1
+    full OUTER join
+    (
+			select md5(concat(coalesce(obj_to_json(字段1), 'null'), coalesce(obj_to_json(字段2), 'null')) md5,
+      '测试表' type, biao1 table_name,
+      字段....
+      from biao 
+    )  t2
+    on t1.md5 = t2.md5
+where t1.bgl_md5 is NULL or t2.bgl_md5 is NULL

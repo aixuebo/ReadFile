@@ -1,0 +1,36 @@
+一、由于java会擦除泛型,导致运行时是不知道具体类型的。因此需要给flink类型提示，即主动告诉flink被擦除的类型是什么。
+
+二、为什么lamada有时候会报错
+例子:我们会发现以下代码使用lamada时，会报错,但使用匿名内部类就没有问题。
+DataStream<WordWithCount> windowCounts = text
+  .flatMap((String value, Collector<WordWithCount> out) -> {
+    for (String word : value.split("\\s")) {
+      out.collect(new WordWithCount(word, 1L));
+    }
+  })
+  .keyBy("word")
+  .timeWindow(Time.seconds(5))
+  .reduce((a, b) ->
+    new WordWithCount(a.word, a.count + b.count)
+  );
+
+因为匿名内部类会被真正地编译为class文件，而Lambda表达式是在运行时调用invokedynamic指令，亦即在第一次执行其逻辑时才会确定。因此Lambda表达式比起匿名内部类，会丢失更多的类型信息。
+
+
+
+看一下flatMap()算子的签名：void flatMap(T value, Collector<O> out);
+经过类型擦除，Collector类的泛型参数被抹掉了，自然就会抛出无法确定返回类型的异常。
+
+
+三、使用类型暗示（type hint）机制解决问题
+
+text.flatMap((String value, Collector<WordWithCount> out) -> {
+        for (String word : value.split("\\s")) {
+          out.collect(new WordWithCount(word, 1L));
+        }
+      })
+      .returns(TypeInformation.of(WordWithCount.class));
+
+但是，如果返回类型本身就有泛型，比如在Flink中常用的元组（TupleX），就得另外换一种写法：
+.returns(TypeInformation.of(new TypeHint<Tuple2<String, String>>() { }))
+

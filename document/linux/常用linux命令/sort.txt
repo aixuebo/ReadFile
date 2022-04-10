@@ -3,3 +3,10 @@
 -r, --reverse  倒排序
 
 例如 du -sh * | sort -rn
+
+2.-k用于表示第几列
+ ls -lh | awk -F' ' '{print $5" "$9}' | sort -n -k1
+a.输出文件大小、文件名字。
+b.sort -n表示将字段强转成int,然后按照k1第一列排序
+
+或者 ls -lh | sort -k5

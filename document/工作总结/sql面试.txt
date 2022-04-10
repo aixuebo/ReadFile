@@ -22,7 +22,19 @@ b.将数据倾斜的数据打散到不同的文件中,比如如果是null引起�
 2、请说明hive中 Sort By，Order By，Cluster By，Distrbute By各代表什么意思。
 order by：会对输入做全局排序，因此只有一个reducer（多个reducer无法保证全局有序）。只有一个reducer，会导致当输入规模较大时，需要较长的计算时间。
 sort by：不是全局排序，其在数据进入reducer前完成排序。
-distribute by：按照指定的字段对数据进行划分输出到不同的reduce中。
+distribute by：按照指定的字段对数据进行划分输出到不同的reduce中。 
+
+比如 distribute by partition_column, floor(rand(13) * 100),最好是指定字段划分到N个分区里
+a.用一个整数的id对20取模
+distribute by  id % 20
+
+b.用任意一个类型字段的hash，然后对20取模
+distribute by  abs(hash(col)  % 20)
+
+c.避免某个字段倾斜，多考虑几个字段，降低倾斜的概率
+distribute by  abs(hash(col1, col2, ...) % 20) 
+
+
 cluster by：除了具有 distribute by 的功能外还兼具 sort by 的功能。
 
 3、hive提供的UDF、UDAF、UDTF的区别

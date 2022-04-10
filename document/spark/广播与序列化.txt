@@ -4,3 +4,16 @@ aaa.value.foreach(println(_))
 
 二、序列化
 object xxx with Serialization
+
+三、阻止变量序列化
+org.apache.spark.SparkException: Task not serializableorg.apache.spark.SparkException: Task not serializable
+产生原因:
+一旦分布式节点上用到了变量，如果没有被广播，则会将该变量对应的整个class都序列化，因此遇到一些特殊的无法序列化的变量时，容易发生异常。
+
+解决方案:
+1.标识不参与序列化---但容易遗漏,造成bug不好排查
+@transient
+val sc = new SparkContext(conf)
+2.将用到的变量单独广播操作
+sc.broadcast(value)
+3.如果分布式上用到的外部def函数，也可能序列化def函数对应的class，因此最好def函数单独提出来,作为class的静态方法，即整体class中无任何变量，防止序列化异常。

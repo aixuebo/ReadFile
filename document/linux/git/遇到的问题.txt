@@ -1,0 +1,66 @@
+一、多用户操作git
+git config --local user.name "Your Name"
+git config --local user.email "email@example.com"
+git config --local -l 查看某一个级别下的文件  级别分system global local
+
+查看账号密码是否保存起来了。因为https的url方式每次push的时候都要输入密码，比较麻烦，一般就会用credential.helper把账号密码存在global里了。
+git config -l | grep credential.helper   ### 输出 credential.helper=osxkeychain
+如果是,将其删除
+git config --global --unset credential.helper
+git config --system --unset user.email 删除system级别下的用户邮箱
+
+
+git remote -v 查看git路径  https://github.com/maMingNow/python_study.git
+修改,强制加入用户名
+git remote set-url origin https://maMingNow@github.com/maMingNow/python_study.git
+
+git config --local credential.helper store 本地记住密码
+
+2.git checkout -b xxxx1.32  切换到一个分支,并且如果不存在,则创建一个
+
+3.git merge项目
+方式1
+a.git checkout master 先切换到master
+b.git merge new_branch 将new_branch分支上的数据merge到master上
+c.如果出现Fast-forward,说明没有master和new_branch之间没有任何分支被创建,因此移动指针即可
+正常情况下都会非常麻烦的,因此不会出现这种。
+正常情况会出现Auto-merging 方式
+d.Auto-merging README方式下,merge可能会冲突，即相同的文件被两个人同时更改过,比如pom.xml
+此时应该使用idea编译器,打开冲突的文件,将以下内容的文件给手动修改
+<<<<<<< HEAD
+=======
+>>>>>>> iss53
+
+注意:
+====上面是master版本，下面是iss53版本
+e.修改后使用add方法,将该对象提交到master的暂存区
+f.git status 查看merge后的文件,看看是否有测试项目,不需要提交到master远程服务器的,删除这些文件
+g.测试打包可以通过的话,则可以commit提交到master远程服务器
+
+方式2
+a.git checkout master 先切换到master
+b.git merge new_branch 将new_branch分支上的数据merge到master上
+c.git status 查看变更情况 
+d.git pull origin master 更新master内容,此时可能会有冲突,那就修改。
+e.如果没什么变更的,并且无冲突,就git commit 提交信息.
+然后git push origin master 提交
+
+4.还原某个版本
+git reset --hard HEAD^
+git reset --hard 1094a
+
+
+5.remote: Permission to aixuebo/netty-1.git denied to xxxxx.
+表示当前系统登录的是xxx,而不是aixuebo,因此需要清除xxx的登录数据。
+mac电脑 打开Finder ----> 应用程序 ---->实用工具 ---->钥匙串访问 ---->双击，即可进入到钥匙串访问记录保存页面，选择github.com名称的应用，右键删除即可。
+
+6.git diff 工作区与最后一次commit提交的仓库
+git diff --cached 显示暂存区(已add但未commit文件)和最后一次commit(HEAD)之间
+
+7.git clean -nfd ---> git clean -fd   注意:该方法有风险,不要把重要的未监控的文件从本地删除掉。
+删除untracked files未监控的文件。
+尤其在checkout切换分支的时候,会带来上一个分支的文件，这些文件都未监控状态，需要被删除。
+
+参数说明 -f删除文件。 -d删除目录 。 
+-n表示先打印一下要删除的文件，防止把重要的数据删除掉。 如果确定无所谓,可以删除,则取消n参数,再执行一次命令
+

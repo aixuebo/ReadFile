@@ -16,6 +16,8 @@
 
 1.最简单的一个场景，就是撤销最近的1次commit：---这个最常用
 git revert HEAD
+git reset --hard 
+git reset --hard HEAD^
 最近1次commit是新增03.txt，撤销这个commit之后，test01分支就只剩下2个文件了：01.txt, 02.txt。
 
 2.有时，可能需要撤销某个特定commit，比如，当我需要撤销第2个commit时，指定对应ID即可：

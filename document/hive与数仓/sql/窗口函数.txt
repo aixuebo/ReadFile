@@ -1,0 +1,648 @@
+以后是否可以替换的方式:
+1.是否占比top10%
+if(row_number <= ceiling(sum(总数)*0.1),1,0) as 是否是top10
+
+
+
+汇总窗口函数:
+RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn1,
+DENSE_RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn2,
+ROW_NUMBER() OVER(PARTITION BY cookieid ORDER BY pv DESC) AS rn3,
+row_number() over(distribute BY dt,name sort by dt desc)
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
+CUME_DIST() OVER(PARTITION BY dept ORDER BY sal) AS rn2 
+PERCENT_RANK() OVER(ORDER BY sal) AS rn1,   --分组内
+LAG(createtime,1,'1970-01-01 00:00:00') OVER(PARTITION BY userid ORDER BY createtime) AS last_1_time
+LEAD(createtime,1,'1970-01-01 00:00:00') OVER(PARTITION BY cookieid ORDER BY createtime)
+FIRST_VALUE(url) OVER(PARTITION BY userid ORDER BY createtime) AS first1 此时返回的都是userid的第一个数据值
+LAST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime)
+
+
+一、窗口函数的实现流程
+扫描一个表,因为已经扫描一个表了,因此可以对这个表的数据进行计数,因此就可以对经过计数的数据做一些运算，比如设置rownum,或者对若干连续的行进行sum、平均值等计算。
+这些都是一次性扫描一次表就可以解决的,因此窗口函数很有用。
+
+
+二、
+如果查询历史上一个user,第一个购买时间、购买金额、第二次购买时间、购买金额、最后一次购买时间、购买金额、总购买次数、总购买金额
+
+优化方式:
+1.
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn,
+	SUM(1) OVER(PARTITION BY NULL) AS rn12,     --分组内总行数-----注意该函数很有用,可以用于计算组内的总和
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+正常查询sql,但是多了一个rn列,表示对该sql中,userid进行分组,并且每组中按照时间进行排序。这样之后产生的序号。
+例如:同一个userid购买3次,那么这个sql就对应三行,每一个rn分别代表1 2 3
+
+2.select * from  上面的sql1 where temp.rn = 1 这样就可以获取首次购买时间和金额了
+
+3.同理可以获取第二次购买时间和金额、最后一次购买时间和金额
+
+4.将其都作为子查询,进行join,最终输出总结果即可
+
+5.查看下面的5-c的内容,可以一个sql，获取第一个、最后一个、倒数第二个数据,而不需要查询多次同一张表
+
+总sql:
+select first.userId,first.investamount,first.investtime,second.investamount,second.investtime,last.investamount,last.investtime,collect.c,collect.s
+from
+(
+	select *
+	from
+	(
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	) temp
+	where temp.rn = 1
+) first left join
+(
+	select *
+	from
+	(
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime asc) AS rn
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	) temp
+	where temp.rn = 2
+) second on first.userId = second.userId  left join
+(
+	select *
+	from
+	(
+	select userId,investamount,investtime,
+	ROW_NUMBER() OVER(PARTITION BY userid ORDER BY investtime desc) AS rn
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	) temp
+	where temp.rn = 1
+) last on first.userId = last.userId left join
+(
+	select userId,COUNT(*) c,SUM(investamount) s
+	from invest_record
+	where substr(investtime,1,10) = '2016-05-09'
+	GROUP BY userId
+) collect on first.userId = collect.userId
+
+
+3.窗口函数关于rownum相关的总结
+--ROW_NUMBER() –从1开始，按照顺序，生成分组内记录的序列 –比如，按照pv降序排列，生成分组内每天的pv名次
+—RANK() 生成数据项在分组中的排名，排名相等会在名次中留下空位
+—DENSE_RANK() 生成数据项在分组中的排名，排名相等会在名次中不会留下空位
+--NTILE(3) 将同一组下的数据分成3份---经过测试,按照顺序分组的,因此如果相同的也会分配到2个不同组内,因此更常用的是CUME_DIST方法对数据分组
+具体参见下面的demo--NTILE和CUME_DIST综合测试demo
+总结:RANK和DENSE_RANK都会设置排名,key相同的排名都会相同。但是一个会继续接着按排名序号连续走,一个会跳跃排序编号
+
+SELECT
+cookieid,
+createtime,
+pv,
+RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn1,
+DENSE_RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn2,
+ROW_NUMBER() OVER(PARTITION BY cookieid ORDER BY pv DESC) AS rn3,
+row_number() over(distribute BY dt,name sort by dt desc)
+FROM lxw1234
+WHERE cookieid = 'cookie1';
+
+cookieid day           pv       rn1     rn2     rn3
+--------------------------------------------------
+cookie1 2015-04-12      7       1       1       1
+cookie1 2015-04-11      5       2       2       2
+cookie1 2015-04-15      4       3       3       3
+cookie1 2015-04-16      4       3       3       4
+cookie1 2015-04-13      3       5       4       5
+cookie1 2015-04-14      2       6       5       6
+cookie1 2015-04-10      1       7       6       7
+
+rn1: 15号和16号并列第3, 13号排第5
+rn2: 15号和16号并列第3, 13号排第4
+rn3: 如果相等，则按记录值排序，生成唯一的次序，如果所有记录值都相等，或许会随机排吧。
+
+
+以下sql,将同一个userid分组下的数据,分成3个分组,实现逻辑是group by userid后,得到该userid下有20个数据.又已知分成3组.因此第一组和第二组分配7条数据,第三组内分配6条数据
+NTILE(3) OVER(PARTITION BY userid ORDER BY createtime) AS rn2,  --分组内将数据分成3片
+
+注意:
+可以通过NULLS LAST、NULLS FIRST 控制NULL值在最前面 还是最后面
+RANK() OVER (ORDER BY column_name DESC NULLS LAST)
+
+
+4.窗口函数选择任意若干行进行操作的语法
+ROWS BETWEEN xxxx AND xxxx 也叫做WINDOW子句,支持的语法表示行数范围,支持以下几个方式:
+x PRECEDING 往前x行
+x FOLLOWING 往后x行
+UNBOUNDED 表示起点
+UNBOUNDED PRECEDING 开始起点
+UNBOUNDED FOLLOWING 结束起点
+CURRENT ROW 当前行
+
+比如
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) 表示当前行+往前3行的值进行sum
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 表示 当前行+往后所有行的值进行sum
+
+注意:
+BETWEEN AND 表示的含义是[]闭区间等于
+比如
+COLLECT_SET(cast(id as string)) OVER(PARTITION BY city_id,tag_id ORDER BY rand ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) 返回当前值和下一行值的集合
+LAST_VALUE(id) OVER(PARTITION BY city_id,tag_id ORDER BY rand ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) 返回当前值和下一行值的集合的最后一个值,即下一行值
+
+5.窗口函数对若干行进行操作---sum,AVG，MIN，MAX，COUNT,COUNT(DISTINCT a)
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) 表示当前行+往前3行的值进行sum
+将sum替换成其他语法即可
+
+avg(a.all) over(partition by b.first_city_id, c.second_city_id) 表示 获取每一个一级城市、二级城市分类下的均值
+
+注意:
+a.可以省略ROWS BETWEEN 3 PRECEDING AND CURRENT ROW语法,
+如果有order by的时候,省略,则默认会添加ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),即从开始到当前行
+如果没有orderby by的时候,省略,则默认会添加ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING,即表内全部数据一起处理,因为不涉及order by排序
+b.sum里面填写的可以不仅仅是字段,也可以是常数,比如填写1,表示每次增加1个单位
+
+5.计算占比
+a.定义
+–CUME_DIST 小于等于当前值的行数/分组内总行数
+
+例如:
+SELECT 
+dept,
+userid,
+sal,
+CUME_DIST() OVER(ORDER BY sal) AS rn1,
+CUME_DIST() OVER(PARTITION BY dept ORDER BY sal) AS rn2 
+FROM lxw1234;
+ 
+dept    userid   sal   rn1       rn2 
+-------------------------------------------
+d1      user1   1000    0.2     0.3333333333333333
+d1      user2   2000    0.4     0.6666666666666666
+d1      user3   3000    0.6     1.0
+d2      user4   4000    0.8     0.5
+d2      user5   5000    1.0     1.0
+ 
+rn1: 没有partition,所有数据均为1组，总行数为5，
+     第一行：小于等于1000的行数为1，因此，1/5=0.2
+     第三行：小于等于3000的行数为3，因此，3/5=0.6
+rn2: 按照部门分组，dpet=d1的行数为3,
+     第二行：小于等于2000的行数为2，因此，2/3=0.6666666666666666
+
+注意:
+score,value
+ROW_NUMBER() OVER(PARTITION BY score ORDER BY value asc) AS rn,
+SUM(1) OVER(PARTITION BY score) AS rn12,
+CUME_DIST() OVER(PARTITION BY score ORDER BY value) AS rn2 
+
+score   value   增长的序号    总数				计算的占比位置
+50		0.001	28			310863			1.0615608805164976E-4
+50		0.001	29			310863			1.0615608805164976E-4
+50		0.001	30			310863			1.0615608805164976E-4
+50		0.001	31			310863			1.0615608805164976E-4
+50		0.001	32			310863			1.0615608805164976E-4
+50		0.001	33			310863			1.0615608805164976E-4
+50		0.0011	34			310863			1.544088553478542E-4
+
+注意:
+1.相同value的值序号在累加增长。因为我们用的是ROW_NUMBER
+2.虽然相同的value序号在增加,但是最终 计算的占比位置 的计算结果是以相同的元素中最后一个元素位置/总数决定的.比如value=0.001的,是33/310863得到的最终结果
+3.因此可以得到相同的数据value可以分配相同的占比位置，不会因为相同的value因为出现的位置不同,导致结果不同的bug
+
+
+
+
+b.实现逻辑推测
+因为已经分组后按照某个字段排序了,因此只要计算group组内一共多少条数据即可,即分母需要计算,至于分子 就不断累加即可。因为已经排序好了,不需要额外的计算,
+而组内有多少条数据,其实在迭代一圈后就可以知道多少行数据了,因此先临时存储每一个分子,等待分母都计算好后,统一计算也可以,这样就可以扫描一次表,或者组内麻烦点,先扫描一下,确定count也可以
+
+b.PERCENT_RANK 百分比排名---基本上用CUME_DIST就可以了
+–PERCENT_RANK 分组内当前行的RANK值-1/分组内总行数-1
+应用场景不了解，可能在一些特殊算法的实现中可以用到吧。
+
+我自己的理解:我们可以看到数据的结果第一行rn1=0,表示第一行数据没有打败任何人,因此排序是0,而CUME_DIST表示的是自己本身在表中的位置,不存在打败的概念
+
+SELECT 
+dept,
+userid,
+sal,
+PERCENT_RANK() OVER(ORDER BY sal) AS rn1,   --分组内
+RANK() OVER(ORDER BY sal) AS rn11,          --分组内RANK值
+SUM(1) OVER(PARTITION BY NULL) AS rn12,     --分组内总行数-----注意该函数很有用,可以用于计算组内的总和
+PERCENT_RANK() OVER(PARTITION BY dept ORDER BY sal) AS rn2 
+FROM lxw1234;
+ 
+dept    userid   sal    rn1    rn11     rn12    rn2
+---------------------------------------------------
+d1      user1   1000    0.0     1       5       0.0
+d1      user2   2000    0.25    2       5       0.5
+d1      user3   3000    0.5     3       5       1.0
+d2      user4   4000    0.75    4       5       0.0
+d2      user5   5000    1.0     5       5       1.0
+ 
+rn1: rn1 = (rn11-1) / (rn12-1) 
+	   第一行,(1-1)/(5-1)=0/4=0
+	   第二行,(2-1)/(5-1)=1/4=0.25
+	   第四行,(4-1)/(5-1)=3/4=0.75
+rn2: 按照dept分组，
+     dept=d1的总行数为3
+     第一行，(1-1)/(3-1)=0
+     第三行，(3-1)/(3-1)=1
+
+
+c.记得有一个需求,要求计算第一笔投资、第二笔投资、第三笔投资 以及最后一笔投资
+我当时是使用rownum计算出来的,但是要计算两次,因为最后一笔没办法算,因此可以使用该PERCENT_RANK算法获取结果为1.0的记录就是最后一条。
+或者使用FIRST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime DESC) AS last2 方法获取最后一条数据
+继续扩展,如果要倒数第二条怎么办?
+可以用rownum计算当前行号以及使用SUM(1)计算总行数,然后根据rownum = 总行数-1,就可以算出来倒数第二笔订单
+
+比如以下sql 获取第一行、倒数第二行、最后一行三条数据
+select *
+from
+(
+select score,
+ROW_NUMBER() OVER(PARTITION BY score ORDER BY id asc) AS rn,##序号
+SUM(1) OVER(PARTITION BY score) AS rn12 ###总数
+from xxxx
+where dt = '20181203'
+limit 1000
+) a
+where rn in(1,rn12,rn12 - 1) 
+
+
+6.LAG 表示落后,即后面的可以获取前面的数据  LEAD表示超前,即前面的用户可以获取后面的数据
+
+Lag和Lead分析函数可以在同一次查询中取出同一字段的前N行的数据(Lag)和后N行的数据(Lead)作为独立的列。
+
+在实际应用当中，若要用到取今天和昨天的某字段差值时，Lag和Lead函数的应用就显得尤为重要。当然，这种操作可以用表的自连接实现
+
+a.
+LAG(col,n,DEFAULT) 用于统计窗口内往上第n行值
+参数说明:
+第一个参数为列名
+第二个参数为往上第n行（可选，默认为1）
+第三个参数为默认值（当往上第n行为NULL时候，取默认值，如不指定，则为NULL）
+比如:增加一列,该列的含义是,上一行数据的列。这样两行转变成一行,可以继续做运算,比如同环比。
+LAG(createtime,1,'1970-01-01 00:00:00') OVER(PARTITION BY userid ORDER BY createtime) AS last_1_time
+
+该函数的目的是让同一个分组下不同行的数据进行关联到一行里面,比如想获取连续两行的时间,然后进行比较,因此就可以将上一行的时间拿到下一行的一个列里面来,因此就可以在当前行进行比较了
+
+b.
+LEAD(col,n,DEFAULT) 用于统计窗口内往下第n行值
+参数说明:
+第一个参数为列名
+第二个参数为往下第n行（可选，默认为1）
+第三个参数为默认值（当往下第n行为NULL时候，取默认值，如不指定，则为NULL）
+比如:
+LEAD(createtime,1,'1970-01-01 00:00:00') OVER(PARTITION BY cookieid ORDER BY createtime)
+
+该方式实现可能确实有些难度,我想的有点复杂,是需要先读取一遍组内数据的,或者组内数据先进行倒排序,又或者游标移动后N行,先取出一次数据。如果方便的话应该读取一下源代码,进行学习
+
+c.
+FIRST_VALUE 取分组内排序后，截止到当前行，第一个值
+比如
+FIRST_VALUE(url) OVER(PARTITION BY userid ORDER BY createtime) AS first1 此时返回的都是userid的第一个数据值
+
+d.注意:这个LAST_VALUE函数具体意义还不太清楚,需要结合代码或者demo去实地查看是否是组内最后一条数据,还是截止到当前行最后一条数据,如果是后者,那不就是数据本身么,有什么意义?难道是除了当前行之外的最后一条数据.那不就是和LAG函数一样了么?
+LAST_VALUE 取分组内排序后，截止到当前行，最后一个值
+比如
+LAST_VALUE(url) OVER(PARTITION BY cookieid ORDER BY createtime)
+
+注意:LAST_VALUE必须使用order by,否则结果出现的值可能顺序有问题,是错误的数据
+
+7.GROUPING SETS,GROUPING__ID,CUBE,ROLLUP
+demo:
+
+select GROUPING__ID,
+count(distinct(id)) c,
+first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name,
+1级品类id,1级品类名称,2级品类id,2级品类名称,3级品类id,3级品类名称
+from biao1
+where dt = '20210711'
+
+-- !!!! 注意，group by 中字段的顺序一定不能乱，如果有新增维度，一定放在最后 ，因为顺序决定了GROUPING__ID!!!!
+group by first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name,
+1级品类id,1级品类名称,2级品类id,2级品类名称,3级品类id,3级品类名称
+
+GROUPING SETS (
+(first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name),
+(1级品类id,1级品类名称,2级品类id,2级品类名称,3级品类id,3级品类名称)
+)
+
+解释:
+1.GROUPING SETS中使用的字段，一定来自于group by存在的字段.
+即GROUPING SETS的各种计算口径的组合，一定是基于已经分组后的结果集进行组合。
+即流程如下:
+a.先按照数据分组，组成明细数据。
+b.将明细数据按照GROUPING SETS中的组合，进行聚合，产生一个GROUPING__ID。
+grouping__id的值是根据groupBy的列是否使用和列的顺序来决定。靠近groupBy的列为高位，远离groupBy的列为低位；
+列被使用则为'0'，列没有被使用则为'1'。按照此规则，对每种粒度的组合生成一组二进制数，然后将二进制数转成十进制数。
+
+2.结果GROUPING__ID有2个不同的值，即在下游使用的时候，要确定好GROUPING__ID。
+
+比如 查询固定城市规则下，去重复的id数量
+select c,first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name
+from 表
+where GROUPING__ID = xxx 
+
+3.结果相当于两层union all做的集合。只是每一层union all的结果上多了一个GROUPING__ID做type。
+即相当于按照城市分组，计算每一个分组下的id数量。
+按照品类分组，计算每一个品类下的id数量。
+
+4.业务上根据需求，尽量用GROUPING SETS，而不要用cube，因为cube的计算量大，而很多查询是业务上不会查询到的，所以没必要用cube。
+与业务约束好查询方式即可。
+
+即使用WITH CUBE  代替 GROUPING SETS ()。
+相当于 GROUPING SETS (
+(first_city_id,first_city_name),
+(second_city_id,second_city_name),
+(third_city_id,third_city_name),
+(first_city_id,first_city_name,second_city_id,second_city_name),
+(first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name),
+(second_city_id,second_city_name,third_city_id,third_city_name),
+...等等各种组合,产出的结果是2^12个组合
+)
+
+first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name,
+1级品类id,1级品类名称,2级品类id,2级品类名称,3级品类id,3级品类名称
+
+5.如何根据GROUPING__ID,查询数据
+where GROUPING__ID = conv(111100000000,2,10) 即将第一个字段的内容，是2进制，转换成10进制。该值就是GROUPING__ID。
+注意:二进制内容是按照 group by 的逆序排序，如果用到该字段则设置1，不用则设置0.
+比如111100000000 表示 3级品类名称，3级品类id，2级品类名称，2级品类id被设置为1.其他都是0.
+测试:可以查询一下数据，看看查询结果是否与预期一样。
+
+6.cube的时候,设置driver的内存,非常废driver内存。
+
+------------------------------------
+
+这几个分析函数通常用于OLAP中，不能累加，而且需要根据不同维度上钻和下钻的指标统计，比如，分小时、天、月的UV数。
+
+比如数据源: select * from lxw1234;
+2015-03 2015-03-10      cookie1
+2015-03 2015-03-10      cookie5
+2015-03 2015-03-12      cookie7
+2015-04 2015-04-12      cookie3
+2015-04 2015-04-13      cookie2
+2015-04 2015-04-13      cookie4
+2015-04 2015-04-16      cookie4
+2015-03 2015-03-10      cookie2
+2015-03 2015-03-10      cookie3
+2015-04 2015-04-12      cookie5
+2015-04 2015-04-13      cookie6
+2015-04 2015-04-15      cookie3
+2015-04 2015-04-15      cookie2
+2015-04 2015-04-16      cookie1
+
+a.GROUPING__ID 只是序号,分组中的分组。
+b.GROUPING SETS 按照月分组聚合,按照日分组聚合,然后union all；GROUPING__ID用于区分哪个是按照月,哪个是按照日分组的结果
+在一个GROUP BY查询中，根据不同的维度组合进行聚合，等价于将不同维度的GROUP BY结果集进行UNION ALL
+
+SELECT month,NULL,COUNT(DISTINCT cookieid) AS uv,1 AS GROUPING__ID 
+FROM lxw1234 
+GROUP BY month 
+UNION ALL 
+SELECT NULL,day,COUNT(DISTINCT cookieid) AS uv,2 AS GROUPING__ID 
+FROM lxw1234 
+GROUP BY day
+UNION ALL 
+SELECT month,day,COUNT(DISTINCT cookieid) AS uv,3 AS GROUPING__ID 
+FROM lxw1234 
+GROUP BY month,day
+
+优化方式
+SELECT month,day,COUNT(DISTINCT cookieid) AS uv,GROUPING__ID 
+FROM lxw1234 
+GROUP BY month,day 
+GROUPING SETS (month,day,(month,day))  ### 即将month,day进行分组,表示按照month分组查询、按照day分组查询、按照month,day一起分组查询
+ORDER BY GROUPING__ID;
+
+结果:
+month         day             uv      GROUPING__ID
+------------------------------------------------
+2015-03       NULL            5       1
+2015-04       NULL            6       1
+NULL          2015-03-10      4       2
+NULL          2015-03-12      1       2
+NULL          2015-04-12      2       2
+NULL          2015-04-13      3       2
+NULL          2015-04-15      2       2
+NULL          2015-04-16      2       2
+2015-03       2015-03-10      4       3
+2015-03       2015-03-12      1       3
+2015-04       2015-04-12      2       3
+2015-04       2015-04-13      3       3
+2015-04       2015-04-15      2       3
+2015-04       2015-04-16      2       3
+
+c.CUBE 省去GROUPING SETS,要求所有组合都组合一遍
+SELECT NULL,NULL,COUNT(DISTINCT cookieid) AS uv,0 AS GROUPING__ID 
+FROM lxw1234
+UNION ALL 
+SELECT month,NULL,COUNT(DISTINCT cookieid) AS uv,1 AS GROUPING__ID 
+FROM lxw1234 
+GROUP BY month 
+UNION ALL 
+SELECT NULL,day,COUNT(DISTINCT cookieid) AS uv,2 AS GROUPING__ID 
+FROM lxw1234 
+GROUP BY day
+UNION ALL 
+SELECT month,day,COUNT(DISTINCT cookieid) AS uv,3 AS GROUPING__ID 
+FROM lxw1234 
+GROUP BY month,day
+
+优化方式:
+SELECT month,day,COUNT(DISTINCT cookieid) AS uv,GROUPING__ID 
+FROM lxw1234 
+GROUP BY month,day 
+WITH CUBE 
+ORDER BY GROUPING__ID;
+
+输出:
+month  			    day             uv     GROUPING__ID
+--------------------------------------------
+NULL            NULL            7       0
+2015-03         NULL            5       1
+2015-04         NULL            6       1
+NULL            2015-04-12      2       2
+NULL            2015-04-13      3       2
+NULL            2015-04-15      2       2
+NULL            2015-04-16      2       2
+NULL            2015-03-10      4       2
+NULL            2015-03-12      1       2
+2015-03         2015-03-10      4       3
+2015-03         2015-03-12      1       3
+2015-04         2015-04-16      2       3
+2015-04         2015-04-12      2       3
+2015-04         2015-04-13      3       3
+2015-04         2015-04-15      2       3
+
+d.ROLLUP 是CUBE的子集，以最左侧的维度为主，从该维度进行层级聚合。
+比如，以month维度进行层级聚合：
+SELECT month,day,COUNT(DISTINCT cookieid) AS uv,GROUPING__ID 
+FROM lxw1234 
+GROUP BY month,day
+WITH ROLLUP 
+ORDER BY GROUPING__ID;
+
+输出:
+month  			    day             uv     GROUPING__ID
+---------------------------------------------------
+NULL             NULL            7       0
+2015-03          NULL            5       1
+2015-04          NULL            6       1
+2015-03          2015-03-10      4       3
+2015-03          2015-03-12      1       3
+2015-04          2015-04-12      2       3
+2015-04          2015-04-13      3       3
+2015-04          2015-04-15      2       3
+2015-04          2015-04-16      2       3
+ 
+可以实现这样的上钻过程：
+月天的UV->月的UV->总UV
+
+--------------------------
+一、NTILE和CUME_DIST综合测试demo
+select score,value,
+ROW_NUMBER() OVER(PARTITION BY score ORDER BY value asc) AS rn,###序号
+SUM(1) OVER(PARTITION BY score) AS rn12,###总数
+CUME_DIST() OVER(PARTITION BY score ORDER BY value) AS rn2,###占比
+NTILE(3) OVER(PARTITION BY score ORDER BY value) AS rn3 ###分成3组
+from biao
+value in ( 0.001 ,0.0011) ####为了测试NTILE分成3组,因此特意只选择了2个value值
+
+
+输出
+score value 序号 总数 占比位置  			NTILE结果
+50	0.001	1	22	0.3181818181818182	1
+50	0.001	2	22	0.3181818181818182	1
+50	0.001	3	22	0.3181818181818182	1
+50	0.001	4	22	0.3181818181818182	1
+50	0.001	5	22	0.3181818181818182	1
+50	0.001	6	22	0.3181818181818182	1
+50	0.001	7	22	0.3181818181818182	1
+50	0.0011	8	22	1.0					1
+50	0.0011	9	22	1.0					2
+50	0.0011	10	22	1.0					2
+50	0.0011	11	22	1.0					2
+50	0.0011	12	22	1.0					2
+50	0.0011	13	22	1.0					2
+50	0.0011	14	22	1.0					2
+50	0.0011	15	22	1.0					2
+50	0.0011	16	22	1.0					3
+50	0.0011	17	22	1.0					3
+50	0.0011	18	22	1.0					3
+50	0.0011	19	22	1.0					3
+50	0.0011	20	22	1.0					3
+50	0.0011	21	22	1.0					3
+50	0.0011	22	22	1.0					3
+
+输出解释:
+1.0.001一共7条数据  0.0011一共15条数据,一共22条数据
+2.占比位置按照相同元素最大的序号进行计算的,比如0.001的占比 = 7/22
+3.NTILE结果 平均分配元素,因此虽然2种数据value,但是最终分配了3组，同时因为不能整除3,因此第一个分组内有8条数据
+
+二、窗口函数的聚合函数 可以不仅仅是sum avg这种,还可以是COLLECT_SET
+1.### 输出
+### id value type rn排序、当前位置前后5个数据集合
+### 123	-1.047	type1 11	["1992504","4304355","6487835","2519950","7574682","1445249","1297729","5848654","2411963","7584927","7369690"]
+select id ,value ,type ,
+ROW_NUMBER() OVER(PARTITION BY 'a' ORDER BY abs(value) asc) AS rn,
+COLLECT_SET(cast(id as string)) OVER(PARTITION BY 'a' ORDER BY abs(value) asc ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING) valueList
+from
+(
+	select id,value,type
+    from biao
+)
+2.对上面的结果再套一层函数,可以将List集合解析成字符串
+select *,CONCAT_WS(',',valueList) valueList
+3.或者直接对List进行行转列处理
+select *
+from
+(
+  select id ,value ,type ,
+  ROW_NUMBER() OVER(PARTITION BY 'a' ORDER BY abs(value) asc) AS rn,
+  COLLECT_SET(cast(id as string)) OVER(PARTITION BY 'a' ORDER BY abs(value) asc ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING) valueList
+  from
+  (
+      select id,value,type
+      from biao
+  )
+) a LATERAL VIEW explode(valueList) vsids AS vsids
+
+4.计算随机数,然后获取随机数前后2个元素
+目标是给任何一个id 寻找一个大盘随机id。但是要考虑排名第1的位置的元素,是没有办法获取前一个元素的,因此要计算随机数前后2个元素,从找按照顺序找到一个元素作为vs对照id
+
+select id,
+if(id != before_id,before_id,after_id) vs_id,
+### 主要用于校验数据
+before_id,
+after_id,
+before_id1,
+after_id1
+from
+(
+  ### 计算前一个元素和后一个元素。如果第一个元素,是一个例外,即id与before_id是相同的。
+  ### 因此计算逻辑是如果相同,则使用after_id
+  select id,city,tag,
+  FIRST_VALUE(id) OVER(PARTITION BY city,tag ORDER BY rand ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) before_id,###获取2个元素中的第一个
+  LAST_VALUE(id) OVER(PARTITION BY city,tag ORDER BY rand ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) after_id,###获取2个元素中的最后一个
+  COLLECT_SET(cast(id as string)) OVER(PARTITION BY city,tag ORDER BY rand ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) before_id1,###获取2个元素集合
+COLLECT_SET(cast(id as string)) OVER(PARTITION BY city,tag ORDER BY rand ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) after_id1###获取2个元素集合
+  from
+  (
+    select id,city,tag,rand(100) as rand
+    from biao
+  ) a
+) t
+
+5.过滤最大值和最小值  ---已知该表一个id对应最多5个vs_id,因此要取消最大值和最小值,只保留中间3个vs_id的数据 ---多个vs_id顺序由sequence排序,sequence排序原则是mae
+select id,vs_id
+from
+(
+  select *,
+  FIRST_VALUE(vs_id) OVER(PARTITION BY id ORDER BY sequence ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING ) start_id,### 第一个
+  LAST_VALUE(vs_id)  OVER(PARTITION BY id ORDER BY sequence ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING ) end_id,### 最后一个
+  count(vs_id)       OVER(PARTITION BY id ORDER BY sequence ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING ) c ### 总数
+  from biao
+) a    
+### 如果有vs_id >=3 个,则不要最大值和最小值的数据
+where c >=3 and vs_id != start_id and vs_id != end_id ### 即保留 vs_id既不是第一个,也不是最后一个
+
+三、特殊语法
+1.打分--过滤无效数据的打分系统
+set compatible.grammar=sparksql;
+select id,
+rank() over(partition by 1 order by id desc) a,###分组内,该id值对应的位置
+max(rank() over(partition by 1 order by id desc)) over(partition by 1) b ### 后一个over确定窗口是分组内,
+### 前一个rank() over,表示对已经分组内的数据进行按照rank的方式,由大到小排序。
+### max表示获取排序最大的值
+
+from (
+ select explode(array(1,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0)) as id
+);
+
+(a-1)/(b-1) 可以计算排序位置的得分,-1的目的是减去0位置的分数。
+场景:大量的无效值,被设置成0,因此导致0会被用于打分,而接下来比0大的值，会因为0的多少而有不用的分数。导致分数不稳定。
+因此该方式是把0位置去掉，即拿非0的位置/非0的元素个数进行打分
+比如:
+rank() over(partition by key order by value asc)  -1) / (max(rank() over(partition by loc_code order by value asc)) over(partition by loc_code) - 1)
+
+
+ 
+输出:
+id 	rank 	maxrank 
+1	1	11
+1	1	11
+1	1	11
+1	1	11
+1	1	11
+0.5	6	11
+0.5	6	11
+0.5	6	11
+0.5	6	11
+0.5	6	11
+0	11	11
+0	11	11
+0	11	11
+0	11	11
+0	11	11

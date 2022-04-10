@@ -1,0 +1,96 @@
+一、join 、left join、full join、left semi join(EXISTS)、left anti join(NOT EXISTS)
+1.全连接join 、left join、full join,即查询的结果是两个表匹配后的所有列。
+2.半连接,即右边的表只是用于匹配数据是否存在，相当于exists和NOT EXISTS
+
+left semi join 当join条件成立时，返回左表中的数据。如果左表中满足指定条件的某行数据在右表中出现过，则此行保留在结果集中。相当于id in (子查询右表)
+left anti join 当join条件不成立时，返回左表中的数据。如果左表中满足指定条件的某行数据没有在右表中出现过，则此行保留在结果集中。相当于id not in (子查询右表)
+
+二、暗示 
+1.mapjoin(表名),表示a表很小,可以广播的形式发到内存里join
+select /*+ mapjoin(a) */
+        a.shop_name,
+        a.total_price,
+        b.total_price
+from sale_detail_sj a join sale_detail b
+on a.total_price < b.total_price or a.total_price + b.total_price < 500;
+
+2.skewjoin(表名)
+当两张表Join存在热点，由于存在热点key分布不均匀,比如null,导致出现长尾问题时，您可以通过取出热点key，将数据分为热点数据和非热点数据两部分处理，最后合并的方式，提高Join效率。
+SkewJoin Hint可以通过自动或手动方式获取两张表的热点key，分别计算热点数据和非热点数据的Join结果并合并，加快Join的执行速度。
+
+使用方法
+/*+ skewJoin(<table_name>[(<column1_name>[,<column2_name>,...])][((<value11>,<value12>)[,(<value21>,<value22>)...])]*/ 才会执行MapJoin。
+table_name为倾斜表名，column_name为倾斜列名，value为倾斜key值。
+即哪些列和哪些值发生了倾斜。
+
+--方法1：Hint表名（注意Hint的是表的alias）。
+select /*+ skewjoin(a) */ * from T0 a join T1 b on a.c0 = b.c0 and a.c1 = b.c1;
+--方法2：Hint表名和认为可能产生倾斜的列，例如表a的c0和c1列存在数据倾斜。
+select /*+ skewjoin(a(c0, c1)) */ * from T0 a join T1 b on a.c0 = b.c0 and a.c1 = b.c1 and a.c2 = b.c2;
+--方法3：Hint表名和列，并提供发生倾斜的key值。如果是STRING类型，需要加上引号。例如(a.c0=1 and a.c1="2")和(a.c0=3 and a.c1="4")的值都存在数据倾斜。
+select /*+ skewjoin(a(c0, c1)((1, "2"), (3, "4"))) */ * from T0 a join T1 b on a.c0 = b.c0 and a.c1 = b.c1 and a.c2 = b.c2;
+
+注意:方法3直接指定值的处理效率比方法1和方法2高。
+
+三、Block Loop Join / NestedLoopJoin
+左表一条数据一条数据的去右表查询.
+a.如果右表没有索引，相当于两层循环，查询会很慢。
+b.如果右表有索引,则查询索引返回数据。
+c.先加载右表的数据到缓存,每次去右表的缓存里获取数据,速度会快。
+但仍然是循环左表中一条一条数据的循环方式，去join数据。
+
+将右表提前执行得出结果，数据全部cache到内存中或者存放到临时表中，然后流式遍历左表数据，与右表数据进行join计算. 
+1.相当于hash join，与hash join区别是，hash join的小表，只是查询，逻辑简单,非常直接加载表到内存。而如果当右边是非常复杂的sql,但查询结果又很少的时候,就先执行右边的表，间接的得到结果，存储到内存。
+右表是子查询会强制选择该Join策略
+2.支持inner/left/right
+
+四、Index Loop Join
+遍历左边表数据,缓存一定的记录后,根据join的on列,构造in查询条件，批量获取右边表结果，再进行内存hash join。
+
+1.支持inner/left/right
+2.要求右边表必须支持in操作，比如如果是hbase,可能就要描述好rowkey。如果是mysql,则天然支持in操作。
+3.用于两个表都相对较大的场景。
+4.可以并行的方式，每次请求一批次后,不需要等待返回值,继续发送下一批次即可。
+
+五、Sort Merge Join -- 比Index Loop Join要效率高一些,因为不需要分批执行,一次性merge
+左/右表都按照join列返回数据，然后在内存中进行归并排序。
+1.full join的默认选择该join策略。
+2.唯一支持full join的方式。
+3.支持inner/left/right/full join。
+4.left/right join时,如果on条件存在order by/group by时,默认选择该join策略
+因为文件最终已经排序好了，天然支持order by。
+因为排序好的数据，天然可以直接参与顺序的读取方式聚合。
+其他类型的join，比如hash join，是一行一行数据，通过join只能得到数据，不能继续排序等功能，因此后期还需要order by等操作。
+5.最适合两个大表做join的场景。
+因为即是同一个节点，文件排序后超过内存，可以落盘，最后在顺序的文件中merge是很快的。
+缺点是消耗网络IO或者单机的磁盘IO。效率不高。
+
+六、Hash Join(单机版) / Broadcast Join(分布式版)
+相对较小的表利用Join的on条件,建设hash散列表,存储在内存中。
+扫描大表,去内存中填补hash表中匹配的信息。
+
+a.单机版时，每一个节点直接查询小表数据，加载到内存即可。Hash Join
+b.分布式时,由一个节点收集好小表后,广播存储，然后每一个节点拉去广播信息,加载到内存即可。Broadcast Join
+
+1.表要小,能放在内存里。
+2.总成本就是扫描两个表，因此效率最高。
+3.Hash Join只能应用于等值连接(如WHERE A.COL3 = B.COL4)，这是由Hash的特点决定的。
+4.支持inner/left/right
+5.null 不是一个数值,因此 inner join时，null的数据无法在hash表获取到该值,因此会被丢弃。
+但left join 不会丢弃，因为left join 会把left 表全部数据保留。
+
+七、Shuffle Hash Join --分布式的Sort Merge Join
+根据join的on条件,对数据进行shuffle（分区），数据分发到不同的节点上。这样相同key必然在同一个分区同一台机器上面。此时进行本地的Sort Merge Join。
+即:hash函数分发,每一个节点搜集数据,进行Sort Merge Join。
+1.分片三列的字段,要稀疏,效率才高，否则某一个分片搜集了大量数据，会拖累整个进度。
+2.用于两个大表的join。
+
+八、Colocate Join---分布式
+让两个表join的on条件，设置相同的on条件，以及分桶数，确保两个表所有的数据，key相同时，一定分布在同一个物理节点上，因此物理节点本身天然执行本地的Sort Merge Join操作，不需要shuffle网络IO。效率高。
+
+
+
+总结:
+1.mysql等关系型数据库，支持任何条件的sql查询，所以Index Loop Join需要右表支持join列的in查询，对于mysql来说无限制. 所以目前针对右表是mysql库的，并且是非子查询，使用Index Loop Join替换Block Loop Join的实现. 
+目前Join策略选择，优先级为 Index Loop Join > Sort Merge Join > Block Loop Join
+

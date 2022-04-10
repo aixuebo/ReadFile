@@ -1,0 +1,74 @@
+
+注意:
+1.不同版本spark,创建环境方式不同
+1.0版本
+
+    val conf = new SparkConf().setAppName("")
+    val sc = new SparkContext(conf)
+    val arg_conf = new Configuration()
+    val parser = new GenericOptionsParser(arg_conf, args)
+    val remainArgs = parser.getRemainingArgs
+    val hiveContext = new HiveContext(sc)
+
+    //设置sql环境
+    hiveContext.sql("set hive.exec.dynamic.partition=true")
+    hiveContext.sql("set hive.exec.dynamic.partition.mode=nostrick")
+    
+    //设置隐式转换,可以让RDD有toDf方法,即rdd转换成dataframe
+    import hiveContext.implicits._
+    
+2.0版本
+  val conf = new SparkConf().setAppName(appName)
+  val spark = SparkSession.builder().appName(appName).enableHiveSupport().getOrCreate()
+  val sc = spark.sparkContext
+  val argConf = new Configuration()
+  val parser = new GenericOptionsParser(argConf,args)
+  val remainArgs = parser.getRemainingArgs
+  
+  获取参数
+  val partitionDt = argConf.get("partition_dt")
+  val randRate = remainArgs(0)
+   
+  //设置sql环境
+  spark.sql("set hive.exec.dynamic.partition=true")
+  spark.sql("set hive.exec.dynamic.partition.mode=nostrick")
+  
+  //设置隐式转换,可以让RDD有toDf方法,即rdd转换成dataframe
+  import spark.implicits._
+
+
+一、创建对象
+  case class Poi(suspectedBrandName:String,suspectedBrandType:Int)
+
+ 二、将dataframe转换成对象,并且保存当一张临时表里。
+ 1.0版本
+  df.toDF().registerTempTable("filter_common_term_df")
+  或者重新命名:
+  df.toDF("poi_id", "poi_name").registerTempTable("filter_common_term_df")
+2.0版本
+  df.toDF("poi_id", "poi_name").createOrReplaceTempView("result_table")
+
+  
+三、如何用对象的df写sql,即直接写对象属性名字即可
+    val resultSql =
+      s"""
+         |select suspectedBrandName,
+         |min(suspectedBrandType) suspectedBrandType
+         |from filter_common_term_df
+         |group by suspectedBrandName
+       """.stripMargin
+
+四、保存sql
+resultDf.registerTempTable("result_table_df")
+
+    hiveContext.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS $out_table
+         |(suspected_brand_name string,
+         |suspected_brand_type int COMMENT '生产品牌名方式 0兜底 1crf'
+         |)
+         |PARTITIONED BY (dt string COMMENT '日期值')
+         |stored as orc
+       """.stripMargin)
+    hiveContext.sql("INSERT OVERWRITE TABLE " + out_table + " " +
+      "PARTITION (dt='" + dt + "') SELECT * FROM " + "result_table_df")

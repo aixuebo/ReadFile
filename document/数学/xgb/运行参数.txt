@@ -1,0 +1,62 @@
+https://xgboost.readthedocs.io/en/latest/python/python_api.html
+
+一、回归
+xgboost_bin = /opt/dmlc/xgboost/xgboost
+
+集群参数:
+--cluster=yarn \
+--num-workers=10 \
+--worker-cores=1 \
+--worker-memory=2g \
+--deploy-mode="client" \
+--jobname="jobName"
+
+模型参数:
+data="viewfs:///user/train/20191218" \
+eval[valid]="viewfs:///user/valid/20191218" \
+eval[test]="viewfs:///user/type5/test/20191218" \
+model_dir="viewfs:///user/model/20191218" \
+objective=reg:linear \
+booster=gbtree \
+eta=0.05 \
+max_depth=10 \
+eval_metric='mae' \
+num_round=1000 \
+save_period=25 \
+subsample=0.7 \
+colsample_bytree=0.7 \
+seed=20191218
+
+二、分类
+xgboost_bin = /opt/dmlc/xgboost/xgboost
+
+集群参数:
+--cluster=yarn \
+--num-workers=200 \
+--worker-cores=1 \
+--worker-memory=10g \
+--deploy-mode="client"
+
+模型参数:
+data="viewfs:///user/train/20201115_version1" \
+eval[valid]="viewfs:///user/valid/20201115_version1" \
+eval[test]="viewfs:///user/test/20201115_version1" \
+model_dir="viewfs:///user/model/20201115_version1" \
+objective=binary:logistic \
+booster=gbtree \
+eta=0.1 \
+max_depth=7 \
+eval_metric=auc \
+eval_metric=logloss \
+eval_metric=error \
+num_round=1000 \
+save_period=5 \
+subsample=0.8 \
+colsample_bylevel = 0.8 \
+colsample_bytree=0.8 \
+min_child_weight = 4 \
+reg_alpha = 1.0e-9 \
+reg_lambda = 0.1 \
+gamma = 5.0e-8 \
+seed=20201124 \
+model_in=viewfs:///user/model/20201115_version1/0410.model \ ### 继续训练,再训练中断过程后使用

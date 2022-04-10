@@ -1,0 +1,11 @@
+一、将原始数据增大N被。
+注意:要对主键进行随机数放大，如果其他数值型最好也要有所改变。
+
+select id * cast(b["key"] as int),*
+from
+(
+select *,'1,2,3,4,5,6,7,8' n_flow
+from biao
+lateral table 
+function(map["key",n_flow],',') as b### 函数将n_flow字符串转换成list,这样一行变多行
+) a

@@ -1,0 +1,117 @@
+一、内部类、getSuperclass、isInstance、泛型
+
+	class FatherClass<T,E> {
+
+	}
+
+	class SonClass<N extends Number, 
+    	E extends RuntimeException, 
+    	C extends Character> extends FatherClass<String,String> {
+
+	}
+	
+FatherClass<String,String> father = new ReflectiveTest().new FatherClass<String,String>();
+SonClass son = new ReflectiveTest().new SonClass();
+		
+		
+		System.out.println(father.getClass().getSuperclass());//class java.lang.Object
+		System.out.println(father.getClass().getSuperclass().getSuperclass());//null
+		System.out.println(son.getClass().getSuperclass());//class com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$FatherClass
+		
+		//
+		System.out.println(father.getClass().isInstance(son));//true
+		System.out.println(son.getClass().isInstance(father));//false
+
+	    ParameterizedType t = (ParameterizedType) son.getClass().getGenericSuperclass();
+		System.out.println(t.getTypeName());//com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$FatherClass<java.lang.String, java.lang.String>
+		System.out.println(t.getRawType());//class com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$FatherClass
+		System.out.println(Arrays.toString(t.getActualTypeArguments()));//[class java.lang.String, class java.lang.String]
+		System.out.println(t.getActualTypeArguments()[0].getTypeName());//java.lang.String
+		
+1.内部类的new方式
+FatherClass father = new ReflectiveTest().new FatherClass();
+
+2.class的getSuperclass 获取该class的直接继承的父类。（不包含泛型参数）
+注意没有直接父类的父类,是object
+
+3.getGenericSuperclass  获取该class的直接继承的父类。（包含泛型参数）
+参见上面例子,返回的是全路径的父class,以及泛型
+返回值不是class,而是Type,虽然是Type类型,但是可以强转成ParameterizedType。可以获取泛型参数类型。
+
+type的getTypeName可以返回class以及对应的泛型信息
+type的getRawType返回class,不带泛型信息
+type的getActualTypeArguments返回泛型类型集合
+
+4.class的isInstance 
+说明class.isInstance(obj) true表示obj是class的子类,即obj可以强转成class
+
+5.Type体系中类型的包括：原始类型(Class)、参数化类型(ParameterizedTypes)、数组类型(GenericArrayType)、类型变量(TypeVariable)
+	
+		TypeVariable[] typeArr = son.getClass().getTypeParameters();
+		for(TypeVariable a:typeArr) {
+			System.out.println(a.getName()+"=="+a.getTypeName());//N==N  返回定义的变量
+			Type[] types = a.getBounds();//[class java.lang.Number] 返回变量属于什么类型的
+			System.out.println(Arrays.toString(types));
+			for(Type t:types) {
+				System.out.println(t.getTypeName());
+			}
+		}
+		
+二、接口
+1.定义三个接口
+interface IPerson<T> {
+
+}
+interface IWalk<T> {
+
+}
+
+interface IStudent extends IPerson<String>,IWalk<Object>,Cloneable{
+
+}
+
+public static void explainClass(Class<?>[] interfaces) {
+	for(Class t1:interfaces) {
+		System.out.println(t1.toString());
+	}
+}
+
+public static void explainType(Type[] genericInterfaces) {
+	for(Type t1:genericInterfaces) {
+		System.out.println(t1.toString());
+	}
+}
+	
+System.out.println("start IStudent");
+explainType(IStudent.class.getGenericInterfaces());
+System.out.println("---");
+explainClass(IStudent.class.getInterfaces());
+System.out.println("end");
+
+System.out.println("start Object");
+explainType(Object.class.getGenericInterfaces());
+System.out.println("---");
+explainClass(Object.class.getInterfaces());
+System.out.println("end");
+
+2.输出
+start IStudent
+com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$IPerson<java.lang.String>
+com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$IWalk<java.lang.Object>
+interface java.lang.Cloneable
+---
+interface com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$IPerson
+interface com.maming.common.extendsrelation.lession1.fanshe.ReflectiveTest$IWalk
+interface java.lang.Cloneable
+end
+
+
+start Object
+---
+end
+
+3.总结
+a.getGenericInterfaces、getInterfaces都是返回class的接口
+比如 Object因为没有接口,因此他没有打印getGenericInterfaces、getInterfaces的内容。
+b.getInterfaces直接打印了接口的class,但没有泛型内容,因此返回的类型是class
+getGenericInterfaces 打印class+泛型,因此返回的类型是type

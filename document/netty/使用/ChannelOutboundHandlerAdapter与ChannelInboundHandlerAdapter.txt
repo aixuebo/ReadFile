@@ -1,0 +1,7 @@
+
+一、
+ChannelInboundHandler拦截和处理入站事件
+ChannelOutboundHandler拦截和处理出站事件。
+
+比如客户端发送给服务器,再客户端侧,就要继承ChannelOutboundHandlerAdapter,用于实现write方法。用于客户端向服务端发送数据。
+

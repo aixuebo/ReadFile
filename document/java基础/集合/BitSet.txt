@@ -47,3 +47,5 @@ andNot(BitSet set) 将参数set中是1的位置,本身set该位置则变换成0
 1.为什么要内部使用long实现,而不用int实现呢
 答:主要处于性能的考虑,因为and or等操作是需要所有bit位都操作的,用long的虎牙循环的次数会降低很多
 2.如果是添加的String,则要考虑将String进行hash成唯一int,或者long,然后在调用bitset方法,进行统计,但是原始的String是没办法获得了
+
+五、bitmap的算法知识，可以参考 数学 --- 统计算法 -- bitmap文档

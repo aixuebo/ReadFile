@@ -60,9 +60,18 @@ grep "\"table\":\"bank_card\""
 grep -E "2017-12-10|2017-12-09" 即过滤包含2017-12-10或者2017-12-09的数据,正则表达式也可以写成2017-12-[09|10]
 
 二、vi
-查看二进制
+1.查看二进制
 vi -b 文件名
 
+2.vi无法回到上一行结尾--设置参数即可
+vi ~/.vimrc
+set backspace=2
+
+3.设置文件编码
+vim /Users/maming/Downloads/20200422tag2.csv
+:set fileencoding=utf-8   设置utf编码  
+:set fileencoding 查看编码
+设置完成后，在该文件中生成文件内容即可
 
 三、date
 echo `date -d "-1 day" +%Y-%m-%d-%H-%M` 表示前天时间2017-06-12-15-19

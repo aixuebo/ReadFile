@@ -1,0 +1,18 @@
+一、对集合进行组装---集合可以是数组、list、map
+
+//如果是null就跳过---Harry,Ron,Hermione
+		String str = Joiner.on(",").skipNulls().join("Harry", null, "Ron", "Hermione");
+		System.out.println(str);
+
+//将null替换成aaaa---Harry,aaaa,Ron,Hermione
+		str = Joiner.on(",").useForNull("aaaa").join("Harry", null, "Ron", "Hermione");
+		System.out.println(str);
+		
+//组装成list
+		str = Joiner.on(",").join(Arrays.asList(1, 5, 7));
+		System.out.println(str); //1,5,7
+
+// MapJoiner 的使用，将 map 转换为字符串
+	    Map<String,String> map = ImmutableMap.of("k1", "v1", "k2", "v2");
+	    str = Joiner.on(";").withKeyValueSeparator("=").join(map);//k1=v1;k2=v2
+	    System.out.println(str);

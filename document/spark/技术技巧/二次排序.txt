@@ -1,0 +1,58 @@
+一、正常数据量小的情况，reduce阶段使用内存排序即可。
+.groupByKey()
+.map(line => (line._1, line._2.toList.sortWith(_.toInt < _.toInt).mkString(","))) //value内部进行升序排列
+.sortByKey(true) //key升序排列
+
+
+二、数据量大的时候，容易OOM，所以要有新的方式。
+实现方案类似hadoop的二次排序，在reduce阶段重新定义已经排序好的key进行分组。
+
+参考 org.apache.spark.rdd.OrderedRDDFunctions的repartitionAndSortWithinPartitions方法
+
+在spark中可以使用repartitionAndSortWithinPartitions这个算子，它会一边进行shuffle的时候就会对分区中的数据进行排序，要使用这个算子需要做两件事：
+
+object SparkTest {
+
+  def main(args: Array[String]): Unit = {
+    implicit val ord = new Ordering[(String, Int)] {
+      override def compare(x: (String, Int), y: (String, Int)): Int = { //相当于对二次排序后的数据整体作为key，并且该key支持排序
+        val c = x._1.compareTo(y._1)
+        if (c == 0) x._2.compareTo(y._2) else c
+      }
+    }
+
+    val conf = new SparkConf().setMaster("local[*]").setAppName("SparkTest")
+    val sc = new SparkContext(conf)
+    val rdd = sc.parallelize(Seq("2015,1,24", "2015,3,56", "2015,1,3", "2015,2,-43", "2015,4,5", "2015,3,46", "2014,2,64", "2015,1,4", "2015,1,21", "2015,2,35", "2015,2,0"))
+    rdd.map(s => {
+      val arr = s.split(",")
+      ((s"${arr(0)}-${arr(1)}", arr(2).toInt), arr(2).toInt) //组成新的key,新的key满足二次排序
+    })
+      .repartitionAndSortWithinPartitions(new CustomPartitioner(3)) //重新定义分区,按照原始的key进行分区，同时重新在redue中对key进行分组
+      .map { case ((k, v), _) => (k, v) }
+      .saveAsTextFile("xxxxxx")
+
+  }
+
+//重新定义分区，按照原始的key进行分区
+  class CustomPartitioner(partitions: Int) extends Partitioner {
+
+    require(partitions > 0, s"Number of partitions ($partitions) cannot be negative.")
+
+    def numPartitions: Int = partitions
+
+    def getPartition(key: Any): Int = key match {
+      case (k: String, _: Int) => math.abs(k.hashCode % numPartitions)
+      case null => 0
+      case _ => math.abs(key.hashCode % numPartitions)
+    }
+
+    override def equals(other: Any): Boolean = other match {
+      case h: CustomPartitioner => h.numPartitions == numPartitions
+      case _ => false
+    }
+
+    override def hashCode: Int = numPartitions
+  }
+
+}

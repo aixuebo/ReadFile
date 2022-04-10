@@ -1,0 +1,101 @@
+org.apache.flink.streaming.api.functions 核心在streaming包内
+一、DataStream 入口
+1.周期生产水印，在原有流基础上,包一层定时生产水印的程序类
+public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner)
+		TimestampsAndPeriodicWatermarksOperator<T> operator = new TimestampsAndPeriodicWatermarksOperator<>(clean(timestampAndWatermarkAssigner));
+		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator).setParallelism(getTransformation().getParallelism());
+		
+2.每一个元素处理时,都要判断是否要生产水印,即是否生产水印取决于处理的数据，比如遇到xx结尾的元素要生产一个水印
+public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
+  TimestampsAndPunctuatedWatermarksOperator<T> operator = new TimestampsAndPunctuatedWatermarksOperator<>(clean(timestampAndWatermarkAssigner));
+  return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+  .setParallelism(getTransformation().getParallelism());
+}
+
+二、原理
+2.1 周期性的生产water水印 --- 核心方法 -- 继承AbstractUdfStreamOperator
+public class TimestampsAndPeriodicWatermarksOperator<T>
+		extends AbstractUdfStreamOperator<T, AssignerWithPeriodicWatermarks<T>>
+		implements OneInputStreamOperator<T, T>, ProcessingTimeCallback {
+1.参数 
+transient long watermarkInterval;//发送水印时间戳间隔
+transient long currentWatermark;//最后一次发送水印的时间戳
+
+2.public void open() throws Exception
+watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();//初始化生产水印周期
+设置周期性定时任务
+if (watermarkInterval > 0) {
+	long now = getProcessingTimeService().getCurrentProcessingTime();//当前时间戳
+	getProcessingTimeService().registerTimer(now + watermarkInterval, this);//设置定时任务,定时产生水印
+}
+
+3.void processElement(StreamRecord<T> element) 正常处理数据流的数据
+		//function是AssignerWithPeriodicWatermarks
+		final long newTimestamp = userFunction.extractTimestamp(element.getValue(),element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
+		output.collect(element.replace(element.getValue(), newTimestamp));//产生新的StreamRecord
+
+4.public void onProcessingTime(long timestamp) throws Exception { //触发定时任务--该输出水印了
+		//function是AssignerWithPeriodicWatermarks
+		Watermark newWatermark = userFunction.getCurrentWatermark();
+		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
+			currentWatermark = newWatermark.getTimestamp();
+		  output.emitWatermark(newWatermark);//发送水印
+		}
+    //再次设置定时任务,定时产生水印
+		long now = getProcessingTimeService().getCurrentProcessingTime();
+		getProcessingTimeService().registerTimer(now + watermarkInterval, this);
+	}
+5.void processWatermark(Watermark mark) throws Exception
+不用关注该方法
+正常处理水印，但大多数情况不会走到该方法，因为该流本身是产生水印的流,不会接收到水印
+6.void close() 做收尾工作,最后一次计算水印,并且发送
+
+2.2 每一个数据都要计算一次水印
+继承AbstractUdfStreamOperator
+public class TimestampsAndPunctuatedWatermarksOperator<T>
+		extends AbstractUdfStreamOperator<T, AssignerWithPunctuatedWatermarks<T>>
+		implements OneInputStreamOperator<T, T> {
+1.void processElement(StreamRecord<T> element) throws Exception { //正常处理数据 && 判断是否发送水印数据
+		//正常处理数据 
+		final T value = element.getValue();
+		final long newTimestamp = userFunction.extractTimestamp(value,element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
+		output.collect(element.replace(element.getValue(), newTimestamp));//产生新的StreamRecord
+
+		//判断是否发送水印数据  生产水印
+		final Watermark nextWatermark = userFunction.checkAndGetNextWatermark(value, newTimestamp);//非null就说明有水印产生
+		if (nextWatermark != null && nextWatermark.getTimestamp() > currentWatermark) {//确保水印是递增的
+			currentWatermark = nextWatermark.getTimestamp();
+			output.emitWatermark(nextWatermark);
+		}
+	}
+
+2.processWatermark(Watermark mark) 
+不用关注该方法
+正常处理水印，但大多数情况不会走到该方法，因为该流本身是产生水印的流,不会接收到水印
+
+三、接口
+1.TimestampAssigner<T> extends Function
+	long extractTimestamp(T element, long previousElementTimestamp); 提取元素的时间戳--从元素中以及给的参考时间戳提取事件时间戳
+
+2.interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 周期的提取时间戳,用于水印
+	Watermark getCurrentWatermark();产生新的Watermark。
+  
+3.interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T>  即每一条数据都可以生产一个Watermark
+	Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
+  表示就是本条数据,不知道为什么命名为last，参数extractedTimestamp表示本条数据产生的时间戳。
+  基于本条数据内容，判断是否生产水印，如果生产则返回Watermark，否则返回null，就不会生产水印
+
+4.具体实现类
+周期生产水印
+class BoundedOutOfOrdernessTimestampExtractor<T> implements AssignerWithPeriodicWatermarks<T>
+	BoundedOutOfOrdernessTimestampExtractor(Time maxOutOfOrderness) 延迟多少秒
+	abstract long extractTimestamp(T element); 提取元素时间戳，每一个元素流过,都会提取时间戳,并且设置currentMaxTimestamp
+  Watermark getCurrentWatermark() //生产Watermark 当触发该函数的时候，就会设置Watermark
+    long potentialWM = currentMaxTimestamp - maxOutOfOrderness; //先调慢时间
+		return new Watermark(lastEmittedWatermark);
+
+数据提取的时间戳一定是增量的,因此周期的发送最后一次时间戳-1即可表示水印,用处不太大。
+public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeriodicWatermarks<T> {
+	abstract long extractAscendingTimestamp(T element);从给定的元素中提取时间戳，确保该时间戳是递增的
+	public final Watermark getCurrentWatermark() 
+  	return new Watermark(currentTimestamp == Long.MIN_VALUE ? Long.MIN_VALUE : currentTimestamp - 1);

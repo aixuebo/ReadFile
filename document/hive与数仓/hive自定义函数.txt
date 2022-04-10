@@ -1,0 +1,8 @@
+创建/home/nobody/.hiverc文件 或者在$hive_home/bin下面创建.hiverc文件
+add jar /data11/xuebo/app/hive/xueboHive.jar;
+create temporary function  strstart as 'com.xuebo.udf.StrStart';
+create temporary function  strDateFormat as 'com.xuebo.udf.StrDateFormat';
+create temporary function  strContain as 'com.xuebo.udf.StrContain';
+create temporary function  parse_uri as 'com.xuebo.udf.ParseUri';
+create temporary function  strEnd as 'com.xuebo.udf.StrEnd';
+create temporary function  split_by_index as 'com.xuebo.udf.SplitByIndex';

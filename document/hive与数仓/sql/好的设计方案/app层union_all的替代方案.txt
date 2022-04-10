@@ -1,0 +1,81 @@
+背景:
+当前发现在APP层大量使用union all的方式拼接维度+指标，造成某一个段sql里,大量的null存在，造成阅读代码的困难以及不好维护，那应该如何做呢?有更好的方式吗？
+
+已知:
+订单表A:biz_type、订单数
+流量表B:biz_type、曝光量
+营销活动表C:biz_type、用户数
+
+期待输出:
+biz_type、订单数、曝光量、用户数
+
+方案1:缺点是字段多的时候会有很多null,不好理解
+select biz_type,sum(订单数),sum(曝光量),sum(用户数)
+from
+(
+    select biz_type、订单数、null、null
+    from A
+    union all
+    select biz_type、null、曝光量、null
+    from B
+    union all
+    select biz_type、null、null、用户数
+    from C
+) t
+group by biz_type
+
+方案2:
+
+select *
+from
+(
+  select biz_type、订单数
+  from A
+) a
+full join
+(
+  select biz_type、曝光量
+  from B
+) b on a.biz_type = b.biz_type
+full join
+(
+  select biz_type、用户数
+  from C
+) c on a.biz_type = c.biz_type
+
+应该有逻辑问题，应该是每两个表join后的结果再和第三个表join，这样如果表多了，还是会很麻烦。---但可以尝试一下，测试看看要不要两两join
+
+方案3:
+缺点是会查询两次数据源，其中一次还做过滤重复数据，如果表大，有性能问题。
+select biz_type,sum(订单数),sum(曝光量),sum(用户数)
+from
+(
+    select biz_type
+    from A
+    union
+    select biz_type
+    from B
+    union
+    select biz_type
+    from C
+) t 
+left join
+(
+    select biz_type、订单数
+    from A 
+) a on t.biz_type = a.biz_type
+left join
+(
+    select biz_type、曝光量
+    from B 
+) b on t.biz_type = b.biz_type
+left join
+(
+    select biz_type、用户数
+    from C
+) c on t.biz_type = c.biz_type
+group by biz_type
+
+
+
+

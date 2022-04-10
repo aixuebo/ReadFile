@@ -1,0 +1,70 @@
+一、背景
+添加一列
+
+二、应用
+import org.apache.spark.sql.functions._
+1.一个参数
+val stringFeature2vecUdf = udf((str:String) => str.split("xxxx").map( v => (v.split(":")(0).toInt,v.split(":")(1).toDouble)))
+
+2.2个参数
+   val convert = udf((feature_default:String,feature:String) => {
+      val array = feature_default.split("maming").map(v => v.toDouble)
+      array.mkString(",")
+    })
+    
+df.withColumn("addColumn",convert(col("列名字1"),col("列名字2"))) 
+
+
+三、背后原理
+以function2为例
+1.trait Function2
+  def apply(v1: T1, v2: T2): R
+表示传入2个参数,返回第三个参数。
+
+2.import org.apache.spark.sql.functions._
+def udf[RT: TypeTag, A1: TypeTag, A2: TypeTag](f: Function2[A1, A2, RT]): UserDefinedFunction = {
+	val inputTypes = Try(ScalaReflection.schemaFor(typeTag[A1]).dataType :: ScalaReflection.schemaFor(typeTag[A2]).dataType :: Nil).getOrElse(Nil)
+	UserDefinedFunction(f, ScalaReflection.schemaFor(typeTag[RT]).dataType, inputTypes)
+}
+参数A1、A2表示入参类型,RT表示出参类型。具体参数是Function2[A1, A2, RT],可以看到入参、出参类型都已经在function2作为函数的时候,就确定了。
+最终定义了一个UserDefinedFunction对象。
+
+3.UserDefinedFunction
+case class UserDefinedFunction protected[sql] (
+    f: AnyRef,
+    dataType: DataType,
+    inputTypes: Seq[DataType] = Nil) {
+
+  def apply(exprs: Column*): Column = {
+    Column(ScalaUDF(f, dataType, exprs.map(_.expr), inputTypes))
+  }
+}
+
+可以看到该对象，就是定义了执行的函数f,输出类型dataType,以及输入类型inputTypes集合。
+应用apply方法,返回的是Column对象。
+
+4.df.withColumn("feature",str(col("feature")))
+  def withColumn(colName: String, col: Column): DataFrame = {
+    val resolver = sqlContext.analyzer.resolver
+    val replaced = schema.exists(f => resolver(f.name, colName))
+    if (replaced) { //说明列重新命名
+      val colNames = schema.map { field =>
+        val name = field.name
+        if (resolver(name, colName)) col.as(colName) else Column(name)
+      }
+      select(colNames : _*)
+    } else { //说明在*的基础上,在追加一列
+      select(Column("*"), col.as(colName)) //col列起一个别名colName
+    }
+  }
+
+因为还没有真正执行查询功能,所以select可以从*追加一列。
+ 
+5.应用层定义udf ---即说明变量的类型就是Column对象
+val stringFeature2vecUdf = udf((str:String) => str.split("xxxx").map( v => (v.split(":")(0).toInt,v.split(":")(1).toDouble)))
+传入参数,生产具体的Column对象,并且起别名addColumn
+df.withColumn("addColumn",stringFeature2vecUdf(col("列名字1"),col("列名字2"))) 
+
+注意:col(colName: String)
+def col(colName: String): Column = Column(colName) 表示获取到了某一个Column对象
+

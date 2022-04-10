@@ -1,2 +1,15 @@
 一、demo 杀死所有属于一个执行命令后的进程
 ps aux | grep rebuild_maming | awk '{print $2}' | xargs kill -9
+
+
+二、基础参数
+ls -l | awk -F' ' '{print $5" "$9}'
+
+-F表示拆分符 ---> -F' ' 表示按照空格拆分
+'{print $5" "$9}' 表示打印字符串从1开始计数，第5和9位置数据，中间用空格分隔(" ")
+
+三、awk+sort
+ ls -lh | awk -F' ' '{print $5" "$9}' | sort -n -k1
+ 1.输出文件大小、文件名字。
+ 2.sort -n表示将字段强转成int,然后按照k1第一列排序
+ 

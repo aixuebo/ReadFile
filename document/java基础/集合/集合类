@@ -24,11 +24,11 @@
 
 二、添加和取出的方法区别
 add和put、offer是添加一个元素,添加成功就返回boolean
-peek就是获取当前的元素,并不进行next查找
-poll是返回当前元素,但是进行查找下一个元素
-
-
+peek就是获取当前的元素,并不进行next查找---即不删除元素,只是查看top元素
+poll是返回当前元素,但是进行查找下一个元素--即返回top元素,同时将top元素从队列中删除，但不阻塞,如果top无元素,则离开返回null
 take 是阻塞的poll,必须拿到一个元素,否则一直阻塞
+
+
 E poll(long timeout, TimeUnit unit) 是阻塞一定时间的poll方法,超时后,如果还没有元素.则返回null
 
 int drainTo(Collection<? super E> c) 是将满足的元素添加到参数集合内

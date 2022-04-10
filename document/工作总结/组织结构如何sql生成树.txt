@@ -19,23 +19,31 @@ join
       FROM t
 ) o on split.org_path_split = o.id
 
-二、根据一的结果,可以获取每一个level级别下所有的的结果
-select id,name,path,
-CONCAT_WS('-', collect_list(parent_name)),
-CONCAT_WS('-', collect_list(concat(parent_level,'')))
-from 一表
-group by id,name,path,level
-
-三、输出 组织id、一级name、二级name、三级name ...
+二、输出 组织id、一级name、二级name、三级name ...
 
   select
    id,
    max(if(level=1,org_name,null)) as org_name_1,
    max(if(level=2,org_name,null)) as org_name_2,
    max(if(level=3,org_name,null)) as org_name_3
-  from t
+  from 一表
   group by id
 
+到这一步，基本上已经算完成了，可以用了。
+
+三、如果需要关联id本身的内容，则需要进一步查询做一次join
+select t的基础属性,
+表二.org_name_1,表二.org_name_2,表二.org_name_3...
+from t
+join 表二
+on t.id = 表二.id
+
+四、根据一的结果,可以获取每一个level级别下所有的的结果
+select id,name,path,
+CONCAT_WS('-', collect_list(parent_name)),
+CONCAT_WS('-', collect_list(concat(parent_level,'')))
+from 一表
+group by id,name,path,level
 --------------------------------------------
 表结构
 id pathValue

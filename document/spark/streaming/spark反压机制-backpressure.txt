@@ -1,0 +1,13 @@
+一、流程
+1.Spark Streaming通过Receiver方式,不断地接受生产者的数据，生产者什么速率,理论上接收就可以多快。因为接收数据不花费性能。每隔batch interval时间周期，生产一个数据块,该数据块用于spark 计算。
+2.batch processing time表示spark计算一个数据块的时间。
+3.如果batch processing time > batch interval。
+这说明生产者太快了,spark处理不完。即数据处理能力低。
+时间过长后,数据都在内存积压导致Receiver所在Executor内存溢出等问题（如果设置StorageLevel包含disk, 则内存存放不下的数据会溢写至disk, 加大延迟）。
+
+二、解决方案
+1.Spark 1.5以前版本，用户如果要限制Receiver的数据接收速率，可以通过设置静态配制参数“spark.streaming.receiver.maxRate”的值来实现，此举虽然防止内存溢出，但也会引入其它问题。
+比如生产者生产速度高了,同时集群也能接收更高的处理能力,那么就浪费了集群的计算资源了。
+2.Spark Streaming 从v1.5开始引入反压机制（back-pressure）,通过动态控制数据接收速率来适配集群数据处理能力。
+sparkConf.set("spark.streaming.backpressure.enabled",”true”) 默认值false，即不启用。
+Spark Streaming Backpressure: 根据JobScheduler反馈作业的执行信息来动态调整Receiver数据接收率。

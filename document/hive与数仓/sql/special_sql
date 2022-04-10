@@ -1,0 +1,305 @@
+1.查询一个表,执行多个insert插入
+FROM nginx n
+INSERT OVERWRITE TABLE shareStatis
+ PARTITION (task = 'share', date = '20150905')
+ SELECT substr(n.accessTime,0,2)  as hour,n.platformId,1,n.coohuaId,n.sharedTitleId,n.sharedTextId,n.age
+ where n.date = 20150905 AND n.fileType = 'shareFile' AND n.requestType = 'HEAD' AND strContain(n.requestUri,'/share.txt?') ='1'
+INSERT OVERWRITE TABLE shareStatis
+ PARTITION (task = 'shareSuccess', date = '20150905')
+ SELECT substr(n.accessTime,0,2)  as hour,n.platformId,1,n.coohuaId,n.sharedTitleId,n.sharedTextId,n.age
+ where n.date = 20150905 AND n.fileType = 'shareFile' AND n.requestType = 'HEAD' AND strContain(n.requestUri,'/share_success.txt?')='1'
+ 
+2.行转列
+获取date、小时、userid下 不同表的数据汇总,比如该用户在该小时有多少笔投资和投资金额、赎回笔数、赎回金额
+只要四个属性任意一个满足,则都把这行数据输出出来,其他字段默认是0即可
+方案:
+a.可以用union将每一个表的数据查询出来,并且多写一个标识符字段,表示数据出于什么表的结果，
+b.对a的结果进行group by date、小时、userid,select中根据标识符进行case when then处理即可。
+
+或者将所有的可能列情况都写在一行,只是没有值的时候用0表示即可,这样最终外层循环用sum就可以了
+
+c.行转列 ---多行数据 转换成一行数据
+select中用case when 方式
+
+
+d.列转行---一行数据转换成多行,即每一个列都拆分成单独一行
+若干列，组成一行
+
+1)
+select col1,col2,name 
+from biao  
+lateral view explode(split(col3,',')) col3 as name;
+
+2)
+select col1,col2,concat_ws(',',collect_set(col3)) 
+from biao  
+group by col1,col2;
+
+3)
+比如 id tagid ,将同一个id下面的所以tagid汇总  ，注意concat_ws 有一个优势,就是遇到null的时候,会自动不拼接该字符串
+select id,concat_ws(',',字段1,字段2,字段3...) label_ids
+from biao
+
+因此
+select id,tag_id
+from 
+(
+    select id,concat_ws(',',字段1,字段2,字段3...) label_ids
+    from biao
+) t LATERAL VIEW explode(split(label_ids,',')) tag_ids AS tag_id
+   
+   
+3.学习使用full join操作,相当于left join和right join的综合版
+测试的话可以获取两个表的各两条记录,full join后还是4条记录
+该方式也可以完成2行转列的操作
+
+注意:
+a.3个表以上的full join是有问题的,因为两个表full join后,主键位置就不固定了,因为会出现两个表的主键都在同一行,但是数据却有的是null。
+因此三个表以上full join的时候有问题。
+b. 注意该表用full join ,因此对于关联的主键要用COALESCE(money.userid,interest.userid)处理
+
+4.设置动态分区
+a.set hive.exec.dynamic.partition.mode=nostrick;
+----------------------------------------
+b.insert overwrite table dim.topic_user_partition partition(log_day)
+c.select的最后几个字段的值就是分区的值
+
+注意:动态分区不要过多,否则会引起问题,因此有时候太多分区的话,要分批进行,比如我这边时间跨度是1年半,我就按照季度执行一次即可。
+当然你也可以写mr自己做这事儿,但是有时候不必要那么麻烦,多循环几次也还可以接受。
+动态分区最多支持100个,如果一次性超过100个,经常容易出错误
+
+5.在select中用两个case when 的sum做差,获取连续两天的数据增量
+sum(case when log_day = '20160623' then premium_final else 0 end )-sum(case when log_day = '20160622' then premium_final else 0 end ) premium_final_last,
+
+6.not in或者in的sql转换成
+left join,然后在最后用where条件,将column is null 或者将column is not null来决定是否是not in 还是in。
+其中column is null 表示not in 
+
+7.join on中不允许使用函数,比如 substr(a.open_time,1,10) = b.create_date
+解决方法是将 substr(a.open_time,1,10)写在a表的select里面,单独使用一个别名代替,然后on的时候使用a.别名 = b.create_date
+
+8.有一个时间表,用于与正常表进行join操作。
+on的条件是>= <=都可以,可以解决我们129个字段的时候,没办法全量一次性跑完历史数据的需求
+
+7.查询同一表中数据,按照周分组,获取每周的某一天与另外一天的差,即统计周数据
+注意:最好有一个dt表,里面描述该天是一年周的第几周,该周周一的日期(该字段可用于group by 按照周分组)
+select
+    b.date as end_date,
+    date_add(b.date,-6) as create_date,
+    sum(if(b.date=a.date,a.value,-a.value)) as value_diff
+from
+(
+select date,value
+from biao1
+where pmod(datediff(date,'2014-08-07'),7)=0
+)a
+join
+(
+select date
+from biao1
+where pmod(datediff(date),7)=0
+)b
+where
+a.date<=b.date and
+a.date>=date_add(b.date,-7)
+group by a.date
+
+条件:该表内存储每一天的存量信息
+结果:获取每周四-上周四的存量差,即每周存量
+a.是每周四的存量信息
+b.是每周四的时间
+c.两个表做full join,仅要挨着的两周的数据,即每一个b.date对应两条数据,分别是本周和上一周的数据,
+因此select中用两个数据做减法即可得到差值,b.date=a.date的时候表示本周,不等的时候表示上一周
+select中date_add(b.date,-6) as create_date,仅仅是用于显示,显示周五的时间,这样看上去时间比较连贯。
+
+举例:
+a.经过过滤后得到每周四的数据
+date	value
+20160818	700
+20160811	500
+20160804	300
+b.经过过滤后仅剩周四数据
+20160818
+20160811
+20160804
+c.a join b 得到笛卡尔乘积
+a.date          a.value   b.date     
+20160818	700	20160818
+20160818	700	20160811
+20160818	700	20160804
+20160811	500	20160818
+20160811	500	20160811
+20160811	500	20160804
+20160804	300	20160818
+20160804	300	20160811
+20160804	300	20160804
+d.进一步过滤,得到
+a.date          a.value   b.date
+20160818	700	20160818
+20160818	700	20160811
+20160811	500	20160811
+20160811	500	20160804
+20160804	300	20160804
+e.因此按照a.date进行group by
+20160818	700	20160811
+20160811	500	20160811
+
+8.group by 按照一周的某一天
+注意:最好有一个dt表,里面描述该天是一年周的第几周,该周周一的日期(该字段可用于group by 按照周分组)
+hive的 select date_add('2016-09-07',-pmod(datediff('2016-09-07', '2015-01-09'),7))   注意2015-01-09 是周五
+mysql的SELECT DATE_ADD('2016-12-13', INTERVAL -MOD(DATEDIFF('2016-12-13', '2015-01-08'),7) DAY);
+
+开始时间和结束时间demo
+select group by 的字段作为begin_day
+date_add(group by 的字段,6)作为end_day
+
+group by 按照一个月数据跑
+group by substr(create_time,1,7) 只是获取到月 ,例如2016-10
+开始时间和结束时间demo
+concat(substr(create_time,1,7),'-01')作为开始时间
+结束时间算法:
+开始时间+32=下个月时间,然后转换成下个月时间的1号,然后再减去1天就是上个月最后一天,
+例如 开始时间是2016-10-01,加上32天,然后转换成01号,因此是2016-11-01,然后再减去1天,就是2016-10-31号,作为结束时间
+因此公式是
+select date_add(concat(substr(date_add(concat(substr(create_time,1,7),'-01') ,32),1,7),'-01') ,-1);作为结束时间
+select date_add(concat(substr(date_add(concat('2016-09','-01') ,32),1,7),'-01') ,-1);demo,获取2016-09最后一天
+
+9.按月统计,需要精确到每一个月的第一个天和最后一天
+a.使用Date工具的month方法生成每个月的数据
+b.将该数据源上传到HDFS上,并且生成hive的对应表
+c.这样使用sql,将业务表的数据按照2016-09格式进行group by,可以得到每一个月的汇总信息
+然后将汇总信息与month表
+进行关联,就可以得到具体每一个月的开始时间和结束时间了
+
+例如
+select redeem.create_time create_time,u.userid userid,u.channel channel,month.month_start month_start,month.month_end month_end,sum(amount) red
+from
+(
+	select userid,substr(create_time,1,7) create_time,sum(amount) amount
+	from fact.redeem_record
+	where substr(create_time,1,10) <= '2016-08-31'
+	group by substr(create_time,1,7),userid
+) redeem join 
+dim.dim_user_info u on redeem.userid = u.userid
+join 
+(
+	select month_start,month_end,substr(month_start,1,7) conver_month_start
+	from etl.month
+) month on month.conver_month_start = redeem.create_time
+group by redeem.create_time,u.userid,u.channel,month.month_start,month.month_end
+
+9.sql查询同一张表,要求连续两天的数据,比如
+table字段 create_date  userid  class等级,即每一个用户在某一天的等级表
+现在想转换成一张新表,包含该用户昨天的等级和今天的等级,即增加一个字段为昨天等级。
+
+实现逻辑
+select
+    to_day.create_date,
+    to_day.userid,
+    to_day.class,
+    if(last_day.class_last is null,1,if(to_day.class<>last_day.class_last,1,0)) as class_index
+from 
+biao as to_day
+left join
+(
+    select
+        date_add(create_date,1) as create_date,
+        userid,
+        class as class_last
+    from biao
+) as last_day
+on to_day.userid=last_day.userid and to_day.create_date=last_day.create_date
+
+简单说明
+比如 
+日期   等级
+5	4
+6   3
+7   4
+8   4
+9   3
+10  2
+那么因此可以说明从6号开始,昨天的等级以此就是 4 3 4 4 3 2,
+因此产生一组新的数据，即
+日期   等级
+6	4
+7   3
+8   4
+9   4
+10  3
+11  2
+这样相当于把正常的时间+1即可,因此可以看到6号的等级是3,下面昨天的6号等级是4,说明6号的昨天是5号,等级就是4
+
+10.该表获得了每个用户在目前等级停留时间
+analysis_temp.rfm_class_3_add该表获得了每个用户在目前等级停留时间
+select
+    a.create_date,
+    a.userid,
+    datediff(a.create_date,max(b.create_date)) as class_staty
+from 
+(select create_date,userid,class from analysis_temp.rfm_class_2) as a
+join
+(select create_date,userid from analysis_temp.rfm_class_2 where class_index=1) as b
+on a.userid=b.userid
+where b.create_date<=a.create_date
+group by a.create_date,a.userid
+
+
+demo  class_flag 1 表示当前等级和昨天等级不同,即发生停留时间0天,  class_flag = 0 表示当前等级和昨天等级相同,即发生停留1天
+date	user	class	yes_class	class_flag
+20160905	1	4	1	1		20160905	1	4	1	1
+20160906	1	3	4	1		20160906	1	3	4	1
+20160907	1	3	3	0		20160910	1	3	4	1
+20160908	1	3	3	0						
+20160909	1	3	3	0						
+20160910	1	3	4	1						
+
+11.partition(log_day='substr('2016-10-30',1,7)')不支持UDF函数,因此要么用固定静态值填充,要么动态分区,将UDF定义到select的最后一个字段中解决该问题
+
+12.计算连续两条记录的差,比如已知每一天的存量,求每日新增存量,即今天存量-昨天存量=新增存量
+1.使用row_number() over (PARTITION BY imei ORDER BY ts ASC) as row_num 可以产生编号
+2.join自身,然后同一条记录就可以做差
+比如
+select a.value-b.value
+from biao a join biao b on a.id = b.id and a.row_num = b.row_num +1
+
+13.自关联查询,查询第5次出现的位置。。类似ROW_NUMBER操作,但是需要两个表自关联,而且差不多快笛卡尔了,因此效率有问题
+select reg1.userid,  to_date(create_time ) as regulartime ,  sum(reg2.num) as num_total
+from xxx.regular_info reg1
+join xxx.regular_info reg2 on reg1.userid = reg2.userid
+where  to_date(reg2.create_time) <= to_date(reg1.create_time)
+group by userid , to_date(create_time)
+having num_total >= 5
+
+14.打分--过滤无效数据的打分系统
+set compatible.grammar=sparksql;
+select id,
+rank() over(partition by 1 order by id desc) a,###分组内,该id值对应的位置
+max(rank() over(partition by 1 order by id desc)) over(partition by 1) b ### 后一个over确定窗口是分组内,
+### 前一个rank() over,表示对已经分组内的数据进行按照rank的方式,由大到小排序。
+### max表示获取排序最大的值
+
+from (
+ select explode(array(1,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0)) as id
+);
+
+(a-1)/(b-1) 可以计算排序位置的得分,-1的目的是减去0位置的分数。
+场景:大量的无效值,被设置成0,因此导致0会被用于打分,而接下来比0大的值，会因为0的多少而有不用的分数。导致分数不稳定。
+因此该方式是把0位置去掉，即拿非0的位置/非0的元素个数进行打分
+比如:
+rank() over(partition by key order by value asc)  -1) / (max(rank() over(partition by loc_code order by value asc)) over(partition by loc_code) - 1)
+
+
+15.select中可以进行子查询操作
+SELECT
+SalesOrderID,###字段
+price,###字段
+(SELECT AVG(price) FROM Sales.SalesOrderDetail) AS price_avg,###均值
+price - (SELECT AVG(price) FROM Sales.SalesOrderDetail) AS price_Variance, ### 计算差
+(
+  select name 
+  from biao
+  where SalesOrderID = t.SalesOrderID ### 使用biao的SalesOrderID字段与每一天t表的数据进行关联,获取对应的name,前提一定是要确保唯一性,确保只能是1行，否则会抛异常
+  limit 1
+) a
+FROM Sales.SalesOrderDetail t

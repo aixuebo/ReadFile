@@ -1,0 +1,5 @@
+一、创建Map
+Map<String,String> map = ImmutableMap.of("k1", "v1", "k2", "v2");
+str = Joiner.on(";").withKeyValueSeparator("=").join(map);//k1=v1;k2=v2
+System.out.println(str);
+

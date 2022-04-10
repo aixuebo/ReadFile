@@ -1,0 +1,4 @@
+一、通过数组创建List
+	    String[] arr = new String[] {"aa","bb"};
+	    List<String> list = Lists.asList("cc", arr);
+	    System.out.println(list);

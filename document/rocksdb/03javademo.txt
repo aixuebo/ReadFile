@@ -1,0 +1,28 @@
+
+
+<dependency>
+    <groupId>org.rocksdb</groupId>
+    <artifactId>rocksdbjni</artifactId>
+</dependency>        
+
+public class RocksTest {
+
+    RocksDB rocksDB;
+
+    String path = "/Users/ctl/rocksTest";
+
+    @Test
+    public void testOpen() throws RocksDBException {
+        RocksDB.loadLibrary();
+        Options options = new Options();
+        options.setCreateIfMissing(true);
+        rocksDB = RocksDB.open(options, path);
+        rocksDB.put("key".getBytes(), "val".getBytes());
+        byte[] bytes = rocksDB.get("key".getBytes());
+        System.out.println(new String(bytes));
+    }
+}
+
+使用Java操作RocksDB是基于jni机制，目前Java的API没有C++的全，
+但上面介绍的一些术语，比如快照、迭代器、导入等等，都是可以使用Java的API来操作的，操作方式跟上述demo很像，都是open出rocosdb实例后，通过实例来进行对应的操作，这并不难。
+

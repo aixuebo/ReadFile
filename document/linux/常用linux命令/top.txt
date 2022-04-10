@@ -1,0 +1,13 @@
+一、mac
+1.top -s 20
+-s代表每隔20s更新一次，这样可以避免更新太快看不清
+
+2.排序 
+o<key>  Set primary sort key to <key>: [+-]{command|cpu|pid|prt|reg|rprvt|rshrd|rsize|th|time|uid|username|vprvt|vsize}.
+按o会提示 Set primary sort key to <key>,然后输入按照什么字段排序,比如cpu、rsize(内存)
+比如:
+orsize 回车  内存排序
+ocpu 回车 CPU排序
+
+3.查看某一个单独的进程的内容
+top -pid 63183

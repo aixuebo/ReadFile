@@ -1,0 +1,93 @@
+rocksdb
+
+https://github.com/johnzeng/rocksdb-doc-cn
+
+一、简介
+RocksDB是Facebook的一个实验项目，这是一个C++开发的库。
+KV数据库，存储key和value都是二进制，并且长度不限制。
+存储在本地磁盘上,不占用内存空间。查询效率高。
+支持原子读写操作。
+
+
+
+二、原理以及特性
+支持Get(key), NewIterator(), Put(key, value), Delete(Key)以及SingleDelete(key)。
+
+数据一切存储都是按照key排序的。
+数据先写入到war的log日志文件中，顺序写日志。
+然后数据写入到内存mentable，内存中按照key排序。加速查询。
+达到一定阈值后，回刷到磁盘以sstfile文件表示。该文件内是按照key排序后的文件。同时删除log日志属于该文件的内容。
+
+三、数据文件新增与查询
+mentable内存数据 + N个sstfile文件组成。
+比如阈值设置10，当N满足10的时候，会将10个小的sstfile文件做merge。(此时会真实删除重复key对应的数据)。
+因此mentable内存数据 + N个小sstfile文件 + M个中sstfile文件 + X个超大sstfile文件。。。等等组成。
+
+即M个中文件会继续组成一个超大文件。
+
+
+原理是每一个文件都是有顺序的，并且同一个key会存在多条数据，以第一条数据为准。因此要按照顺序一个文件一个文件进行查找。
+Merge非常快，因为文件本身是有顺序的。
+
+文件内有布隆过滤器，可以快速判断key是否存在该文件中，以及对应的key的索引，用于快速查找数据。
+
+
+改操作，其实就是新insert一条数据即可。
+
+四、特性
+1.列簇
+RocksDB支持将一个数据库实例按照许多列族进行分片。
+默认不设置列簇存储时，都存储到"default"命名的列族中。
+
+通过WriteBatch API，还可以实现跨列族的原子操作。
+
+2.更新
+调用Put API可以将一个键值对写入数据库。如果该键值已经存在于数据库内，之前的数据会被覆盖。
+调用Write API可以将多个key原子地写入数据库。数据库保证在一个write调用中，要么所有键值都被插入，要么全部都不被插入。
+如果其中的一些key在数据库中存在，之前的值会被覆盖。
+
+3.支持事物操作
+
+五、Memtable
+默认实现是一个 skiplist。skiplist 是一个有序集，当工作负载使用 range-scans 并且交织写入时，这是一个必要的结构。
+然而，一些应用程序不交织写入和扫描，而一些应用程序根本不执行范围扫描。对于这些应用程序，排序集可能无法提供最佳性能。
+
+开发库提供了三个 memtable：skiplist memtable，vector memtable 和前缀散列（prefix-hash） memtable。
+Vector memtable 适用于将数据批量加载到数据库中。每个写入在向量的末尾插入一个新元素; 
+前缀散列 memtable 允许对 gets，puts 和 scans-within-a-key-prefix 进行有效的处理。
+
+六、读写流程
+
+写流程：
+rocksdb写入时，直接以append方式写到log文件以及memtable，随即返回，因此非常快速。
+memtable/immute memtable触发阈值后， flush 到Level0 SST，
+Level0 SST触发阈值后，经合并操作(compaction)生成level 1 SST，
+level1 SST 合并操作生成level 2 SST，以此类推，生成level n SST.
+
+读流程:
+按照 memtable --> Level 0 SST–> Level 1 SST --> … -> Level n SST的顺序读取数据。
+这和记录的新旧顺序是一的。因此只要在当前级别找到记录，
+就可以返回(返回最新的数据,这样delete数据就查询不到了)。
+
+七、优缺点
+因为RocksDB 改自LevelDB,现在来对比下他们优缺点：
+LevelDB 特点:
+1） LevelDB是一个持久化存储的KV系统，和Redis这种内存型的KV系统不同，LevelDB不会像Redis一样狂吃内存，而是将大部分数据存储到磁盘上。
+2） LevleDB在存储数据时，是根据记录的key值有序存储的，就是说相邻的key值在存储文件中是依次顺序存储的，而应用可以自定义key大小比较函数。
+3） LevelDB支持数据快照（snapshot）功能，使得读取操作不受写操作影响，可以在读操作过程中始终看到一致的数据。
+4） LevelDB还支持数据压缩等操作，这对于减小存储空间以及增快IO效率都有直接的帮助。
+
+RocksDB 对LevelDB的优化：
+增加了column family，这样有利于多个不相关的数据集存储在同一个db中，因为不同column family的数据是存储在不同的sst和memtable中，所以一定程度上起到了隔离的作用。
+采用了多线程同时进行compaction的方法，优化了compact的速度。
+增加了merge operator，优化了modify的效率。
+将flush和compaction分开不同的线程池，能有效的加快flush，防止stall。
+增加了对write ahead log(WAL)的特殊管理机制，这样就能方便管理WAL文件，因为WAL是binlog文件。
+
+RocksDB的典型场景（低延时访问）:
+1)需要存储用户的查阅历史记录和网站用户的应用
+2)需要快速访问数据的垃圾检测应用
+3)需要实时scan数据集的图搜索query
+4)需要实时请求Hadoop的应用
+5)支持大量写和删除操作的消息队列
+

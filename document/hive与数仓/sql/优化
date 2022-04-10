@@ -1,0 +1,66 @@
+1.当结果集数据文件很多,但是每一个文件内容字节很少,则在shuffle阶段会耗费很多时间,因此设置reduce数量,可以优化
+set mapred.reduce.tasks = 1;
+demo:从15分钟的洗数据,最终结果改成3分钟
+
+优化的原因；hive当输入源很大的时候,比如8G,会有200多个map,因此就会有200多个结果集,
+因此他预估reduce也要很多,比如reduce预估100个,因此这100个都会去那200个map中获取信息,这样就会产生100*200个连接请求,
+因此速度会慢很多了,而设置1个reduce后,就变成1*200,连接从2万变成200个,速度提升100倍。
+
+2.为hive的任务设置job的name
+set mapred.job.name='topic_channel-1';
+因为备注太长的时候,生成的name就很长,容易出异常,导致
+java.io.IOException: Could not find status of job:job_1466766941848_1739
+at org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper.progress(HadoopJobExecHelper.java:295)
+
+问题发现:
+去页面查看job:job_1466766941848_1739,会发现history日志有问题,没有历史日志,进详细log看全部日志,会发现提示名字太长导致的异常。
+/mr-history/tmp/root is exceeded: limit=255 length=330
+
+google搜索关键字:hadoop hdfs exceeded: limit=255
+
+3.为hive设置后缀,在into的时候可以知道是哪个sql的输出,当重新跑数据的时候,只需要删除这部分输出内容即可,不需要全部数据重跑了
+set hive.output.file.extension=.c1;
+
+4.因为null产生数据倾斜时候,对null的数据进行随机分配到不同桶中
+a.select *  from log a  left outer join users b  on case when a.user_id is null then concat(‘hive’,rand() ) else a.user_id end = b.user_id;
+或者将其在select子查询中先映射成非null的值
+case when ad.bankcard is null or strTrim(ad.bankcard) = '' then concat(ceil(rand()*10000000000000000),'h') else ad.bankcard end bank_card
+然后在进行join操作
+b.方法2 DISTRIBUTE BY RAND()也可以解决数据倾斜问题
+c.检查是否数据倾斜,就看结果文件是否大小不同就可以
+
+5.排序的区别
+order by 仅一个reduce
+sort by 每一个reduce局部排序
+distribute by 按照字段进行partition划分,即相同字段的数据都在一个reduce中 ,
+比如 distribute by partition_column, floor(rand(13) * 100),最好是指定字段划分到N个分区里
+a.用一个整数的id对20取模
+distribute by  id % 20
+
+b.用任意一个类型字段的hash，然后对20取模
+distribute by  abs(hash(col)  % 20)
+
+c.避免某个字段倾斜，多考虑几个字段，降低倾斜的概率
+distribute by  abs(hash(col1, col2, ...) % 20) 
+
+distribute by和sort by一起使用,可以让同一个用户在一个分区中,并且排序,因此就说明同一个用户的数据是排序好的。
+cluster by 就是distribute by和sort by相结合,但是不经常这么使用,因为该分区不支持asc和desc。支持是一种
+
+因此DISTRIBUTE BY RAND()也可以解决数据倾斜问题
+
+
+6.网友提出的优化方案
+优化这里包含的太多   存储格式、压缩格式、分片个数（map\reduce）、数据倾斜、语句写法及解析、执行过程
+
+7.mapjoin语法
+SELECT /*+ mapjoin(dim_date,city)*/
+from aa
+join dim_date 
+join city
+注意:mapjoin语法内容表示 哪些表要放到内存执行。
+
+8.查看spark的web页面，sql这部分输出，
+Sql优化的时候，查看执行计划，观察join的顺序是否符合预期，如果不符合，可以自己写成符合最优解的数据sql。
+比如1000万表join 500万 join 100条，这个顺序很明显是不优化的。
+改sql成 100条 join 1000万 join 500万。
+

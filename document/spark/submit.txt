@@ -1,0 +1,16 @@
+一、任务提交时可以追加数据文件和脚本文件
+--archives, --files, --py-files  sc.addFile  sc.addPyFile 区别
+这样上传的文件会在driver和worker节点被下载到本地根目录下执行。
+1.上传数据文件---多文件用逗号拆分
+--files or --archives
+比如 --files aa.txt,bb.txt
+2.上传python的代码文件---比如py文件 或者model文件
+--py-files
+该文件可以被import导入使用
+3.addFile(path)与addPyFile(path),我觉得是代码形式上传.路径可以是hdfs也可以是本地路径
+sc.addPyFile("dependencies.zip")
+4.addJar
+
+使用:
+直接导入hdfs上的文件,避免自己加载文件
+--py-files xxx.py,hdfs://1/2/xxx.model 直接上传该文件即可。最终上传到任务节点和driver节点的文件名，就是xxx.model,没有前面的1和2目录结构

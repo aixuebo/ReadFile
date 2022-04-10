@@ -1,4 +1,29 @@
 1.跳过单元测试
  mvn install -Dmaven.test.skip=true
+ mvn clean compile package -Dmaven.test.skip=true -U  强重新加载依赖包
+ 
 2.如果在maven编译过程中,有一些模块编译失败了,会导致下面的模块都没办法编译,那么如何跳过失败的模块,继续下面的编译呢
 mvn -compile -Dmaven.test.skip=true -fail-never
+
+3.mvn dependency:analyze
+a.Used undeclared dependencies found:
+这个是指某些依赖的包在代码中有用到它的代码，但是它并不是直接的依赖（就是说没有在pom中直接声明），是通过引入传递下来的包。
+举个例子：
+A.jar的依赖关系：A.jar -> B.jar 
+project在pom中声明了A.jar的依赖（没有声明B.jar的依赖),
+通过mvn dependency:analyze出现 [WARNING] Used undeclared dependencies found: B.jar 
+就说明project中的代码用到了B.jar的代码 这个时候你就可以把B.jar直接声明在pom中
+
+b.Unused declared dependencies found:
+这个是指我们在pom中声明了依赖，但是在实际代码中并没有用到这个包！也就是多余的包。 这个时候我们就可以把这个依赖从pom中剔除。
+但是这里我们需要注意：
+这里说的实际代码没有用到，指的是在main/java和test里没有用的，但是并不是意味着真的没有用到这些包，
+有可能配置文件中引用或者其他扩展点自动加载这些包，所以我们在删除依赖的时候一定要小心，做好备份，因为这类引用maven是分析不出来的。
+
+4.mvn dependency:list 
+5.mvn dependency:tree
+mvn dependency:tree | grep hadoop 显示hadoop包的依赖关系
+注意此时只有hadoop关键字的依赖关系,如果父jar没有该关键字结果是不知道该包属于谁的。所以最好还是使用tree,然后在所有的输出结果中,查找对应的关键字,找到从根阶段的依赖关系。
+即mvn dependency:tree 然后手动搜索hadoop。
+注意:因为tree输出的有递进逻辑层次关系,所有grep -B5 这种方式输出的结果也不可以,目前看只能手动查找。
+

@@ -1,0 +1,2 @@
+ SELECT
+        /*+ BROADCAST(t2),BROADCAST(t3),BROADCAST(t4) */

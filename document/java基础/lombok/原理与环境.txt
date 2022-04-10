@@ -1,0 +1,21 @@
+
+一、原理
+Annotation 正常的是运行期通过反射方式追加的代码，使得运行时代码效率降低。
+而lombok使用编译器追加代码的方式，这样避免反射带来的效率低的问题。
+
+缺点:
+编译器追加的各种set/get、toString方法，因此jar包正常运行没有问题，但在项目里面使用get属性时候是报错的。因此需要IDE需要安装插件，使idea可以正常用起来。
+
+在IDE工具这一块，绝大多数java包都工作在运行时，而Lombok是工作在编译时，其在编译时修改了语法树，相当于在编译时修改了代码。
+因此从直观上看，源代码甚至是语法有问题的，导致即使导入了相关包，一般的IDE无法识别Lombok的语法，所以才需要引入Lombok的插件。
+
+二、环境
+1.maven
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <version>1.16.8</version>
+</dependency>
+ 
+2.IntelliJ
+搜索插件  Lombok 安装即可

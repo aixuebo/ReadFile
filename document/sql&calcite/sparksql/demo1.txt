@@ -1,0 +1,58 @@
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.dsl.plans._
+import org.apache.spark.sql.catalyst.optimizer.SimpleTestOptimizer
+//import org.apache.spark.sql.catalyst.dsl.plans.{table => Table}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.catalyst.rules._
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.dsl.plans._
+//import org.apache.spark.sql.catalyst.dsl.plans.{table=>Table}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.catalyst.rules._
+
+object Te {
+
+  def int(s: Symbol): AttributeReference = AttributeReference(s.name, IntegerType, nullable = true)()
+  def str(s: Symbol): AttributeReference = AttributeReference(s.name, StringType, nullable = true)()
+
+  def main(args: Array[String]): Unit = {
+    println("---")
+    val sampleRelation = LocalRelation(int('a), str('b))
+    println(sampleRelation)
+
+    val logicalPlan = sampleRelation.
+      select('a, 'b, Literal(3) as 'c).
+      where(GreaterThan('a, Literal(3)))
+    println(logicalPlan)
+
+    val analyzedPlan = logicalPlan.analyze
+    println(s"Is plan analyzed correctly = ${analyzedPlan.resolved}")
+    println(analyzedPlan)
+
+    val optimizedPlan = SimpleTestOptimizer.execute(analyzedPlan)
+    println(optimizedPlan)
+  }
+}
+
+输出:
+---
+LocalRelation [a#0,b#1]
+
+'Filter ('a > 3)
++- 'Project ['a,'b,3 AS c#2]
+   +- LocalRelation [a#0,b#1]
+
+Is plan analyzed correctly = true
+Filter (a#0 > 3)
++- Project [a#0,b#1,3 AS c#2]
+   +- LocalRelation [a#0,b#1]
+
+Project [a#0,b#1,3 AS c#2]
++- Filter (a#0 > 3)
+   +- LocalRelation [a#0,b#1]

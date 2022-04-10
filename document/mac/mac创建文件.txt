@@ -1,3 +1,9 @@
 一、mac上只能创建文件夹，不能创建文件
 1.使用touch命令肯定可以创建，但是太麻烦
 2.使用记事本先记录文件，然后将文字选中，然后拖拽到文件夹下，就形成看一个文件，修改文件名即可
+
+二、设置/查看文件编码
+vim /Users/maming/Downloads/20200422tag2.csv
+:set fileencoding=utf-8   设置utf编码  
+:set fileencoding 查看编码
+设置完成后，在该文件中生成文件内容即可

@@ -1,0 +1,31 @@
+
+一、连续登录3天。
+uid、dt、同一个uid登录dt排序序号rn、date_sub(dt-rn) rn2
+如果用户连续登录,则rn2是相同的。因此只要找到rn2数量>=3的用户即可。
+
+
+二、连续命中 --- 问题升级,连续三天,知道周期是1天,可以使用date_sub找相同天,但连续次数就没有函数做减法了。
+
+uid、点击顺序(连续的1~无穷计数)rn、是否命中hit
+比如:
+u01,1,1
+u01,2,0
+u01,3,1
+
+### uid、连续出现多少次
+select uid,tn,count(*) ###tn的值不重要
+from 
+(
+  select uid,rn,hit,
+  (rn - rn2) as tn  ### 连续命中,说明tn的值要相同
+  from 
+  (
+    ### 命中的数据
+    select uid,rn,hit,
+    row_number() over(partition by name order by rn) rn2 ### 命中的顺序连续排序
+    from table 
+    where hit = 1
+  ) a
+)
+group by uid,tn
+having count(*) >= 3

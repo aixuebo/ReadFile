@@ -1,0 +1,12 @@
+
+一、循环list
+for record in list([0.4,0.6,0.9,0.7]):
+...     print record
+
+打印:
+0.4
+0.6
+0.9
+0.7
+
+即record不是下标,而是具体的值

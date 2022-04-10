@@ -1,0 +1,28 @@
+一、比如获取截至到某一天的所有投资金额
+select '{{create_time}}',
+SUM(case when to_date(investTime)<='{{create_time}}' then principal else 0 end )
+from xxx
+
+但是要是跑历史数据,则每一天都是动态的,因此要管理日期表进行处理
+1.先查询每一天的投资金额
+2.获取历史的每一天日期数据,即一个日期一条数据
+3.做full join,因此一天会有多条数据
+注意:因为full join很浪费性能,因此适当的缩小范围,比如xxx表可以跑多次,比如先从2015-01-01---2015-04-01一个季度一个季度的跑。
+因此日期表也可以进一步过滤,让其在2015-01-01---2015-04-01范围内,这样组合的数据就少很多了。、
+
+select d.history_date,
+SUM(case when a.investTime <=d.history_date then principal else 0 end )
+from
+(
+select to_date(investTime) investTime,principal
+from xxxx
+)
+a full join
+(
+select history_date
+from history_union_rate //日期表
+where history_date >='2017-10-18'
+) d
+group by d.history_date
+
+二、
