@@ -1,0 +1,200 @@
+Flink 应用场景 CEP、join、redis存储方案
+一、join流数据的关联在语义更加复杂些。由于流的无限性，大多数使用场景下，我们需要引入“窗口”来对关联的流数据进行时间同步，
+即"只对两个流中多存在的数据"处于指定时间窗口内的数据进行关联操作。
+1.当窗口时间很长，窗口内的数据量很大（需要将部分数据存入磁盘），而关联的条件又比较宽泛（比如关联条件不是等于而是大于）时，那么流之间的关联计算将非常慢
+2.demo,社交网络两个流组join,指定每隔 1 秒钟，对 10 秒钟窗口内的数据进行关联计算。
+DataStream<JSONObject> joinStream = socialWebStream.join(socialWebStream2)
+    .where(x1 -> x1.getString("user"))
+    .equalTo(x2 -> x2.getString("user"))
+    .window(TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(1)))
+    .apply((x1, x2) -> {
+        JSONObject res = new JSONObject();
+        res.putAll(x1);
+        res.putAll(x2);
+        return res;
+    });
+
+二、时间维度聚合计算：如何在长时间窗口上实时计算聚合值
+实时计算时间维度聚合值的难点是什么？
+1.计数（count）、求和（sum）、均值（avg）、方差（variance）、最小（min）、最大（max）等,其实不需要保存全部数据，而只需要保存几个统计值即可。
+比如“过去一周在相同设备上交易次数”“过去一天同一用户的交易总金额”“过去一周同一用户在同一 IP C 段的申请贷款次数”等。
+不需要像下面的sql一样每次都扫描全表查询，而是保留每次数据的汇总值状态，到第三方存储redis或者rackdb总即可。
+# 过去一周在相同设备上交易次数
+SELECT COUNT(*) FROM stream
+WHERE event_type = "transaction" 
+AND timestamp >= 1530547200000 and timestamp < 1531152000000 
+GROUP BY device_id;
+# 过去一天同一用户的总交易金额
+SELECT SUM(amount) FROM stream
+WHERE event_type = "transaction"
+AND timestamp >= 1531065600000 and timestamp < 1531152000000
+GROUP BY user_id;
+# 过去一周同一用户在同一IP C段申请贷款次数
+SELECT COUNT(*) FROM stream 
+WHERE event_type = "loan_application"
+AND timestamp >= 1530547200000 and timestamp < 1531152000000
+GROUP BY ip_seg24;
+2.难点在count distinct去重复场景，用rockdb利用磁盘做过滤重复。
+
+3.实现方案
+定义key-value存储中的key格式如下: 设备1.窗口1.count寄存器。---某天,该设备的交易次数。
+虽然我们窗口是过去一周，但由于具有累加效果，所以redis的窗口可以设置为以天为单位。
+需要该特种结果时，只需要服务端获取redis最近7天的数据求和即可。
+$device_id.$window_unit.$window_index
+其中，“$device_id”表示设备 id，“$window_unit”表示时间窗口单元，“$window_index”表示时间窗口索引。
+比如
+存储/更新
+$device_id = d000001
+$window_unit = 86400000  # 时间窗口单元为1天，即86400000毫秒
+$window_index = 1532496076032 / $window_unit = 17737    # 用当前时间戳除以时间窗口单元，得到时间窗口索引
+$key = $event_type.$device_id.$window_unit.$window_index
+redis.incr($key)
+
+查询
+$window_unit = 86400000  # 时间窗口单元为1天，即86400000毫秒
+$window_index = 1532496076032 / $window_unit = 17737    # 用时间戳除以时间窗口单元，得到当前时间窗口索引
+sum = 0
+for $i in range(0, 7):
+    $window_index = $window_index - $i
+    $key = $event_type.$device_id.$window_unit.$window_index
+    sum += redis.get($key)
+return sum
+
+4.统计值方案的不足
+a.没办法统计count distinct这种明细，除非将其转换成bitmap类型，但需要引擎支持该数据类型。
+b.存储空间可能需要很大。
+乍一看可能存储一个统计值,需要8个字节就够了，但组成key的变量的枚举值可能会很大，决定了存储最后的消耗。
+比如统计“用户每天的登入次数”，那全中国有十四亿人口！再比如需要统计“每个 IP 访问网站的次数”，那全球有四十多亿IP。
+比如统计“过去一周同一用户在同一IP C段申请贷款次数”，这种情况如果严格按照理论值计算，需要采用笛卡尔积，那将是天文数字了。
+我们要将其存储到redis等外部存储中,并且设置过期时间（TTL），将过期的状态清理掉，一方面为新的状态腾出空间，另一方面也避免了占据空间的无限增长。
+
+
+三、事件序列分析（CEP）-- Complex Event Processing 复杂事件处理
+检测并筛选出符合特定模式的事件序列的过程，我们就称之为“事件序列分析”。
+1.数据流中,数据和数据之间也有着联系。按照先后顺序,类似找到满足正则表达式的序列。
+比如从“点击”到“下载”，再到“安装”和“注册”，这就完成了一次将广告转化为用户的过程
+在网络欺诈识别场景中，如果用户在新建账号后，立马发生大量交易行为。那么这种“新建账号”到“10 分钟内 5 次交易”的行为，就是非常可疑的了。
+
+2.在 Flink CEP 中，我们将事件之间各种各样的关系，抽象为“模式（Pattern）
+定义好模式链路，将模式链路应用在数据流上，如果检测数据流匹配到模式,则会触发一个”复杂事件“，包含了所有参与这次“模式”匹配的事件。
+比如:在 10 分钟之内点击了3次同类商品”就是“复合事件”的“模式”
+
+3.模式api
+begin(#name) 它用于定义一个 CEP 模式的开始
+a.Pattern<Event, ?> startPattern = Pattern.<Event>begin("start");
+创建了一个名字为 start 的模式,此时创建的模式只有个名字，由于还没有给它设置任何匹配条件，所以它能够匹配任意事件。
+b.next(#name) 它用于指定接下来的事件必须匹配的模式
+Pattern<Event, ?> nextPattern = startPattern.next("next");
+这样，当使用 nextPattern 模式进行匹配时，就必须要先匹配上名为 start 的模式，然后再匹配上名为 next 的模式，这样才能完整匹配上 nextPattern 模式。
+￼
+参见图2
+
+c.followedBy(#name) 它用于指定跟随其后的事件匹配模式，功能与 next 类似，但是中间可以有其他事件存在
+Pattern<Event, ?> followedByPattern = start.followedBy("followed");
+￼参见图3
+
+d.within(#time) 用于指定模式匹配的事件必须是在特定的时间内完成，并且过期不候。
+pattern.within(Time.seconds(10));
+如果你想指定必须是在 10 秒钟之内，完成一个模式的匹配，防止一直占用内存,等待匹配成功。
+e.where(condition) 要想匹配该模式，就必须满足 condition 指定的条件
+pattern.where(new SimpleCondition<JSONObject>() {
+    @Override
+    public boolean filter(JSONObject value) throws Exception {
+        return value.getBoolean("门当户对");
+    }
+});
+f.times()
+oneOrMore 用于指定的条件必须至少匹配 1 次。
+timesOrMore(#times) 用于指定的条件必须至少匹配 #times 次。
+times(#ofTimes) 则用于指定的条件必须精确匹配 #times 次。
+clickPattern.times(3).within(Time.seconds(600)); ### 如果有个推荐系统的推荐模式是“在 10 分钟之内点击了 3 次同类商品”
+
+g.until(condition) 用于指定一个循环模式的结束条件，并且只能用于 oneOrMore 和 timesOrMore 这两个循环模式之后
+lovePattern.oneOrMore().until(new SimpleCondition<JSONObject>() {
+    @Override
+    public boolean filter(JSONObject value) throws Exception {
+        return value.getBoolean("海枯石烂") && value.getBoolean("天荒地老");
+    }
+})
+h.subtype(subClass) 用于指定当前模式匹配的事件类型
+比如，你如果只想匹配“苹果”，而不想匹配其他类型的水果
+pattern.subtype(Apple.class);
+
+
+4.实战例子 — 实用 Flink CEP 实现仓库环境温度监控
+当 15 秒内两次监控温度超过阈值时发出预警，当 30 秒内产生两次预警事件，且第二次预警温度比第一次预警温度高时，就发出严重告警。
+
+a.我们先定义“15 秒内两次监控温度超过阈值”的模式。具体如下：
+DataStream<JSONObject> temperatureStream = env
+        .addSource(new PeriodicSourceFunction())
+        .assignTimestampsAndWatermarks(new EventTimestampPeriodicWatermarks())
+        .setParallelism(1); ### 数据流
+
+### 模式
+Pattern<JSONObject, JSONObject> alarmPattern = Pattern.<JSONObject>begin("alarm")
+        .where(new SimpleCondition<JSONObject>() {
+            public boolean filter(JSONObject value) throws Exception {
+                return value.getDouble("temperature") > 100.0d;
+            }
+        })
+        .times(2)
+        .within(Time.seconds(15));
+15秒,满足where2次。
+b.将预警模式安装到温度事件流上。具体如下：
+DataStream<JSONObject> alarmStream = CEP.pattern(temperatureStream, alarmPattern) ### 模式应用在一个数据流上
+        .select(new PatternSelectFunction<JSONObject, JSONObject>() {
+            @Override
+            public JSONObject select(Map<String, List<JSONObject>> pattern) throws Exception {
+                return pattern.get("alarm").stream()
+                        .max(Comparator.comparingDouble(o -> o.getLongValue("temperature")))
+                        .orElseThrow(() -> new IllegalStateException("should contains 2 events, but none"));
+            }
+        }).setParallelism(1);
+在上面的代码中，我们将预警模式 alarmPattern 安装到温度事件流 temperatureStream 上。
+当温度事件流上有匹配到预警模式的事件时，就会发出一个预警事件，这是用 select 函数完成的。
+在 select 函数中，指定了发出的预警事件，是两个高温事件中，温度更高的那个事件。
+
+接下来，还需要定义严重告警模式。具体如下：
+
+Pattern<JSONObject, JSONObject> criticalPattern = Pattern.<JSONObject>begin("critical")
+        .times(2)
+        .within(Time.seconds(30));
+与预警模式的定义类似，在上面的代码中，我们定义了严重告警模式，即“在 30 秒内发生两次”。
+
+最后，我们再将告警模式安装在告警事件流上。具体如下：
+
+DataStream<JSONObject> criticalStream = CEP.pattern(alarmStream, criticalPattern)
+        .flatSelect(new PatternFlatSelectFunction<JSONObject, JSONObject>() {
+            @Override
+            public void flatSelect(Map<String, List<JSONObject>> pattern, Collector<JSONObject> out) throws Exception {
+                List<JSONObject> critical = pattern.get("critical");
+                JSONObject first = critical.get(0);
+                JSONObject second = critical.get(1);
+                if (first.getLongValue("temperature") <
+                        second.getLongValue("temperature")) {
+                    JSONObject jsonObject = new JSONObject();
+                    jsonObject.putAll(second);
+                    out.collect(jsonObject);
+                }
+            }
+        }).setParallelism(1);
+在上面的代码中，这次我们的告警模式不再是安装在温度事件流，而是安装在预警事件流上。当预警事件流中，有事件匹配上告警模式，
+也就是在 30 秒内发生两次预警，并且第二次预警温度比第一次预警温度高时，就触发告警。
+从而提醒仓管人员，仓库温度过高，可能是要发生火灾了，需要立即采取防火措施！
+
+5.QA
+问题:这种对于多个模式匹配，数据量又大，内存能撑得住吗？会不会因为内存溢出而爆掉？
+解答:不会哈。Flink CEP采用的是状态机来实现模式匹配的，这意味着它有三个好处。
+一是，状态机的数据（属于流信息状态）是存储在状态后端里的(RocksDB或文件系统中)。
+二是，采用状态机实现模式匹配，意味着只保存中间状态数据,而不保存原始数据,因此不会占用太多存储。
+三是，通过KeyedStream，Flink可以将流数据分布在多个不同的物理节点上进行处理。
+
+
+
+四、flink用于机器学习,检测异常值。
+1.希望线上模型参数可以实时在线训练和更新参数。
+传统离线模型参数值是不变化的，实时流参数会随着时间变化而变化。
+2.常见的例子就是，一家商店晚上的客流量，一般会比早上多，然后周末的客流量，也会比工作日的客流量多。
+如果我们用柏松分布，来对每个小时的客流量建模，那很明显这个柏松分布的期望，是随着时间在变化的。
+
+

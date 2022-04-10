@@ -1,0 +1,126 @@
+使用参见 CalciteMetaImpl
+
+
+一、如何将java集合元素转换成迭代器对象
+Linq4j.asEnumerable(list)
+
+
+二、EnumerableDefaults — 全部耗内存
+该对象是针对迭代器集合的一种快捷的操作方法
+1.aggregate
+聚合函数,内存中循环+计算。
+2.all和any，都是非常好性能，尤其any，虽然任意一个是true，都返回true,但由于没有及时退出,导致一直循环到结尾
+3.longCount = count,只是一个返回int,一个返回long
+<TSource> longlongCount(Enumerable<TSource> enumerable, Predicate1<TSource> predicate)
+计算集合中每一个元素是true的数量
+4.sum、avg、max、min
+5.case 每一个元素都强制转换
+6.boolean contains(Enumerable<TSource> enumerable, TSource element) 
+非常好内存,一个一个找
+7.Enumerable<TSource> distinct(Enumerable<TSource> enumerable)
+放到set集合里，过滤重复。
+Enumerable<TSource> distinct(Enumerable<TSource> enumerable, EqualityComparer<TSource> comparer)
+定义什么样的元素是相同的元素
+8.TSource elementAt(Enumerable<TSource> enumerable, int index) 
+获取某一个元素
+9.<TSource> Enumerable<TSource> except(Enumerable<TSource> source0, Enumerable<TSource> source1) 
+A.source0 添加到set中。
+B.source1循环每一个元素,从set中删除，剩余的就是结果，即source0中存在,但不在source1中的元素
+
+交集
+Enumerable<TSource> intersect(Enumerable<TSource> source0, Enumerable<TSource> source1)
+
+
+10.获取集合中第一个元素
+TSource first(Enumerable<TSource> enumerable, Predicate1<TSource> predicate)
+最后一个元素，需要遍历全部元素，很耗时
+TSource last(Enumerable<TSource> enumerable) 
+ 
+11.where
+<TSource> Enumerable<TSource> where(final Enumerable<TSource> source, final Predicate1<TSource> predicate)
+在数据源里迭代,找到符合Predicate1函数的对象，组成新的迭代器
+Enumerable<TSource> where(final Enumerable<TSource> source, final Predicate2<TSource, Integer> predicate)  二个参数的校验,第二个参数表示当前迭代了多少行原始数据。
+
+12.zip 将2个集合进行组合,如果2个集合size不同,则最终以size小的为准。返回值取决于参数3
+ <T0, T1, TResult> Enumerable<TResult> zip(final Enumerable<T0> first, final Enumerable<T1> second, final Function2<T0, T1, TResult> resultSelector)
+
+
+13.跳过predicate=true的数据，一直到false为止，才开始一行一行读取数据
+public SkipWhileEnumerator(Enumerator<TSource> enumerator, Predicate2<TSource, Integer> predicate)
+
+TakeWhileEnumerator(Enumerator<TSource> enumerator, Predicate2<TSource, Integer> predicate)
+拿到表达式=true的数据，其中第二个参数表示迭代了多少个元素
+
+15.<TSource, TResult> Enumerable<TResult> ofType(Enumerable<TSource> enumerable, Class<TResult> clazz) 
+所有元素转换成class。
+
+16.连接2个集合,成一个新的集合
+<TSource> Enumerable<TSource> concat(Enumerable<TSource> enumerable0, Enumerable<TSource> enumerable1)
+
+17.如果迭代器是空,则设置一个默认值作为迭代器的元素,默认是返回null为元素的迭代器
+Enumerable<TSource> defaultIfEmpty(Enumerable<TSource> enumerable, TSource value)
+
+18.LookupImpl — 可以用于order by 以及group by
+<TSource, TKey, TElement> LookupImpl<TKey, TElement> toLookup_(Map<TKey, List<TElement>> map, Enumerable<TSource> source, Function1<TSource, TKey> keySelector, Function1<TSource, TElement> elementSelector)
+TSource迭代器 —> 返回Map<K,List<V>> 
+注意:如果Map是treemap,则输出结果是orderby的结果。
+TSource迭代器转换成key —> keySelector
+TSource迭代器转换成value—> elementSelector,将value值存储到list中。
+map中添加key和List<value>
+
+
+<TSource, TKey, TElement> Enumerable<Grouping<TKey, TElement>> groupBy(Enumerable<TSource> enumerable, Function1<TSource, TKey> keySelector, EqualityComparer<TKey> comparer) 
+使用 Functions.identitySelector() 代替elementSelector，即元素不变化，不需要转换
+
+
+直接应用order by ,即map是treeMap即可
+<TSource, TKey> Enumerable<TSource> orderBy(Enumerable<TSource> source, Function1<TSource, TKey> keySelector, Comparator<TKey> comparator) 
+
+Group by
+<TSource, TKey, TElement> Enumerable<Grouping<TKey, TElement>> groupBy(Enumerable<TSource> enumerable, Function1<TSource, TKey> keySelector, Function1<TSource, TElement> elementSelector, EqualityComparer<TKey> comparer)
+
+
+<TSource, TKey, TResult> Enumerable<TResult> groupBy(Enumerable<TSource> enumerable, Function1<TSource, TKey> keySelector, final Function2<TKey, Enumerable<TSource>, TResult> resultSelector, EqualityComparer<TKey> comparer)
+
+Group by的结果，key,list<value>，进一步处理成TResult,返回TResult的迭代器对象。
+
+19.union
+<TSource> Enumerable<TSource> union(Enumerable<TSource> source0, Enumerable<TSource> source1)
+将2个迭代器,分别迭代后存储到set中,返回set的迭代器
+
+
+20.select
+循环每一个元素,然后进行函数转换,转换成TResult迭代器。相当于scala的map。第二个参数是多加了一个元素下标参数
+Enumerable<TResult> select(final Enumerable<TSource> source, final Function1<TSource, TResult> selector) 
+Enumerable<TResult> select(final Enumerable<TSource> source, final Function2<TSource, Integer, TResult> selector)
+
+相当于scala的flatMap,即函数可以把一个元素转换成多个元素,然后打平输出
+Enumerable<TResult> selectMany(final Enumerable<TSource> source, final Function1<TSource, Enumerable<TResult>> selector)
+Enumerable<TResult> selectMany(final Enumerable<TSource> source, final Function2<TSource, Integer, Enumerable<TResult>> selector)
+
+collectionSelector(元素)先转换成迭代器，然后resultSelector(迭代器+函数本身)转换成结果
+Enumerable<TResult> selectMany(final Enumerable<TSource> source, final Function1<TSource, Enumerable<TCollection>> collectionSelector, final Function2<TSource, TCollection, TResult> resultSelector)
+
+21.into 将迭代器存储到集合sink中
+<T, C extends Collection<? super T>> C into(Enumerable<T> source, C sink)
+
+22.toMap与toList
+toMap
+将keySelector(元素),转换成key
+将elementSelector(元素),转换成value,或者元素本身就是value
+存储到一个有序或者无序的map中
+Map<TKey, TSource> toMap(Enumerable<TSource> source, Function1<TSource, TKey> keySelector)
+Map<TKey, TSource> toMap(Enumerable<TSource> source, Function1<TSource, TKey> keySelector, EqualityComparer<TKey> comparer)
+Map<TKey, TElement> toMap(Enumerable<TSource> source, Function1<TSource, TKey> keySelector, Function1<TSource, TElement> elementSelector)
+Map<TKey, TElement> toMap(Enumerable<TSource> source, Function1<TSource, TKey> keySelector, Function1<TSource, TElement> elementSelector, EqualityComparer<TKey> comparer)
+
+toList将元素into到list中
+List<TSource> toList(Enumerable<TSource> source)
+
+Enumerable<TSource> reverse(Enumerable<TSource> source)  倒排输出,这个耗费性能，需要先将元素转换成list,然后存储在内存中,每次都从list的最后一个开始迭代元素
+
+三、LookupImpl
+ 针对Map<key,list<V>>形式的map操作
+1.可以迭代所有的key
+2.可以迭代所有的value
+3.可以对key，value转换成一个新的对象

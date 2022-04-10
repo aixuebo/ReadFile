@@ -1,0 +1,5 @@
+一、CalciteCatalogReader 读取schema信息,因此输入肯定是schema
+构造函数需要rootSchema、JavaTypeFactory、defaultSchema
+
+1.参数表示 aa.bb 传入表名aa.bb,配合scheme读取table内容,返回RelOptTableImpl.create(this, table.getRowType(typeFactory),schema.add(name2, table), null);
+即 catalogReader、table的表关系、

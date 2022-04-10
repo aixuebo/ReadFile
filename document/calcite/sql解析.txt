@@ -1,0 +1,265 @@
+sql解析
+定义token
+一、入口解析sql
+SqlNode SqlStmtEof()  stmt = SqlStmt() <EOF>
+SqlNode SqlStmt() :
+  (
+	stmt = SqlSetOption()
+	|
+	stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+	|
+	stmt = SqlExplain()
+	|
+	stmt = SqlInsert()
+	|
+	stmt = SqlDelete()
+	|
+	stmt = SqlUpdate()
+	|
+	stmt = SqlMerge()
+
+    )
+
+
+SqlSelect  一个查询语句
+语法 select DISTINCT/all/空  SelectList from FromClause  WhereOpt GroupByOpt HavingOpt WindowOpt
+输出 SqlSelect(pos,new SqlNodeList(keywords, pos),new SqlNodeList(selectList, selectListPos.plusAll(selectList)), fromClause, where, groupBy, having, windowDecls, null, null, null);
+
+
+以下分别描述sql语法如何设计
+二、
+三、Extend
+语法 extend(name 类型 not null name 类型 not null  name 类型 not null )
+输出:SqlNodeList(存储SimpleIdentifier+SqlDataTypeSpec)
+
+
+其中 
+1.SqlDataTypeSpec 表示类型,
+语法 typename [(precision,scale)] [CHARACTER SET Identifier]
+输出:new SqlDataTypeSpec(SqlIdentifier collectionTypeName,SqlIdentifier typename,int precision, int scale, Identifier charSetName)
+
+四、select 输出 List<SqlNode>
+语法
+每一个SqlNode —> Expression|SqlIdentifier(“*”)  [as] SimpleIdentifier 输出 SqlStdOperatorTable.AS.createCall(pos, Expression, SimpleIdentifier)
+
+五、from
+语法 
+1.TableRef 输出 TableRef
+2.TableRef,TableRef 输出 new SqlJoin(pos,e,SqlLiteral.createBoolean(false, pos),JoinType.COMMA,e2,JoinConditionType.NONEnull)
+3.TableRef Natural JoinType TableRef on condition 输出  new SqlJoin(joinType.getParserPosition(),e,natural,joinType,e2,JoinConditionType.ON.symbol(onPos),condition);
+4.TableRef Natural JoinType TableRef  USING  (xx,xx,xx) —>SqlNodeList<SimpleIdentifier>  输出 new SqlJoin(joinType.getParserPosition(),e,natural, joinType,e2,JoinConditionType.USING.symbol(usingPos),new SqlNodeList(list.getList(), usingPos));
+5.TableRef Natural JoinType TableRef  输出 new SqlJoin(joinType.getParserPosition(),e,natural,joinType,e2,JoinConditionType.NONE,null);
+
+
+其中
+Natural SqlLiteral--> boolean
+SqlLiteral—>JoinType
+condition —> Expression
+
+
+TableRef语法 —> SqlNode
+1.Identifier 输出 SqlNode ，比如xx.xx
+2. (SqlNode) 子查询,输出 SqlNode
+3.LATERAL (SqlNode) 子查询,输出SqlStdOperatorTable.LATERAL.createCall(getPos(), 子查询);
+4.UNNEST SqlNodeList<SqlNode> 一组子查询,输出 SqlStdOperatorTable.UNNEST.createCall(pos.plus(getPos()), args.toArray());
+5. table (TableFunctionCall)
+[as Identifier] 输出 SqlStdOperatorTable.AS.createCall(pos, tableRef, new SqlIdentifier(alias, pos));
+[as Identifie(xx,xx,xx)] —>好像用于LATERAL,为每一个结果集定义别名 输出SqlStdOperatorTable.AS.createCall(pos, list<TableRef,别名Identifier,参数list>);
+[TABLESAMPLE SUBSTITUTE (抽样字符串) ] 输出 SqlStdOperatorTable.TABLESAMPLE.createCall(pos, tableRef, 抽样字符串);
+[TABLESAMPLE  BERNOULLI/SYSTEM (抽样rate100以内的数字) ]  输出 tableSampleSpec=SqlSampleSpec.createTableSample(BERNOULLI/SYSTEM, rate)
+[TABLESAMPLE  BERNOULLI/SYSTEM (抽样rate100以内的数字) [REPEATABLE (重复次数数字)]  输出 tableSampleSpec=SqlSampleSpec.createTableSample(BERNOULLI/SYSTEM , rate, 重复次数数字)
+SqlStdOperatorTable.TABLESAMPLE.createCall(Pos,TableRef, SqlLiteral.createSample(tableSampleSpec, pos));
+
+
+六、group by
+返回值SqlNodeList<SqlNode>
+语法
+group by Expression
+group by ()
+group by  GROUPING SETS(GroupingElementList—>list) 返回值 SqlStdOperatorTable.GROUPING_SETS.createCall(pos, list);
+group by  ROLLUP(List<Expression> —>list) 返回值 SqlStdOperatorTable.ROLLUP.createCall(list);
+group by  CUBE(List<Expression> —>list) 返回值 SqlStdOperatorTable.CUBE.createCall(list);
+
+七、having by
+返回值 SqlNode 
+语法 having Expression
+
+八、order by
+返回 SqlNodeList[Expression]，其中Expression含义如下形式
+SqlStdOperatorTable.DESC.createCall(pos, e)
+SqlStdOperatorTable.NULLS_FIRST.createCall(pos, e)
+SqlStdOperatorTable.NULLS_LAST.createCall(pos, e)
+语法格式 order by Expression [asc/desc] [NULLS FIRST/LAST],
+
+九、SqlSetOption  输出 SqlSetOption
+输出:new SqlSetOption(pos.plus(getPos()), scope, name, val)
+1.ALTER SYSTEM/SESSION set Identifier = Literal ### 代表数字、带有引号的字符串、时间格式
+2.ALTER SYSTEM/SESSION set Identifier = SimpleIdentifier 
+3.ALTER SYSTEM/SESSION set Identifier = on/off SqlIdentifier(token.image.toUpperCase(), getPos());
+
+十、SqlExplain
+语法 EXPLAIN PLAN [ExplainDetailLevel] ExplainDepth [as xml] for OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) / SqlInsert() /  SqlDelete() / SqlUpdate() / SqlMerge()
+输出 SqlNode —> SqlExplain(pos,stmt, detailLevel,depth,boolean是否asxml,nDynamicParams
+其中
+ExplainDepth语法 —> With TYPE/IMPLEMENTATION##PHYSICAL/IMPLEMENTATION##LOGICAL/##PHYSICAL
+
+
+十一、SqlNode SqlDelete() : 返回 new SqlDelete(pos, table, condition, null, alias);
+    SqlNode table; //SqlIdentifier(表名字集合,null,整体token信息、每一个name的token信息) ### 比如 解析Identifier  或者 Identifier.xx.xx.*  或者 Identifier.xx.xx
+    SqlNodeList extendList = null;
+    SqlIdentifier alias = null;//as new SqlIdentifier(p,pos)
+    SqlNode condition;//Expression(ExprContext.ACCEPT_SUBQUERY) 或者 null（没有出现where关键词）
+    SqlParserPos pos; //delete的token信息
+
+十二、SqlUpdate
+语法 UPDATE CompoundIdentifier as SimpleIdentifier set SimpleIdentifier = Expression,SimpleIdentifier = Expression  conditionExpression
+输出 SqlUpdate(pos, 表名, 列集合, 表达式集合,条件, null, 别名)
+
+十三、SqlMerge  当匹配上条件的去更新,当不匹配条件的去插入
+语法 MERGE INTO CompoundIdentifier as SimpleIdentifier USING TableRef on conditionExpression
+ [WHEN MATCHED THEN UPDATE SET SimpleIdentifier = Expression,SimpleIdentifier = Expression] 
+ [WHEN NOT MATCHED THEN INSERT (xx,xx,xx) values RowConstructor]
+
+
+输出 
+insertCall = SqlInsert(insertPos, new SqlNodeList(keywords, insertPos),table, SqlStdOperatorTable.VALUES.createCall(pos,rowConstructor), 插入的列);
+updateCall = SqlUpdate(pos, 表名, 更新条件的列, 更新条件的表达式, null,null, 别名);
+SqlMerge(mergePos, table, condition, sourceTableRef,updateCall, insertCall, null, alias); 
+
+十四、SqlInsert()
+输入: INSERT [UPSERT] into CompoundIdentifier [(xx,xx,xx)] OrderedQueryOrExpr
+输出:SqlInsert(pos, new SqlNodeList(keywords, pos), table, 表达式,插入的列集合)
+
+十五、LeafQuery 叶子查询
+1.TableConstructor
+语法 
+a.values (ROW (xx,xx,xx,子查询)),(ROW (xx,xx,xx,子查询)) 输出 SqlStdOperatorTable.ROW.createCall(valueList.toArray())
+b.values [ROW] (xx,xx,xx,子查询) 输出 SqlStdOperatorTable.ROW.createCall(valueList.toArray())
+c.values SqlNodeList[Expression]  输出 SqlStdOperatorTable.ROW.createCall(valueList.toArray())
+返回值 SqlNodeList[SqlNode]  输出 SqlStdOperatorTable.VALUES.createCall(pos, rowConstructorList.toArray())
+
+2.直接TABLE xx.xx引用表名
+
+3 select from where group by  having by window
+——
+十六、查询表达式 OrderedQueryOrExpr —> 查询整体解析入口
+语法 
+1.QueryOrExpr 返回 SqlNode
+2.[OrderBy(e.isA(SqlKind.QUERY))] 
+3.[LIMIT NumericLiteral()—>count ]  [ limit ALL] 
+4.[OFFSET NumericLiteral—>start] [ROW|ROWS] 
+5.[FETCH FIRST/NEXR NumericLiteral—>count ROW|ROWS ONLY ]
+返回 new SqlOrderBy(pos, e, orderBy, start, count)
+
+
+//测试 OrderedQueryOrExpr
+sql = "  values(1,2,3),(1,2,3) ";
+sql = "table db.userinfo order by a,b limit 10 offset 2";
+SqlNode sqlNode = parser.parseQuery(sql);
+System.out.println(sqlNode.toString());
+
+十七、QueryOrExpr 专注查询表达式
+SqlNode—>LeafQueryOrExpr union all等二元操作  LeafQueryOrExpr
+
+其中
+1.LeafQueryOrExpr语法 — 最终输出一个整体
+a.LeafQuery语法
+select from where group by  having by window
+values(1,2,3),(1,2,3)
+table db.userinfo
+b.Expression语法,描述一行信息
+SqlNode = SqlParserUtil.toTree(Expression2)
+
+2.Expression2 — 多个单一节点组装
+list[Expression3]
+
+3.Expression3 输出 SqlNode  — 解析单一的节点
+AtomicRowExpression
+ROW (xx,xx,xx,xx)  输出 SqlStdOperatorTable.ROW.createCall(list) 表示一行信息
++ SqlStdOperatorTable.UNARY_PLUS  Expression3  输出 op.createCall(callPos, e)
+- SqlStdOperatorTable.UNARY_MINUS  Expression3 输出 op.createCall(callPos, e)
+NOT { return SqlStdOperatorTable.NOT  Expression3 输出 op.createCall(callPos, e)
+EXISTS { return SqlStdOperatorTable.EXISTS  Expression3 输出 op.createCall(callPos, e)
+[ROW]  匹配子查询(OrderedQueryOrExpr)
+
+
+
+——
+函数
+/**
+ * 解析接下来的一个表达式
+ */
+SqlNode AtomicRowExpression() :
+    e = Literal() { return e; } ## SqlLiteral  数字(正数、小数、科学计数法、负数)、boolean、时间、``的字符串
+    |
+    e = DynamicParam() { return e; } ##SqlDynamicParam 动态参数?
+    |
+    e = BuiltinFunctionCall() { return e; } ### 解析内部函数  SqlFunction
+    |
+    e = JdbcFunctionCall() { return e; } //jdbc语法忽略
+    |
+    e = MultisetConstructor() { return e; }  ### SqlStdOperatorTable.MULTISET_QUERY  —> MULTISET(查询语句)  —> 比如 MULTISET(SELECT * FROM T)
+									  SqlStdOperatorTable.MULTISET_VALUE  —>  比如 MULTISET[e0, e1, ..., eN]
+    |
+    e = ArrayConstructor() { return e; } ### SqlStdOperatorTable.ARRAY_QUERY —> ARRAY (查询语句)  —> 比如 ARRAY (SELECT * FROM T)
+								    SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR  —> 比如 ARRAY[e0, e1, ..., eN]
+    |
+    e = MapConstructor() { return e; }  ### SqlStdOperatorTable.MAP_QUERY —> Map (查询sql)  —> 比如:MAP (SELECT empno, deptno FROM emp)
+                                                              ### SqlStdOperatorTable.MAP_VALUE_CONSTRUCTOR —> 比如:MAP[k0, v0, ..., kN, vN]
+    |
+    // NOTE jvs 18-Jan-2005:  use syntactic lookahead to discriminate
+    // compound identifiers from function calls in which the function
+    // name is a compound identifier
+    LOOKAHEAD( [<SPECIFIC>] FunctionName() <LPAREN>)
+    e = NamedFunctionCall() { return e; }
+    |
+    e = ContextVariable() { return e; } //返回系统定义的特殊变量名称 SqlIdentifier
+    |
+    e = CompoundIdentifier() { return e; } ///返回SqlIdentifier,由xxx.xxx.xxx组成的节点
+    |
+    e = NewSpecification() { return e; } //用户自定义一个UDT函数
+SqlStdOperatorTable.NEW  createCall(xxx.xx.xx,poi,SqlFunctionCategory.USER_DEFINED_CONSTRUCTOR,null,参数集合)  比如New xxx.xxx() 构建无参数函数 或者 New xxx.xxx(表达式,表达式) 构造有参数函数
+    |
+    e = CaseExpression() { return e; } ## case when then else  Case [表达式1]  when 表达式(可以是多个表达式,但之间的关系如何表达不确定) then 表达式 else 表达式 end
+							SqlCase.createSwitched(pos, caseIdentifier,new SqlNodeList(whenList, whenPos),new SqlNodeList(thenList, thenPos),elseClause);
+    e = SequenceExpression() { return e; } ### 支持select NEXT VALUE FOR 语法,暂时可忽略，创建SqlStdOperatorTable.NEXT_VALUE 或者																	SqlStdOperatorTable.CURRENT_VALUE的类型SqlCall
+}
+
+
+NamedFunctionCall:
+支持内置函数、自定义函数、窗口函数
+格式:
+[SPECIFIC]  SqlIdentifier函数名(*) [OVER SimpleIdentifier/WindowSpecification()]
+[SPECIFIC]  SqlIdentifier函数名()  [OVER SimpleIdentifier/WindowSpecification()]
+[SPECIFIC]  SqlIdentifier函数名(List<Expression>) [OVER SimpleIdentifier/WindowSpecification()]
+正常函数返回值  SqlCall function = createCall(函数名字, pos, 函数类型, distinct/all,函数参数); 
+窗口函数返回值:其中function就是正常函数返回的SqlCall
+SqlStdOperatorTable.OVER.createCall(overPos, new SqlNode[] {function, id});
+SqlStdOperatorTable.OVER.createCall( overPos, new SqlNode[] { function, e })
+
+窗口函数WindowSpecification
+语法格式:
+Over
+(
+[SimpleIdentifier]
+partition by ExpressionList Order By SqlNodeList[Expression] 
+[ROWS/RANGE BETWEEN WindowRange and  WindowRange] / [ROWS/RANGE WindowRange ]
+[ALLOW / DISALLOW PARTIAL ]
+)
+返回值:
+SqlWindow.create(
+            null, SimpleIdentifier, partitionList, orderList,
+            ROWS/RANGE, lowerBound, upperBound, allowPartial,
+            Pos);
+比如：
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) as rn
+
+WindowRange格式:
+CURRENT ROW  返回SqlWindow.createCurrentRow(pos.plus(endPos));
+UNBOUNDED PRECEDING 返回SqlWindow.createUnboundedPreceding(pos.plus(endPos));
+UNBOUNDED FOLLOWING 返回SqlWindow.createUnboundedFollowing(pos.plus(endPos));
+Expression PRECEDING 返回 SqlWindow.createPreceding(e, getPos());
+Expression FOLLOWING 返回 SqlWindow.createFollowing(e, getPos());
+
+
+——

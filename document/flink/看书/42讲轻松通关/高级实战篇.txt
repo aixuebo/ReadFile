@@ -1,0 +1,126 @@
+《42讲轻松通关 Flink--高级实战篇》 
+一、生产者
+原理:FlinkKafkaProducer，首先继承了 TwoPhaseCommitSinkFunction，这个类是 Flink 和 Kafka 结合实现精确一次处理语义的关键。
+FlinkProducer 还封装了 beginTransaction、preCommit、commit、abort 等方法，这几个方法便是实现精确一次处理语义的关键。
+public class KafkaProducer {
+    public static void main(String[] args) throws Exception{
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        env.enableCheckpointing(5000);
+        DataStreamSource<String> text = env.addSource(new MyNoParalleSource()).setParallelism(1);
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", "127.0.0.1:9092");
+        FlinkKafkaProducer<String> producer = new FlinkKafkaProducer<String>(
+                "127.0.0.1:9092", //broker 列表
+                "test",           //topic
+                new SimpleStringSchema()); // 消息序列化
+        
+        producer.setWriteTimestampToKafka(true);//写入 Kafka 时附加记录的事件时间戳
+        text.addSink(producer);
+        env.execute();
+    }
+}
+二、消费单个 Topic
+public static void main(String[] args) throws Exception {
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.enableCheckpointing(5000);
+    Properties properties = new Properties();
+    properties.setProperty("bootstrap.servers", "127.0.0.1:9092");
+    properties.setProperty("group.id", "group_test");//设置消费组
+    FlinkKafkaConsumer<String> consumer = new FlinkKafkaConsumer<>("test", new SimpleStringSchema(), properties);
+    //设置从最早的ffset消费
+    consumer.setStartFromEarliest();
+    //还可以手动指定相应的 topic, partition，offset,然后从指定好的位置开始消费
+    //HashMap<KafkaTopicPartition, Long> map = new HashMap<>();
+    //map.put(new KafkaTopicPartition("test", 1), 10240L);
+    //假如partition有多个，可以指定每个partition的消费位置
+    //map.put(new KafkaTopicPartition("test", 2), 10560L);
+    //然后各个partition从指定位置消费
+    //consumer.setStartFromSpecificOffsets(map);
+    env.addSource(consumer).flatMap(new FlatMapFunction<String, String>() {
+        @Override
+        public void flatMap(String value, Collector<String> out) throws Exception {
+            System.out.println(value);
+        }
+    });
+    env.execute("start consumer...");
+}
+
+三、消费多个 Topic
+我们的业务中会有这样的情况，同样的数据根据类型不同发送到了不同的 Topic 中，
+比如线上的订单数据根据来源不同分别发往移动端和 PC 端两个 Topic 中。
+但是我们不想把同样的代码复制一份，需重新指定一个 Topic 进行消费，这时候应该怎么办呢？
+ArrayList<String> topics = new ArrayList<>();
+topics.add("test_A");
+topics.add("test_B");
+FlinkKafkaConsumer<Tuple2<String, String>> consumer = new FlinkKafkaConsumer<>(topics, new SimpleStringSchema(), properties);
+我们可以传入一个 list 来解决消费多个 Topic 的问题.
+如果用户需要区分两个 Topic 中的数据，那么需要在发往 Kafka 中数据新增一个字段，用来区分来源。
+
+四、消息序列化
+1.SimpleStringSchema 返回的结果中只有原数据，没有 topic、parition 等信息
+2.自定义schema消息,除了原数据还包括topic，offset，partition等信息
+public class CustomDeSerializationSchema implements KafkaDeserializationSchema<ConsumerRecord<String, String>> {
+    //是否表示流的最后一条元素,设置为false，表示数据会源源不断地到来
+    @Override
+    public boolean isEndOfStream(ConsumerRecord<String, String> nextElement) {
+        return false;
+    }
+    //这里返回一个ConsumerRecord<String,String>类型的数据，除了原数据还包括topic，offset，partition等信息
+    @Override
+    public ConsumerRecord<String, String> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+        return new ConsumerRecord<String, String>(
+                record.topic(),
+                record.partition(),
+                record.offset(),
+                new String(record.key()),
+                new String(record.value())
+        );
+    }
+    //指定数据的输入类型
+    @Override
+    public TypeInformation<ConsumerRecord<String, String>> getProducedType() {
+        return TypeInformation.of(new TypeHint<ConsumerRecord<String, String>>(){});
+    }
+}
+
+五、Parition 和 Topic 动态发现
+随着业务的扩展，我们需要对 Kafka 的分区进行扩展，为了防止新增的分区没有被及时发现导致数据丢失，消费者必须要感知 Partition 的动态变化，
+
+1.动态分区
+每隔 10ms 会动态获取 Topic 的元数据，对于新增的 Partition 会自动从最早的位点开始消费数据。
+properties.setProperty(FlinkKafkaConsumerBase.KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, "10");
+2.动态topic
+指定 Topic 的正则表达式
+FlinkKafkaConsumer<String> consumer = new FlinkKafkaConsumer<>(Pattern.compile("^test_([A-Za-z0-9]*)$"), new SimpleStringSchema(), properties);
+
+六、Flink 读取 Kafka 的消息有五种消费方式：
+1.指定 Topic 和 Partition
+Map<KafkaTopicPartition, Long> offsets = new HashedMap();
+offsets.put(new KafkaTopicPartition("test", 0), 10000L);
+offsets.put(new KafkaTopicPartition("test", 1), 20000L);
+offsets.put(new KafkaTopicPartition("test", 2), 30000L);
+consumer.setStartFromSpecificOffsets(offsets);
+2.从最早位点开始消费
+consumer.setStartFromEarliest();
+3.从指定时间点开始消费
+consumer.setStartFromTimestamp(1559801580000l);
+4.从最新的数据开始消费
+consumer.setStartFromLatest();
+5.从上次消费位点开始消费
+从topic中指定的group上次消费的位置开始消费，所以必须配置group.id参数
+consumer.setStartFromGroupOffsets();
+
+七、实现原理
+1.从上面的类图可以看出，FlinkKafkaConsumer 继承了 FlinkKafkaConsumerBase，而 FlinkKafkaConsumerBase 最终是对 SourceFunction 进行了实现。
+FlinkKafkaConsumer extends FlinkKafkaConsumerBase
+FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T> implements
+		CheckpointListener,
+		ResultTypeQueryable<T>,
+		CheckpointedFunctio
+2.整体的流程：FlinkKafkaConsumer 首先创建了 KafkaFetcher 对象，然后 KafkaFetcher 创建了 KafkaConsumerThread 和 Handover，
+KafkaConsumerThread 负责直接从 Kafka 中读取 msg，并交给 Handover，然后 Handover 将 msg 传递给 KafkaFetcher.emitRecord 将消息发出。
+
+3.因为 FlinkKafkaConsumerBase 实现了 RichFunction 接口，所以当程序启动的时候，会首先调用 FlinkKafkaConsumerBase.open 方法：
+对 Kafka 中的 Topic 和 Partition 的数据进行读取的核心逻辑都在 run 方法中：

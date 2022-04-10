@@ -1,0 +1,82 @@
+delta
+一、基础知识
+路径 path/_delta_log 对应一个DeltaLog对象。
+
+
+二、创建流程
+1.获取path
+2.获取分区字段
+3.创建DeltaLog对象。
+此时创建一个快照版本对象
+4.存储数据
+
+生成结果:
+1.path下生成part-00000-3c599465-1818-4304-837f-de55c215a4e7-c000.snappy.parquet文件
+文件命名规则:part-任务id-36位的uuid-c000.snappy.parquet
+2._delta_log下，生成00000000000000000000.json 
+内容:
+包含4个部分:
+1.提交信息 — 创建表的分区、创建方式、最佳方式、提交时间戳
+{
+	“commitInfo”:{
+		“timestamp”:xxxx,
+		“operation”:”write”,
+		”operationParameters“:{“mode”:”errorIfExists”,”partitionBy”:”[]”},
+		“isBlindAppend”:true
+	}
+}
+
+2.版本信息
+{
+	“protocal”:{“minReaderVersion”:1,”minWriterVersion”:2}
+}
+
+3.元数据 — 表的schema
+{
+	“metaData”:{
+		“id”:””
+		“format”:{
+			“provider”:”parquet”,
+			“options”:{}
+		},
+		“schemaString”:”{type:”struct”,”fields”:”[“name”:”“,”type”:””]”}”,
+		“createTime”:时间戳
+	}
+}
+
+4.生成的数据文件
+{
+	“add”:{
+		“path”:”part-0000-xxxx-c000.snappy.parquet”,
+		”partitionValues“:{},
+		“size”:499,
+		“modificationTime”:时间戳,
+		“dataChange”:true
+	}
+}
+
+
+三、OptimisticTransaction 乐观锁事物如何发挥作用的
+try
+  commit
+      pre -- 做一些校验
+      do_commit -- 写入数据到版本文件中,如果文件已经存在,则要冲突校验 checkAndRetry。
+      	checkAndRetry检查冲突则抛异常,否则继续do_commit,说明本次生成的内容不影响老版本数据,可以在其基础上再次提交
+         **** 核心,查询老版本更新到什么版本了,是使用同步更新快照的方式。(代码虽然使用异步,但由于配置的是容忍时间是0,所以也相当于同步)
+      post -- checkpoint
+catch
+	冲突 -- 记录冲突日志
+    commit失败 -- 记录失败日志
+
+
+比如 
+1.操作前，获取版本号是10
+2.操作后,提交版本,版本号为11。发现文件已经存在。
+3.进入checkAndRetry,同步更新，版本号是15.
+说明10-15之间其他进程更新了5个版本，那么检查这5个版本与我本次提交的是否有冲突。
+有冲突则抛异常给用户了。
+无冲突,那么就用尝试重复提交的方式，对用户无感知的冲突提交。此时提交的版本是16.
+4.重新进入do-commit，创建16版本号文件。
+发现依然存在，再次进入3流程。
+如果没有存在,则创建，完成任务
+5.一旦commit把内容写到文件中，生成一个版本信息，后续出现异常的概率非常低。基本上不会出现，如果出现了,那也影响不大,重启机器就好了，毕竟以文件存储的内容为准.能写进去说明至少不冲突。
