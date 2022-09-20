@@ -1,0 +1,31 @@
+一、明细模型
+1.原子指标
+a = xxx订单量
+b = 全部订单量
+
+2.维度
+商家id、商家是否在售状态
+
+3.计算指标 与 衍生维度
+计算指标c : xxx订单占商家（全部）订单比 c = a / b
+衍生维度d : 是否xxx订单占商家（全部）订单比 >= 50%, c >= 0.5
+衍生指标 ： xxx业务线订单占商家（主站+xxx）订单比>=50%的xxx在售商家数 = if(d = 1 and 商家是否在售状态 = 1,商家id,NULL)
+
+
+4.sql原理
+### 数据就绪，产出指标
+select count(distinct(if(是否在售商家 = 1,商家id,NULL)) 在售商家数,
+count(distinct(if(是否在售商家 = 1 and 衍生维度d >= 0.5,商家id,NULL)) xxx业务线订单占商家（主站+xxx）订单比>=50%的xxx在售商家数,
+from 
+(
+  ### 基于明细结果 + 派生指标/计算指标 + 衍生维度
+  select 商家id,是否在售商家,a,b,a/b as c,衍生维度d
+  from 
+  (
+    ### 明细模型结果
+    select 商家id,sum(xxx订单量) a,sum(全部订单量) b,是否在售商家
+    from 表
+    where dt = ?
+    group by 商家id
+  ) a
+) b

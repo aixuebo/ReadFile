@@ -1,0 +1,417 @@
+
+一、Lambda语法
+目标是想要代替匿名函数
+比如:
+Del del = x => Console.WriteLine(x * x);
+1.指定输入参数 => 表达式或语句块
+2.仅当只有一个输入参数时，括号才是可选的；否则括号是必需的。
+Del del = (x) => Console.WriteLine(x * x);
+Del del = (x,y) => Console.WriteLine(x * x);
+Del del = (x,y) => Console.WriteLine(x * x);
+Del del = (int x, string s) => Console.WriteLine(x * x);
+
+二、标准查询运算符 -- 查询LINQ的方法论
+1.大多数查询方法都在序列集合上运行,实现了 IEnumerable<T> 接口或 IQueryable<T> 接口。
+2.标准查询运算符提供了包括筛选(where)、投影(select)、聚合(group by)、排序(order by)等功能在内的查询功能。
+3.构成每组运算符的方法分别是 Enumerable 和 Queryable 类的静态成员。即select、where等都是静态方法,接收IEnumerable/IQueryable对象为参数即可。
+4.各个标准查询运算符在执行时间上有所不同，具体情况取决于它们是返回单一值还是值序列
+返回单一值的方法（例如 Average 和 Sum）会立即执行
+返回序列的方法会延迟查询执行，并返回一个可枚举的对象。
+5.IEnumerable与IQueryable接口差异,在于是否立即执行 还是 返回一个查询语法树
+对于IEnumerable<T>在内存中集合上运行的方法，返回的可枚举对象将捕获传递到方法的参数。 在枚举该对象时，将使用查询运算符的逻辑，并返回查询结果。
+与之相反，IQueryable<T> 的方法不会实现任何查询行为，但会生成一个表示要执行的查询的表达式树。 
+
+
+比如:
+public static int Count<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate);针对集合,统计满足predicate条件的元素数量。
+
+实际场景:
+int[] numbers = { 5, 4, 1, 3, 9, 8, 6, 7, 2, 0 };
+int oddNumbers = numbers.Count(n => n % 2 == 1); //计算整数数组中奇数的个数
+即Count方法,是集合方法的自动扩展属性,对外更解耦，不需要传入Count的第一个参数,只需要传递关键的predicate即可，而predicate就是抽象成Expression
+
+三、使用Lambda创建Expression,即Lambda表达式可以抽象成Expression
+System.Linq.Expressions.Expression<Func<int, bool>> lambda = num => num >= 5;
+即集合的元素类型是int,表达式校验int是否>=5。即返回>=5的元素。
+
+四、Linq之Expression初见
+1.表达式树定义
+表达式树又称为“表达式目录树”，它是一种抽象语法树或者说是一种数据结构。
+表达式树以树形数据结构表示代码，其中每一个树节点都是一种表达式，比如方法调用和 x < y 这样的二元运算等。
+因此可以对每一个单独的表达式的代码进行编辑和运算。
+这样能够动态修改可执行代码、在不同数据库中执行 LINQ 查询以及创建动态查询。 
+
+2.表达式的作用
+通过上面的描述,表达式树的作用：动态修改可执行代码、在不同数据库中执行Linq查询及创建动态查询。
+
+3.表达式树创建方式
+表达式树创建方式分为两种：以lambda表达式的方式创建，通过API静态方法创建。
+
+a.lambda表达式:
+System.Linq.Expressions.Expression<Func<int, bool>> lambda = num => num >= 5; 即一个表达式表示保留>=5的元素,输入是int,输出是boolean。
+
+b.通过 API 创建表达式树需要使用 Expression 类: 
+比如表示参数变量的 ParameterExpression，或者是表示方法调用的 MethodCallExpression。这些都是Expression的子类.通过静态方法,传入需要的参数,即可以创建对应的Expression。
+
+//demo目标 创建lambda表达式 num=>num>=5
+import System.Linq.Expressions;
+ParameterExpression numParameter = Expression.Parameter(typeof(int), "num"); //创建输入参数,相当于定义private int num
+ConstantExpression constant = Expression.Constant(5, typeof(int));//创建常量,相当于定义private int constant = 5 
+BinaryExpression greaterThanOrEqual = Expression.GreaterThanOrEqual(numParameter, constant);//创建二元操作表达式 相当于num >= 5
+Expression<Func<int, bool>> lambda = Expression.Lambda<Func<int, bool>>(greaterThanOrEqual, numParameter);//构建lambda表达式树
+
+
+4.复杂的例子:
+实现以下逻辑的代码，为了动态生产,所以需要使用api的方式创建
+         Expression<Func<int, int>> lambda = n => {
+ 			int result = 0;
+ 			for (int j = n; j >= 0; j--)
+			{
+				result += j;
+			}
+ 			return result;
+ 		};
+api的方式实现:
+ static void Main(string[] args)
+ {
+     ParameterExpression i = Expression.Variable(typeof(int), "i"); // private int i 
+     ParameterExpression sum = Expression.Variable(typeof(int), "sum"); // private int sum
+     //跳出循环标志
+     LabelTarget label = Expression.Label(typeof(int));
+     //块表达式
+     BlockExpression block =
+         Expression.Block(
+          new[] { sum },//添加局部变量
+         //为sum赋初值 sum=1
+          Expression.Assign(sum, Expression.Constant(1, typeof(int))),//Assign表示赋值运算符,即 sum = sum + 1
+         //loop循环
+             Expression.Loop(
+         //如果为true 然后求和，否则跳出循环
+                 Expression.IfThenElse(
+         			Expression.GreaterThanOrEqual(i, Expression.Constant(0, typeof(int))),//如果i>=0
+                 	Expression.AddAssign(sum, Expression.PostDecrementAssign(i)),//sum=sum+i;i++;
+         			Expression.Break(label, sum)//跳出循环
+                 ), label
+              )  // Loop ends
+          );
+     int resutl = Expression.Lambda<Func<int, int>>(block, i).Compile()(100);
+     Console.WriteLine(resutl);
+ }
+
+五、Linq之Expression进阶 
+1.表达式树解析
+我们可以通过API方式创建表达式树，那么我们有没有办法，反过来,将给定的表达式树进行解析，分别得到各个部分呢
+有一个这样的表达式树 Expression<Func<int, bool>> expTree = num => num >= 5;
+可以这样来解析，分别得到各个部分:
+ParameterExpression param = expTree.Parameters[0];//获取输入参数
+BinaryExpression body = (BinaryExpression)expTree.Body;//获取lambda表达式主题部分
+ConstantExpression right = (ConstantExpression)body.Right;//获取num>=5的右半部分
+ParameterExpression left = (ParameterExpression)body.Left;//获取num>=5的左半部分
+ExpressionType type = body.NodeType;//获取比较运算符
+Console.WriteLine("解析后：{0}   {1}    {2}",left,type,right); //num greaterThanOrEqual 5
+
+2.基于该反编译过程,可以应用到ORM框架中，lambda表达式转化为sql语句
+a.假设数据库中有Person这样的一个数据表,因此java类就需要有一个Person类。
+Person类有name、age两个字段
+b.创建一个这样的一个查询方法，返回所有龄大于等于18岁的成年人的sql语句。
+string sql = Query<Person>(person => person.Age >= 18);
+Console.WriteLine(sql);//select name,age from person where age >= 18
+
+3.lambda如何转换成sql的实现方式
+static string Query<T>(Expression<Func<T, bool>> epression)
+{
+     ParameterExpression param = epression.Parameters[0];//获取输入参数
+     BinaryExpression body = (BinaryExpression)epression.Body;//获取lambda表达式主体部分
+     Expression left = body.Left;//解析 person.Age
+     string name = (left as MemberExpression).Member.Name;
+     ConstantExpression right = (ConstantExpression)body.Right;//获取主体的右部分  
+     ExpressionType nodeType = body.NodeType;//获取运算符
+     
+     StringBuilder sb = new StringBuilder();
+     Type type = typeof(T);//使用反射获取实体所有属性，拼接在sql语句中
+     PropertyInfo[] properties = type.GetProperties();
+     sb.Append("select "); 
+     //对象的所有属性
+     for (int i = 0; i < properties.Length; i++)
+     {
+         PropertyInfo property = properties[i];
+         if (i == properties.Length - 1) 
+								sb.Append(property.Name + " ");
+								else sb.Append(property.Name + " ,");
+     }
+     sb.Append("from ");
+     sb.Append(type.Name);
+     sb.Append(" where ");
+     sb.Append(name);
+     if (nodeType == ExpressionType.GreaterThanOrEqual) sb.Append(">=");
+     sb.Append(right);
+     return sb.ToString();
+    }
+ }
+ 
+ 4.表达式树特性 --- 不可修改性，一旦表达式完成后，就不能变化。
+  这意味着如果你想修改某个表达式树，则必须复制该表达式树然后替换其中的节点来创建一个新的表达式树
+  可以通过 ExpressionVisitor类遍历现有表达式树，并复制它访问的每个节点。
+  将表达式树中的AndAlse修改为OrElse，代码如下：
+  
+  以下代码仅仅用来了解怎么使用ExpressionVisitor,以及ExpressionVisitor的目的是修改某一个表达式节点即可，代码没有仔细看。
+  
+     /*该类继承 ExpressionVisitor 类，并且专用于修改表示条件 AND 运算的表达式。 
+      * 它将这些运算从条件 AND 更改为条件 OR。 
+      * 为此，该类将重写基类型的 VisitBinary 方法，这是因为条件 AND 表达式表示为二元表达式。
+      * 在 VisitBinary 方法中，如果传递到该方法的表达式表示条件 AND 运算，
+      * 代码将构造一个包含条件 OR 运算符（而不是条件 AND 运算符）的新表达式。 
+      * 如果传递到 VisitBinary 的表达式不表示条件 AND 运算，则该方法交由基类实现来处理。
+      * 基类方法构造类似于传入的表达式树的节点，但这些节点将其子目录树替换为访问器递归生成的表达式树。*/
+     public class AndAlsoModifier : ExpressionVisitor
+     {
+         public Expression Modify(Expression expression)
+         {
+             return Visit(expression);
+         }
+         protected override Expression VisitBinary(BinaryExpression node)
+         {
+             if (node.NodeType == ExpressionType.AndAlso)
+             {
+                 Expression left = this.Visit(node.Left);
+                 Expression right = this.Visit(node.Right);
+                 //修改AndAlse为OrElse
+                 return Expression.MakeBinary(ExpressionType.OrElse, left, right, node.IsLiftedToNull, node.Method);
+             }
+             return base.VisitBinary(node);
+         }
+     }
+ }
+
+测试代码
+static void Main(string[] args)
+{
+  Expression<Func<string, bool>> expr = name => name.Length > 10 && name.StartsWith("G");
+  Console.WriteLine(expr); //修改前
+  AndAlsoModifier treeModifier = new AndAlsoModifier();
+  Expression modifiedExpr = treeModifier.Modify((Expression)expr);
+  Console.WriteLine(modifiedExpr);//修改后
+}
+
+输出:
+name => <name.length > 10 > and name.startWith("C")
+name => <name.length > 10 > or name.startWith("C")
+
+5.编译表达树
+Expression<Func<int, bool>> expTree = num => num >= 5;
+有这样的一个表达式树，现在，我想直接输入一个值，然后得到结果，该如何办呢？可以这样
+
+Func<int, bool> func = expTree.Compile();// Compile方法将表达式树描述的 lambda 表达式编译为可执行代码，并生成表示该 lambda 表达式的委托。
+bool result = func(10);//true 计算结果
+Console.WriteLine(result);
+
+六、Linq之Expression高级篇（常用表达式类型）
+1.变量表达式
+ ParameterExpression i = Expression.Parameter(typeof(int),"i");
+ ParameterExpression j = Expression.Variable(typeof(int), "i");
+ 两者都是相同的结果，即定义int类型的变量i。 比如 private int i;
+2.常量表达式
+ConstantExpression constExpr = Expression.Constant(5, typeof(int)); 定义一个int类型的常量5
+ParameterExpression i = Expression.Parameter(typeof(int), "i"); 定义int类型的变量i
+BinaryExpression binaryExpression = Expression.Assign(i, constExpr); 赋值操作,将常量5赋值给变量i
+
+即相当于private int i = 5;
+
+3.条件表达式
+a.Expression.GreaterThan >
+b.Expression.GreaterThanOrEqual >= 
+同理< ,<=
+c.Expression.ifThen ==>  if then
+d.Expression.ifThenElse ==>  if then el
+
+ public static ConditionalExpression IfThenElse(
+     Expression test,
+     Expression ifTrue,
+     Expression ifFalse)
+     
+bool test = true;
+ConditionalExpression codition = Expression.IfThenElse
+(
+    Expression.Constant(test),//判断条件
+
+    Expression.Call( //true走该流程
+      null,
+      typeof(Console).GetMethod("WriteLine", new Type[] { typeof(string) }),
+      Expression.Constant("条件为true")
+    ),
+
+    Expression.Call( //false走该流程
+      null,
+      typeof(Console).GetMethod("WriteLine", new Type[] { typeof(string) }),
+      Expression.Constant("条件为false")
+    )
+);
+Expression.Lambda<Action>(codition).Compile()();//编译表达式树，输出结果  true
+
+4.赋值表达式
+a.= 参考上面的2常量表达式例子
+b.+=    BinaryExpression b2 = Expression.AddAssign(i, constExpr);
+c.-=    BinaryExpression b3 = Expression.SubtractAssign(i, constExpr);
+d.*=    BinaryExpression b4 = Expression.MultiplyAssign(i, constExpr);
+e./=    BinaryExpression b5= Expression.DivideAssign(i, constExpr);
+
+5.一/二元运算符表达式
+一元运算法，类似++，--运算符，i++等价于i=i+1。使用Expression的PostIncrementAssign方法来进行自增或者自减操作。返回结果为UnaryExpression类型
+二元运算法，使用BinaryExpression。
+
+6.循环表达式
+在表达式树中使用Expression的Loop方法实现循环。
+
+7.块表达式
+输出1-100之间的所有偶数
+  static void Main(string[] args)
+  {
+      ParameterExpression i = Expression.Parameter(typeof(int), "i"); //private int i
+      LabelTarget label = Expression.Label();//跳出循环
+      BlockExpression block = Expression.Block(
+         new[] { i },//定义变量i
+         Expression.Assign(i, Expression.Constant(1, typeof(int))),////为i赋初值 i = 1
+         Expression.Loop( //for循环
+             Expression.IfThenElse(
+               Expression.LessThanOrEqual(i, Expression.Constant(100, typeof(int))),//如果i<=100
+                 Expression.Block( //如果为true.进入循环体
+                      Expression.IfThen(
+                             Expression.Equal(Expression.Modulo(i, Expression.Constant(2, typeof(int))), //条件i%2==0;
+                             Expression.Constant(0, typeof(int))),
+                             Expression.Call(typeof(Console).GetMethod("WriteLine", new Type[] { typeof(int) }), new[] { i })),//i++
+                      Expression.PostIncrementAssign(i)       
+         ),
+         Expression.Break(label)),//如果i>100
+         label
+         ));
+     Expression.Lambda<Action>(block).Compile()();
+     Console.Read();
+ }
+ 
+七、Linq之常见关键字
+1.from
+from localParameter in Source
+相当于
+foreach(var item in source)
+{
+}
+
+case:查询集合,输出每一个集合的元素
+List<int> lstInts = new List<int>() { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+IEnumerable<int> query = from i in lstInts
+	select i;
+
+case:进行强转,相当于public static IEnumerable<TResult> Cast<TResult>(this IEnumerable source);操作
+IEnumerable<int> q2 = from i in arry.Cast<int>()
+	select i;
+	
+2.select
+a.投影某一个字段
+var pNames = from p in persons
+	select p.Name;
+b.投影多个字段
+var persons2 = from p in persons
+	select new { p.Name, p.Age };
+ //或者
+var persons3 = from p in persons
+	select new { name = p.Name, age = p.Age };
+foreach (var item in persons3)
+{
+	Console.WriteLine(item.name + " " + item.age);
+}
+
+3.where
+var persons4 = from p in persons
+   				where p.Age > 18
+   				select p.Name;
+4.join
+var result = from p in persons
+			       join c in companys on p.CompanyID equals c.ID
+             where c.Name=="北京能力有限公司"
+             select new { Name = p.Name, CompanyName = c.Name };
+foreach (var item in result)
+{
+	Console.WriteLine(item.Name + " " + item.CompanyName);
+}
+
+5.let 相当于as
+let子句用于在查询中添加一个新的局部变量，使其在后面的查询中可见，类似sql中为as关键字为字段起别名。
+var persons4 = from p in persons
+				let age = p.Age
+				where age > 18
+				select p.Name;
+
+6.Take Skip
+用于选取前几个或者和跳过前几个，如选择第１１到２０个则可以
+query.Skip(10).Take(10);//跳过前十个，然后再取10条数据。
+
+7.OrderBy OrderByDescending
+query.OrderBy(c => c.Length);
+
+8.into和group
+into子句用于将join或者是group子句的结果进一步持续化，包装成为一个System.Linq.IGrouping<TKey, TElement>对象，而且IGrouping继承自IEnumerable<TElement>，IGrouping接口提供分组的键和，该键下所包含的集合。
+
+List<string> lstNames = new List<string>() { "zhangsan", "lisi", "wanger", "mazi"};             
+var result2 = from n in lstNames
+				     group by n.Length into g //按照n.Length分组,将相同分组的数据存储到g中
+						 select new { g.Key, values = g }; //输出分组key,以及对应的value集合
+foreach (var group in result2)
+{
+	Console.WriteLine("{0}:", group.Key);//输出分组的key
+  foreach (var item in group.values) //输出同一个key的所有元素内容
+  {
+ 	 Console.WriteLine(item);
+  }
+} 
+相当于:
+select 字段,set(value.legth)
+from 表
+group by 字段
+
+输出:
+8:
+zhangsan
+4:
+lisi
+mazi
+6:
+wanger
+
+八、综合demo -- Linq之求和，平均值，最大值，最小值
+1.定义产品对象
+class Product
+{
+  public int ID //产品id
+  public string Name //产品名称
+  public double Price // 产品单价
+  public DateTime ProductDate // 生产日期
+}
+2.计算平均值等数据
+        static void Main(string[] args)
+        {
+            //生成测试数据
+            List<Product> list = new List<Product>();
+   
+            //求和，求所有的产品总价
+            var sumResult = from s in list
+                            group by s.ID into p //根据id分组 将分组后的结果集存入p
+                            select new {  //此时结果集已经是p，所以要从p中取数据。
+                                key = p.Key,//获取产品id分组
+                                sum = p.Sum(x => x.Price),//计算价格的最大值、最小值、求和
+                                min = p.Min(x => x.Price), 
+                                max = p.Max(x => x.Price), 
+                                average = p.Average(x => x.Price),//计算产品平均值
+                                count=p.Count() //产品id对应的数量
+                             };
+            foreach (var item in sumResult)
+            {
+                Console.WriteLine("id:" + item.key);
+                Console.WriteLine("分组的单价总和:" + item.sum);
+                Console.WriteLine("分组的最小值："+item.min);
+                Console.WriteLine("分组的最大值：" + item.max);
+                Console.WriteLine("分组的平均值：" + item.average);
+                Console.WriteLine("分组的中个数：" + item.count);
+            }
+            Console.Read();
+        }
+

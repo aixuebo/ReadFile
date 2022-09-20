@@ -1,0 +1,91 @@
+一、enum SqlTypeName
+sql的数据类型枚举集合,比如varchr等
+
+二、enum SqlTypeFamily implements RelDataTypeFamily
+List<SqlTypeName> getTypeNames() 返回SqlTypeName集合。
+比如SqlTypeName集合,比如int、bigint等等都是NUMERIC这个SqlTypeFamily,即一个SqlTypeFamily代表一组具体的sql类型
+
+三、参数类型校验
+OperandTypes参数校验器的工厂类，生产以下校验器对象
+
+interface SqlOperandTypeChecker  校验参数类型合法性、校验参数数量合法性
+	SetopOperandTypeChecker implements SqlOperandTypeChecker 用于union all语法,要求每一个子查询的列数是相同的，并且相同序号位置的元素类型是相同的
+	AssignableOperandTypeChecker implements SqlOperandTypeChecker 分配参数类型,要求参数一定是这些类型的。顺序要一致
+	SqlSingleOperandTypeChecker extends SqlOperandTypeChecker
+		FamilyOperandTypeChecker implements SqlSingleOperandTypeChecker 限制参数List的类型以及参数数量，每一个类型与families中映射相关
+		LiteralOperandTypeChecker implements SqlSingleOperandTypeChecker 校验参数只有1个，并且参数值是null或者是SqlLiteral字面量对象
+		SameOperandTypeChecker implements SqlSingleOperandTypeChecker  校验所有的参数类型必须是相同的,否则抛异常
+			ComparableOperandTypeChecker extends SameOperandTypeChecker 参数类型相同 && 参数类型是可比较的类型
+		CompositeOperandTypeChecker implements SqlSingleOperandTypeChecker 各种规则的组合形式，匹配所有组合才算校验通过
+		
+四、字段的sql类型
+SqlTypeFactoryImpl extends RelDataTypeFactoryImpl 创建sql类型对象的工厂类
+
+1.abstract class AbstractSqlType extends RelDataTypeImpl 定义一个字段类型：包含：
+SqlTypeName typeName;//sql类型  
+boolean isNullable;//是否允许为null 
+List<? extends RelDataTypeField> fields 用于类型为对象类型时，存储子属性对应的类型。
+
+2.BasicSqlType extends AbstractSqlType 定义基础类型，包含string、double、int、boolean、date等
+super(SqlTypeName.ARRAY, isNullable, fields=null);
+设置精准度 precision、scale
+
+3.ArraySqlType extends AbstractSqlType 相当于list、数组类型,持有List<E>
+super(SqlTypeName, isNullable, fields=null);
+RelDataType elementType;//存储object的sql类型元素--元素类型
+
+4.MapSqlType extends AbstractSqlType 字段是Map类型,持有K与V的类型
+super(SqlTypeName.MAP, isNullable, fields=null);
+RelDataType keyType;
+RelDataType valueType;
+
+5.IntervalSqlType extends AbstractSqlType 存储日期格式类型
+
+6.ObjectSqlType extends AbstractSqlType 存储一个对象
+super(SqlTypeName.MAP, isNullable, fields != null);
+不太清楚这三个属性做什么的，日后在研究
+SqlIdentifier sqlIdentifier;
+RelDataTypeComparability comparability;
+RelDataTypeFamily family;
+
+五、函数返回值
+interface SqlReturnTypeInference  函数返回值
+	SqlReturnTypeInferenceChain implements SqlReturnTypeInference 相当于coalesce方法,持有一组返回值,找到第一个不是null的返回值，内部持有List<SqlReturnTypeInference>一组规则。
+	OrdinalReturnTypeInference implements SqlReturnTypeInference  返回第index个参数类型作为返回值。
+	MatchReturnTypeInference implements SqlReturnTypeInference 给定一组List<SqlTypeName>类型,返回第一个匹配该类型范围的参数类型,作为返回值
+	SqlTypeTransformCascade implements SqlReturnTypeInference 级联操作,由原始SqlReturnTypeInference类型初始化,然后经过一些列类型转换，最终返回类型对象
+	ExplicitReturnTypeInference implements SqlReturnTypeInference 明确返回类型。即返回类型是一个固定值。
+		TableFunctionReturnTypeInference extends ExplicitReturnTypeInference 暂时先不关注，应该不是非常重要的函数，似乎跟游标对象有关系
+	ReturnTypes.cascade(
+          ARG0,//初始化类型是第一个参数类型
+          SqlTypeTransforms.TO_NULLABLE,//类型转换,对typeToTransform类型进一步包装，包装是否允许是null
+          SqlTypeTransforms.TO_VARYING);//最终转换成varchar类型
+          特殊的类型级联转换方法，初始化类型是第一个参数的类型，然后根据参数中是否有允许null的类型，判断是否允许结果类型是null，最终转换成string类型 或者 null
+	
+
+五、类型转换接口，从一个类型 转换成另外一个类型。
+interface SqlTypeTransform 
+	RelDataType transformType(SqlOperatorBinding opBinding,RelDataType typeToTransform); 最终转换成typeToTransform类型
+class SqlTypeTransforms 类型转换工具类
+	SqlTypeTransform TO_NULLABLE 对类型进一步包装，包装类型允许是null
+	SqlTypeTransform TO_NOT_NULLABLE  对类型进一步包装，包装类型不允许是null
+	SqlTypeTransform FORCE_NULLABLE 对类型进一步包装，强制类型必须是允许为null
+	SqlTypeTransform TO_VARYING 对类型最终转换成varchar类型
+
+六、类型推测类
+interface SqlOperandTypeInference 猜测参数类型
+	ExplicitOperandTypeInference implements SqlOperandTypeInference 精准的猜测类型，即构造函数中明确了每一个参数的类型
+    InferTypes里面包含若干个猜测参数类型实现类
+    	SqlOperandTypeInference FIRST_KNOWN 返回参数类型为第一个识别的类型，作为推测的类型
+    	SqlOperandTypeInference RETURN_TYPE 将所有参数类型，设置为相同的类型，该类型作为函数的参数是已知的输入
+    	SqlOperandTypeInference BOOLEAN 所有参数设置为boolean类型
+    	SqlOperandTypeInference VARCHAR_1024 所有参数设置为varchar参数
+    	
+七、工具类
+1.SqlTypeAssignmentRules 类型之间的转换规则，定义了类型到类型之间是否可以转换的逻辑
+2.JavaToSqlTypeConversionRules 描述java to sql类型映射关系，通过java对象，反查他应该对应哪个sql对象类型
+3.SqlOperandCountRanges 维护参数的数量范围
+
+
+
+		

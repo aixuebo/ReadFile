@@ -1,0 +1,4 @@
+一、class DeriveTypeVisitor implements SqlVisitor<RelDataType>
+变量每一个sqlNode,计算sqlNode的返回类型。
+如果是字段,则加载元数据,获取字段对应的数据类型。
+如果是函数,则根据字段+函数,推测sqlNode数据类型

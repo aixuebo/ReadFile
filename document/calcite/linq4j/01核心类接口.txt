@@ -1,0 +1,67 @@
+
+一、Linq4j 入口
+1.基础迭代器功能
+Enumerable a = Linq4j.asEnumerable(Iterable) //迭代一个集合,可以是Iterable、List、Collection、T[]
+Enumerable a = Linq4j.emptyEnumerable() //迭代一个空集合
+Enumerable<T> a = Linq4j.singletonEnumerable(T element) //返回只有一个元素的集合
+Enumerator<T> a = Linq4j.singletonNullEnumerator() //返回只有一个元素,并且该元素是null的集合
+
+2.Enumerator与Iterator转换
+Iterator<T> enumeratorIterator(Enumerator<T> enumerator) 
+Enumerator<T> iterableEnumerator(final Iterable<? extends T> iterable)
+Enumerator<List<T>> product(List<Enumerator<T>> enumerators)
+Iterable<List<T>> product(final Iterable<? extends Iterable<T>> iterables)
+
+3.迭代器高级功能
+Enumerable<TResult> cast(Iterable<TSource> source, Class<TResult> clazz) 将元素强转成class对象
+Enumerable<TResult> ofType(Iterable<TSource> source, Class<TResult> clazz) 将元素强转成class对象
+Enumerable<E> concat(final List<Enumerable<E>> enumerableList) 依次循环Enumerable中每一个元素,即相当于new list().addAll(value).addAll(value)
+
+QueryProvider query = Linq4j.DEFAULT_PROVIDER  创建QueryProvider入口
+
+4.demo:
+        try {
+            Enumerator<String> result = Linq4j.enumerator(list);
+            while(result.moveNext()){
+                System.out.println(result.current());
+            }
+
+            Enumerable result2 = Linq4j.asEnumerable(list).select(new Function1<String,Integer>(){
+                public Integer apply(String v0) {
+                    return 1;
+                }
+            });
+
+            Enumerator<Integer> result3 = result2.enumerator();
+            while(result3.moveNext()){
+                System.out.println(result3.current());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+二、interface Enumerable<T>
+	extends RawEnumerable<T>, //Enumerator<T> enumerator();接口可以返回一个迭代器,比如new Linq4j.IterableEnumerator<T>(this);
+	Iterable<T>, 本身是一个迭代器
+	ExtendedEnumerable<T> //扩展集合的能力--非常核心的能力,比如where,group by,order by等
+	一行一行的数据信息迭代器
+Queryable<T> asQueryable(); 接口自定义一个方法
+
+
+DefaultEnumerable<T> extends Enumerable<T> 调用EnumerableDefaults实现功能
+	class AbstractEnumerable2<T> extends DefaultEnumerable<T> 
+		class IterableEnumerable<T> extends AbstractEnumerable2<T>
+			Enumerable a = Linq4j.asEnumerable(Iterable)
+三、interface Enumerator<T>
+真正的一个迭代器,与java的迭代器很像，两者可以互相转换
+boolean moveNext();
+T current();
+void reset();
+void close();
+
+四、Lookup<K, V> 
+class LookupImpl<K, V> extends AbstractEnumerable<Grouping<K, V>> implements Lookup<K, V> 
+持有Map<K,List<V>>数据，即将Enumerable集合内容,经过转换,提取出key,按照key分组,组成Map结构。
+该接口用于group by、order by的基建类。
+

@@ -1,0 +1,58 @@
+class SqlValidatorImpl implements SqlValidatorWithHints
+
+一、enum Status 校验状态:尚未开始、在校验过程中、已校验完成,但不管是否成功
+二、构造函数
+  private final SqlOperatorTable opTab;
+  final SqlValidatorCatalogReader catalogReader;//如何读取元数据信息
+  protected final RelDataTypeFactory typeFactory;//如何将sql类型转换成java对象
+  protected final RelDataType unknownType = typeFactory.createSqlType(SqlTypeName.NULL);
+  private final RelDataType booleanType = typeFactory.createSqlType(SqlTypeName.BOOLEAN);
+三、SqlNodeList expandStar(SqlNodeList selectList,SqlSelect select)
+因为要对*进行扩展,所以会将SqlIdentifier(*)转换成new SqlNodeList(new ArrayList<SqlNode>();)
+注意:解析过程中,会获取每个selectItem的sqlNode与类型映射,缓存到nodeToTypeMap中。
+
+四、设置每一个sqlNode的类型,并缓存到nodeToTypeMap中
+  public void setValidatedNodeType(SqlNode node,RelDataType type) { //设置
+      setValidatedNodeTypeImpl(node, type);
+  }
+
+  public void removeValidatedNodeType(SqlNode node) { //删除
+    nodeToTypeMap.remove(node);
+  }
+
+  void setValidatedNodeTypeImpl(SqlNode node, RelDataType type) { //设置
+    nodeToTypeMap.put(node, type);
+  }
+
+  public RelDataType deriveType(SqlValidatorScope scope,SqlNode expr) { //推测sqlNode类型
+    RelDataType type = nodeToTypeMap.get(expr);//已经缓存了
+    if (type != null) {
+      return type;
+    }
+    final SqlValidatorNamespace ns = getNamespace(expr);
+    if (ns != null) {
+      return ns.getType();
+    }
+    type = deriveTypeImpl(scope, expr); //推测类型
+    setValidatedNodeTypeImpl(expr, type); //设置
+    return type;
+  }
+
+  RelDataType deriveTypeImpl(SqlValidatorScope scope,SqlNode operand) {//推测
+    DeriveTypeVisitor v = new DeriveTypeVisitor(scope);
+    final RelDataType type = operand.accept(v);//如果是字段,则会加载元数据，如果是函数，则根据元数据信息获取函数返回值等。
+    return scope.nullifyType(operand, type);
+  }
+  
+ 五、validateLiteral(SqlLiteral literal) 校验字面量sqlNode内容
+根据字面量对象类型,判断是否值满足该类型。
+1.是否是DECIMAL类型
+2.是否是double类型
+3.是否是BitString类型
+4.是否是DATE、TIME、TIMESTAMP类型,使用Calendar存储内容。
+5.是否是时间间隔对象类型INTERVAL_YEAR_MONTH、INTERVAL_DAY_TIME，使用SqlIntervalQualifier存储内容。
+
+六、validateIdentifier(SqlIdentifier id, SqlValidatorScope scope) 
+校验字符串 SqlIdentifier类型的sqlNode，是否字段全路径是存在的.
+
+

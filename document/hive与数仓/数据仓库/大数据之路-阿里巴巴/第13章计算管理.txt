@@ -1,0 +1,116 @@
+一、背景与总结
+1.参考资料   hive与数仓/sql/数据库原理与解决方案/distinct去重优化
+
+二、如何优化计算资源
+1.优化HBO,根据任务情况，分配CPU资源。即可以理解成优化资源调度器。
+2.优化CBO执行规划的方案，可以再阅读一下文章。
+--------
+3.优化map倾斜
+流程:读取数据块 -- 处理数据 -- 输出到环形内存 -- flush磁盘(分区与排序) -- 磁盘合并(merge操作)
+a.每一个数据块会启动一个map实例,默认数据块大小256M。 设置合适的文件块大小;有些场景下,可以一个map实例读取多个数据块，是否有效提高效率。
+b.reduce阶段涉及shuffle操作,有网络IO，因此可以考虑在map端预先做reduce的merge操作,减少shuffle数据量。
+map端的Combiner,默认为ture:set hive.map.aggr=true；
+
+影响与解决方案:
+a.map端由于读取上游文件数据大小不均匀,小文件多,不是都64M；
+解决方案,对上游小文件合并；同时调节本节点小文件参数,确保经过本节点任务输出的表不会存在小文件问题。
+b.map端输出的时候,reduce的key分布不均匀,有一些分区数据多,影响map端性能。
+
+--------
+4.join倾斜,即join产生shuffle网络IO分发,从而reduce倾斜
+a.Join的某路输入比较小，可以采用 MapJoin，避免分发引起长尾。
+b.Join 的每路输入都较大，且长尾是空值导致的，可以将空值处理成随机值，避免聚集。即on的条件有一侧可能是null,给他增加随机数即可。
+或者将null值去除(这需要跟需求有关系)
+SELECT
+FROM table a
+LEFT JOIN table b
+ON coalesce(a.key,rand()*9999} = b.key
+
+
+注意:
+热点key值加hash值（不能rand()、不支持幂等性Spark shuffle key中包含rand问题），比如null这类热点key。
+from t1 left join t2 
+on (t1.id = case when t2.id is not null then t2.id 
+    else (-1 - abs(hash(t2.user_id)  % 99)) end )
+因为rand不支持幂等性，如果用rand,重复执行两次,结果是不一致的,因此要用固定的key进行hash取模，尽量保证key足够分散，因此key最好是自增主键。
+    
+c.Join 的每路输入都较大，且长尾是热点值导致的，可以对热点值 和非热点值分别进行处理，再合并数据。
+原理是，热点数据相对小，可以通过内存广播join方式优化。
+缺点是比较麻烦，需要改动代码。
+
+d.空值引发的数据倾斜
+-- 方案一：可以直接不让null值参与join操作，即不让null值有shuffle阶段，所以user_id为空的不参与关联
+	SELECT * 
+	FROM log a 
+	JOIN users b  
+	ON a.user_id IS NOT NULL AND a.user_id = b.user_id 
+UNION ALL 
+	SELECT * 
+	FROM log a 
+	WHERE a.user_id IS NULL; 
+
+-- 方案二：因为null值参与shuffle时的hash结果是一样的，那么我们可以给null值随机赋值，这样它们的hash结果就不一样，就会进到不同的reduce中：
+SELECT * 
+FROM log a  
+LEFT JOIN users b 
+ON CASE WHEN a.user_id IS NULL THEN concat('hive_', rand())  ELSE a.user_id END = b.user_id;
+
+针对上述方案进行分析，方案二比方案一效率更好，不但io少了，而且作业数也少了。方案一中对log读取可两次，jobs是2。方案二job数是1。
+
+--------
+5.reduce倾斜
+a.reduce流程:从各map端拉去到有序的数据文件 -- merge合并数据文件 -- reduce计算 -- 输出
+
+倾斜原因背景:
+由于distinct操作,无法像sum一样在map端进行预聚合,减少数据量传输，而是将所有数据都传输到reduce。
+因此比如当某一个商家的用户id非常多时，查询用户数的时候,会导致该reduce的数据量比其他reduce多，从而造成数据倾斜。
+即某些reduce节点处理的数据内容多,造成的倾斜。
+
+----
+b.reduce倾斜解决方案 --- 尽量不要用count(distinct),改用sum
+
+"多个distinct同时出现在sql中,数据会被多次分发,不仅造成数据膨胀N倍，长尾现象也会放大N倍??"
+书的这句话内容不好理解，甚至我怀疑他表达的有问题。
+我的理解是,因为distinct的指标多,造成极端情况下等于把map端明细数据都分发到reduce了，造成IO多，同时reduce节点distinct需要占用内存,性能差。
+
+解决方案:
+由于count(distinct)去重复,必须要保证同一个key数据在内存里set去重复。因此非常占用内存。
+select a,count(distinct b) from t group by a;-- 可能会造成数据倾斜的sql 
+改成:
+select a,sum(1) from (select a, b from t group by a,b) group by a;-- 先去重、然后分组统计
+这样虽然IO多了，但不耗费内存。
+缺点是只能统计一个指标。
+
+如果分组统计的数据存在多个distinct结果，可以先将值为空的数据占位处理，分sql统计数据，然后将两组结果union all进行汇总结算。
+
+举例:
+书的内容，按照卖家id、商品价格分组，统计分组内支付用户数、支付商品数。
+此时解决方案是 依然按照卖家id、商品价格、支付用户分组，此时由于增加了“支付用户”维度,
+即可以通过“支付用户”对应的支付次数，用户支付多次时就变成一行数据，网络IO少了，不需要传递多次支付用户，可以再map端预聚合了。
+
+此时再套一层sum即可优化。同理 “支付商品数”，需要原有的分组+支付商品维度。  结果进行union all操作即可。
+
+这部分代码比较恶心，所以机器自动化时间是优势。
+
+----
+c.rollup/grouping sets等多维聚合产生的map端数据膨胀
+Map端产出的数据急速膨胀，这种情况容易导致作业内存溢出的异常。
+如果log表含有数据倾斜key，会加剧Shuffle过程的数据倾斜。
+
+比如
+-- 造成倾斜或内存溢出的情况
+select a，b，c，count(1)from log grouping sets a，b，c;
+
+-- 解决方案
+-- 可以拆分上面的sql，将with rollup拆分成如下几个sql
+select a,b,c,sum(1) from (
+    SELECT a, b, c, COUNT(1) FROM log GROUP BY a, b, c
+    union all
+    SELECT a, b, NULL, COUNT(1) FROM log GROUP BY a, b 
+    union all
+    SELECT a, NULL, NULL, COUNT(1) FROM log GROUP BY a
+    union all
+    SELECT NULL, NULL, NULL, COUNT(1) FROM log
+) temp;
+-- 结论：但是上面这种方式不太好，因为现在是对3个字段进行分组聚合，那如果是5个或者10个字段呢，那么需要拆解的SQL语句会更多。
+-- 在Hive中可以通过参数 hive.new.job.grouping.set.cardinality 配置的方式自动控制作业的拆解，该参数默认值是30。

@@ -1,0 +1,9 @@
+
+
+一、重点学习入口
+CalcitePrepareImpl -- prepareSql -- prepare_
+
+二、CalciteSchema和CalciteRootSchema
+定义了schema信息。属于基础设置
+Schema包含父Schema、SchemaName、对应的表集合、对应的function集合信息。
+

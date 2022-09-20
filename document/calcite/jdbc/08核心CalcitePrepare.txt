@@ -1,0 +1,4 @@
+一、核心与背景
+1.connnection是核心对象，而核心对象中两个核心方法都由class CalcitePrepareImpl implements CalcitePrepare 来承接,因此CalcitePrepare他才是最核心的方法。
+
+二、parse(sql) 将sql解析成表达式

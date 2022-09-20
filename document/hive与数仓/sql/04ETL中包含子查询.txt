@@ -1,0 +1,11 @@
+
+
+with `name` as
+(
+	select *
+	from biao
+)
+
+insert overwrite table database.table partition (`dt`)
+select * 
+from name

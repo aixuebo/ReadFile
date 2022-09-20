@@ -1,0 +1,46 @@
+一、SqlPostfixOperator PostfixRowOperator() :
+is [not] null --> SqlStdOperatorTable.IS_NOT_NULL/IS_NULL
+is [not] true ---> SqlStdOperatorTable.IS_NOT_TRUE/IS_TRUE
+is [not] false ---> SqlStdOperatorTable.IS_NOT_FALSE/IS_FALSE
+is [not] UNKNOWN ---> SqlStdOperatorTable.IS_NOT_UNKNOWN/IS_UNKNOWN
+is a set ---> SqlStdOperatorTable.IS_A_SET 用于检测嵌套表是否包含重复的元素值
+
+
+二、SqlPrefixOperator PrefixRowOperator() :
++ ---> SqlStdOperatorTable.UNARY_PLUS
+- ---> SqlStdOperatorTable.UNARY_MINUS
+NOT ---> SqlStdOperatorTable.NOT
+EXISTS ---> SqlStdOperatorTable.EXISTS
+
+三、SqlBinaryOperator BinaryQueryOperator() :
+查询表达式操作
+UNION [DISTINCT] ---> SqlStdOperatorTable.UNION
+UNION ALL ---> SqlStdOperatorTable.UNION_ALL
+INTERSECT [DISTINCT] ---> SqlStdOperatorTable.INTERSECT
+INTERSECT ALL ---> SqlStdOperatorTable.INTERSECT_ALL
+EXCEPT [DISTINCT] ---> SqlStdOperatorTable.EXCEPT
+EXCEPT ALL ---> SqlStdOperatorTable.EXCEPT_ALL
+
+
+四、SqlBinaryOperator BinaryRowOperator() :
+逻辑表达式
+= ---> SqlStdOperatorTable.EQUALS
+> ---> SqlStdOperatorTable.GREATER_THAN
+< ---> SqlStdOperatorTable.LESS_THAN
+<= ---> SqlStdOperatorTable.LESS_THAN_OR_EQUAL
+>= ---> SqlStdOperatorTable.GREATER_THAN_OR_EQUAL
+<> ---> SqlStdOperatorTable.NOT_EQUALS
++ ---> SqlStdOperatorTable.PLUS
+- ---> SqlStdOperatorTable.MINUS
+* ---> SqlStdOperatorTable.MULTIPLY
+/ ---> SqlStdOperatorTable.DIVIDE
+|| ---> SqlStdOperatorTable.CONCAT
+AND ---> SqlStdOperatorTable.AND
+OR ---> SqlStdOperatorTable.OR
+is distinct from ---> SqlStdOperatorTable.IS_DISTINCT_FROM  表示是不同的，当A和B的数据类型、值不相同时候,返回true
+is not distinct from  ---> SqlStdOperatorTable.IS_NOT_DISTINCT_FROM 表示是相同的，当A和B类型、值都相同，返回true
+MEMBER of ---> SqlStdOperatorTable.MEMBER_OF  不是很常用的函数操作
+SUBMULTISET of ---> SqlStdOperatorTable.SUBMULTISET_OF 不是很常用的函数操作
+
+五、
+SqlAsOperator extends SqlSpecialOperator 

@@ -1,0 +1,121 @@
+
+ExprContext exprContext表示解析表达式的范围，是一个枚举值,不理解可忽略
+
+一、SqlNode Expression(ExprContext exprContext) :
+表达式入口
+List<Object> list = Expression2(exprContext);
+SqlNode e = SqlParserUtil.toTree(list);
+
+
+二、List<Object> Expression2(ExprContext exprContext) :
+解析复杂表达式，返回值是List<Object>,原因是List中包含的数据结构不统一。
+1.Expression3 --> List.add(Expression3)
+2.Expression3 [not] in (),(),.. --> List.add(Expression3).add(SqlStdOperatorTable.IN).add(SqlNodeList(List<Expression>))
+3.Expression3 [Expression] --> List.add(Expression3).add(SqlStdOperatorTable.ITEM).add(Expression)
+4.Expression3 is [not] null --> List.add(Expression3).add(PostfixRowOperator)
+5.Expression3 and/or等逻辑表达式 Expression --> List.add(Expression3).add(BinaryRowOperator).add(Expression)
+6.Expression3 [not] between Expression3 --> List.add(Expression3).add(SqlStdOperatorTable.BETWEEN).add(Expression3)
+因此 dt between 'A' and 'B' --> 拆分成 dt between 'A'，dt between 'A'的结果 and 'B' 
+7.Expression3 [not] like Expression2 --> List.add(Expression3).add(SqlStdOperatorTable.LIKE).add(Expression2)
+8.Expression3 [not] like Expression2 ESCAPE Expression3 
+--> List.add(Expression3).add(SqlStdOperatorTable.LIKE).add(Expression2).add(SqlStdOperatorTable.ESCAPE).add(Expression3)
+
+
+
+三、SqlNode Expression3(ExprContext exprContext) :
+解析一个基础表达式
+1.AtomicRowExpression()
+2.CursorExpression()
+3.row (xx,xx,xx) --> SqlStdOperatorTable.ROW.createCall(SqlNodeList<SqlIdentifier>())
+4.+/-/not/EXISTS Expression3 --> PrefixRowOperator Expression --> SqlPrefixOperator.createCall(Expression);
+5. (),() OVERLAPS (),() --> SqlStdOperatorTable.OVERLAPS.createCall(SqlNodeList(List<Expression>))
+ 注意:
+ a.类似于values (),()语法
+ b.OVERLAPS要求前后个两个元素，即SqlNodeList总共4个元素
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+四、SqlNode AtomicRowExpression() :
+原子表达式 ，表达式的最小单元
+-----第一部分
+解析一个字面量有含义的字符串
+1.SqlNumericLiteral NumericLiteral() 返回BigDecimal数据。（正数、小数、科学计数法、负数）
+2.SqlLiteral SpecialLiteral 返回特殊的字面量字符串，包括boolean、null、unknow
+3.解析日期字符串
+SqlDateLiteral = date xxx
+SqlTimeLiteral = time xxx
+SqlTimestampLiteral = TIMESTAMP xxx
+4.SqlIntervalLiteral IntervalLiteral()  解析日期间隔字符串
+5.解析带有带有``的字符串，转换成一个动作call对象
+Call = StringLiteral()
+6.SqlDynamicParam = ? 动态参数
+7.SqlIdentifier 由xx.xx后者xx字段表示的表达式
+8.SqlIdentifier 系统变量组成的字符串，比如SYSTEM_USER等，详细参见SqlIdentifier ContextVariable
+------第二部分
+SqlNode BuiltinFunctionCall() : 解析特殊语法的内置函数
+1.cast(Expression(ExprContext.ACCEPT_SUBQUERY)  DataType()) --> SqlStdOperatorTable.CAST.createCall(SqlParserUtil.toNodeArray(List<Expression(ExprContext.ACCEPT_SUBQUERY),DataType()>))
+2.EXTRACT(SqlIntervalQualifier Expression(ExprContext.ACCEPT_SUBQUERY)) --> SqlStdOperatorTable.EXTRACT.createCall(SqlIntervalQualifier,Expression); 提取表达式中的日期结果，比如提取年、月
+3.POSITION(AtomicRowExpression() in Expression(ExprContext.ACCEPT_SUBQUERY))  --> SqlStdOperatorTable.POSITION.createCall(AtomicRowExpression(),Expression) 返回要查询的字符串在被查询字符串里第一次出现的位置
+4.CONVERT(Expression(ExprContext.ACCEPT_SUBQUERY)  <USING> SqlIdentifier ) ---> SqlStdOperatorTable.CONVERT.createCall(Expression,SqlIdentifier) 表达式转换
+5.TRANSLATE(Expression(ExprContext.ACCEPT_SUBQUERY) <USING> SqlIdentifier ) ---> SqlStdOperatorTable.TRANSLATE.createCall(Expression,SqlIdentifier) 替换表达式
+SELECT TRANSLATE('[408] 555 6789','[]','()') result; 结果 (408) 555 6789
+该语句相当于两次调用REPLACE()函数：
+SELECT REPLACE(REPLACE('[408] 555 6789','[','('),']',')') result;
+   
+6.OVERLAY(Expression(ExprContext.ACCEPT_SUBQUERY) <PLACING> Expression(ExprContext.ACCEPT_SUBQUERY) <FROM> Expression(ExprContext.ACCEPT_SUBQUERY) [FOR] Expression(ExprContext.ACCEPT_SUBQUERY))
+---> SqlStdOperatorTable.OVERLAY.createCall(Expression,Expression,Expression,Expression) 替换子字串表达式
+
+7.SUBSTRING(Expression,Expression [,Expression]) --> SqlStdOperatorTable.SUBSTRING.createCall(Expression,Expression,Expression) 字符串截取
+比如:
+SUBSTRING(str FROM pos FOR len)
+SUBSTRING(str,1,2)    
+
+8.TRIM(SqlTrimFunction.Flag,Expression1 <FROM> Expression2) ---> SqlStdOperatorTable.TRIM.createCall(Flag,Expression1,Expression2) 说明有额外要定义的替换的字符串
+TRIM(SqlTrimFunction.Flag,Expression) ---> SqlStdOperatorTable.TRIM.createCall(Flag,null,Expression) null表示没有额外的字符串被替换
+SELECT TRIM('     GFG     ') --> GFG
+SELECT TRIM('@$ ' FROM '    @geeksforgeeks$    '); 表示除了空格外，还要去除额外的字符信息@$
+
+9.FLOOR/CEIL
+四种语法方式:
+解析(OrderedQueryOrExpr),([Expression]) ---> new SqlNodeList(List<Expression>)
+a = SqlStdOperatorTable.FLOOR.createCall(new SqlNodeList(List<Expression>))
+a = SqlStdOperatorTable.CEIL.createCall(new SqlNodeList(List<Expression>))
+ParenthesizedQueryOrCommaList  <OVER> SimpleIdentifier() ---> SqlStdOperatorTable.OVER.createCall(a,SimpleIdentifier)
+ParenthesizedQueryOrCommaList  <OVER> WindowSpecification() ---> SqlStdOperatorTable.OVER.createCall(a,WindowSpecification
+
+----第三部分
+1.count、或者自定义名字的函数表达式
+SqlNode NamedFunctionCall() 
+<SPECIFIC> --> funcType = SqlFunctionCategory.USER_DEFINED_SPECIFIC_FUNCTION;
+xx.xx 或者xx字段 或者函数名--> 比如 user.user_name
+函数名(*) --> 比如count(*)
+函数名() --> 比如length()、xx()
+自定义函数名(参数1,参数2) --> 比如xx(参数1,参数2)
+函数名(DISTINCT 参数1,参数2)
+
+返回 function = createCall(函数名或者字段名, null或者funcType, null或者distinct关键词,函数参数集合）
+或者 SqlStdOperatorTable.OVER.createCall(pos, new SqlNode[] {function, SimpleIdentifier});
+或者 SqlStdOperatorTable.OVER.createCall(pos, new SqlNode[] {function, WindowSpecification});
+
+2.CaseExpression()
+解析case when then else 语法,转换成SqlCase对象
+case Expression(ExprContext.ACCEPT_SUBQUERY) 
+when ExpressionCommaList(pos, ExprContext.ACCEPT_SUBQUERY) 
+then Expression(ExprContext.ACCEPT_SUBQUERY)
+else Expression(ExprContext.ACCEPT_SUBQUERY)
+
+----第四部分
+基础元素 
+1.ArrayConstructor()
+2.MapConstructor()
+
+---- 第五部分 
+很少用到的语法
+1.JdbcFunctionCall()
+2.MultisetConstructor()
+3.NewSpecification()
+4.SequenceExpression()
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+

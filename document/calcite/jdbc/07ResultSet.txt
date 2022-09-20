@@ -1,0 +1,257 @@
+
+一、背景与核心
+1.创建AvaticaResultSet的时候已经有了迭代器集合iterable了,或者至少知道如何去加载迭代器集合iterable
+参考 execute方法
+2.关注 Cursor 游标对象
+
+
+二、AvaticaResultSet
+class AvaticaResultSet implements ResultSet, ArrayImpl.Factory {
+  protected final AvaticaStatement statement;//查询的statement对象 
+  通过statement获取原信息
+  this.type = statement.resultSetType;
+    this.concurrency = statement.resultSetConcurrency;
+    this.holdability = statement.resultSetHoldability;
+    this.fetchSize = statement.getFetchSize();
+  
+  
+  protected final Meta.Signature signature;
+  protected final Iterable<Object> iterable;//结果集
+  protected final List<ColumnMetaData> columnMetaDataList;//查询的列信息
+  protected final ResultSetMetaData resultSetMetaData;//列信息的元数据
+  
+
+  protected Cursor cursor;//游标对象
+  protected List<Cursor.Accessor> accessorList;//表示如何获取每一个列的值
+  private int row;//统计移动了多少行
+  private boolean afterLast;//是否是最后一行
+  
+
+  //通过label名字找到第几个列
+  private int findColumn0(String columnLabel) throws SQLException {
+    for (ColumnMetaData columnMetaData : columnMetaDataList) {
+      // Per JDBC 3.0 specification, match is case-insensitive and if there is
+      // more than one column with a particular name, take the first.
+      if (columnMetaData.label.equalsIgnoreCase(columnLabel)) {
+        return columnMetaData.ordinal; // 0-based
+      }
+    }
+    throw new SQLException("column '" + columnLabel + "' not found");
+  }
+
+  //访问第index个列
+  private Cursor.Accessor getAccessor(int columnIndex) throws SQLException {
+    try {
+      return accessorList.get(columnIndex - 1);
+    } catch (IndexOutOfBoundsException e) {
+      throw new SQLException("invalid column ordinal: " + columnIndex);
+    }
+  }
+
+//访问第index个列
+  private Cursor.Accessor getAccessor(String columnLabel) throws SQLException {
+    return accessorList.get(findColumn0(columnLabel));
+  }
+
+  protected AvaticaResultSet execute() throws SQLException {
+    this.cursor = MetaImpl.createCursor(signature.cursorFactory,
+        statement.connection.meta.createIterable(statement.handle, signature,
+            iterable));
+    this.accessorList =
+        cursor.createAccessors(columnMetaDataList, localCalendar, this);
+    this.row = -1;
+    this.afterLast = false;
+    return this;
+  }
+
+  protected AvaticaResultSet execute2(Cursor cursor,
+      List<ColumnMetaData> columnMetaDataList) {
+    this.cursor = cursor;
+    this.accessorList =
+        cursor.createAccessors(columnMetaDataList, localCalendar, this);
+    this.row = -1;
+    this.afterLast = false;
+    return this;
+  }
+
+  //获取下一行数据
+  public boolean next() throws SQLException {
+    // TODO: for timeout, see IteratorResultSet.next
+    if (isClosed()) {
+      throw new SQLException("next() called on closed cursor");
+    }
+    if (cursor.next()) {
+      ++row;
+      return true;
+    } else {
+      afterLast = true;
+      return false;
+    }
+  }
+
+  //找到对应的列id
+  public int findColumn(String columnLabel) throws SQLException {
+    return findColumn0(columnLabel) + 1;
+  }
+
+  public boolean wasNull() throws SQLException {
+    return cursor.wasNull();
+  }
+
+  public String getString(int columnIndex) throws SQLException {
+    return getAccessor(columnIndex).getString();
+  }
+
+  public short getShort(int columnIndex) throws SQLException {
+    return getAccessor(columnIndex).getShort();
+  }
+
+  //获取该列的值
+  public int getInt(int columnIndex) throws SQLException {
+    return getAccessor(columnIndex).getInt();
+  }
+  
+三、Cursor 游标对象
+
+
+ * 游标对象,相当于迭代器对象,一行一行查看数据
+ *
+ 背景知识:
+ 1.经过解析,已经知道数据list集合，以及每一行数据对应的列信息(列序号、列名、列类型)
+ 2.循环每一行数据,每一列数据(Getter方法返回列的值)。
+ 3.因为知道每一列的类型,因此可以转换成对应的列的值转换成对应的类型方法，比如long getLong()返回列的long值
+
+ 因此 参考 ObjectEnumeratorCursor  以及 AvaticaResultSet
+ while(next()){ //是否有下一行数据
+    Object record = current() //获取下一行数据
+    
+    String getString(int columnIndex) 
+    	getAccessor(columnIndex).getString(); //获取某一个列的getAccessor，
+			Getter createGetter(int ordinal) 调用该列的Getter,即获取该列的值,然后调用对应的getString,getInteger等方法,即可。
+ }
+
+public interface Cursor extends Closeable {
+  
+  //根据列的类型,可以获取如何解析每一个列的值，
+  List<Accessor> createAccessors(List<ColumnMetaData> types,
+      Calendar localCalendar, //日期对象如何转换
+      ArrayImpl.Factory factory);//数组的时候处理,似乎使用的价值没有那么大,暂时可忽略
+
+  boolean next() throws SQLException;是否有下一行数据
+
+  boolean wasNull() throws SQLException;
+
+  /**
+   * Accessor of a column value.
+   * 代表一行数据中的所有列
+   */
+  public interface Accessor {
+    boolean wasNull() throws SQLException;
+
+    String getString() throws SQLException;
+
+    boolean getBoolean() throws SQLException;
+
+    byte getByte() throws SQLException;
+
+    short getShort() throws SQLException;
+
+    int getInt() throws SQLException;
+
+    long getLong() throws SQLException;
+
+  }
+}
+
+四、ObjectEnumeratorCursor
+结果集是Enumerator迭代器
+public class ObjectEnumeratorCursor extends PositionedCursor<Object> {
+  private final Enumerator<Object> enumerator;
+
+  public ObjectEnumeratorCursor(Enumerator<Object> enumerator) {
+    this.enumerator = enumerator;
+  }
+
+  //获取当前行的某一列的值
+  protected Getter createGetter(int ordinal) {
+    return new ObjectGetter(ordinal);
+  }
+
+  //获取当前行
+  protected Object current() {
+    return enumerator.current();
+  }
+
+  public boolean next() {
+    return enumerator.moveNext();
+  }
+
+  public void close() {
+    enumerator.close();
+  }
+}
+
+public abstract class AbstractCursor implements Cursor {
+  /**
+   * Slot into which each accessor should write whether the
+   * value returned was null.
+   */
+  protected final boolean[] wasNull = {false};
+
+  protected AbstractCursor() {
+  }
+
+  public boolean wasNull() {
+    return wasNull[0];
+  }
+
+//已经知道迭代器集合，又知道每一个字段的类型,因此可以知道每一个字段如何访问数据。
+  public List<Accessor> createAccessors(List<ColumnMetaData> types,
+      Calendar localCalendar, ArrayImpl.Factory factory) {
+    List<Accessor> accessors = new ArrayList<Accessor>();
+    for (ColumnMetaData type : types) { //列信息集合
+      accessors.add(
+          createAccessor(type, accessors.size(), localCalendar, factory));
+    }
+    return accessors;
+  }
+
+  /**
+   * 根据字段类型,返回如何将value值转换成指定类型的对象
+   */
+  protected Accessor createAccessor(ColumnMetaData type, int ordinal,
+      Calendar localCalendar, ArrayImpl.Factory factory) {
+    // Create an accessor appropriate to the underlying type; the accessor
+    // can convert to any type in the same family.
+    Getter getter = createGetter(ordinal);
+    switch (type.type.type) {
+    case Types.TINYINT:
+      return new ByteAccessor(getter);
+    case Types.SMALLINT:
+      return new ShortAccessor(getter);
+    case Types.INTEGER:
+      return new IntAccessor(getter);
+   }
+
+  private static class LongAccessor extends AccessorImpl {
+    public LongAccessor(Getter getter) {
+      super(getter);
+    }
+
+    public long getLong() {
+      Long o = (Long) super.getObject();//获取具体的列值,转换成long
+      return o == null ? 0 : o;
+    }
+  }
+    
+  static class AccessorImpl implements Accessor {
+    protected final Getter getter;
+
+    public AccessorImpl(Getter getter) {
+      assert getter != null;
+      this.getter = getter;
+    }
+    
+   public Object getObject() {
+      return getter.getObject();
+    }

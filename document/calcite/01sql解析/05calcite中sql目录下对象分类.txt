@@ -1,0 +1,106 @@
+一、基础SqlNode
+1.SqlNode implements Cloneable
+2.SqlIdentifier extends SqlNode 代表字符串
+3.SqlNodeList extends SqlNode implements Iterable<SqlNode>
+4.SqlDynamicParam extends SqlNode
+5.SqlDataTypeSpec extends SqlNode ,DDL中,创建字段的描述对象
+6.SqlIntervalQualifier extends SqlNode 日期间隔对象
+
+二、字面量SqlNode
+1.SqlLiteral extends SqlNode
+	SqlNumericLiteral extends SqlLiteral 代表数字字面量
+	SqlIntervalLiteral extends SqlLiteral 日期字面量
+	SqlAbstractDateTimeLiteral extends SqlLiteral 日期字面量
+		SqlDateLiteral extends SqlAbstractDateTimeLiteral
+		SqlTimestampLiteral extends SqlAbstractDateTimeLiteral
+		SqlTimeLiteral extends SqlAbstractDateTimeLiteral
+2.JoinType implements SqlLiteral.SqlSymbol
+3.JoinConditionType implements SqlLiteral.SqlSymbol 
+4.SemiJoinType implements SqlLiteral.SqlSymbol
+5.SqlAbstractStringLiteral extends SqlLiteral
+	SqlBinaryStringLiteral extends SqlAbstractStringLiteral
+	SqlCharStringLiteral extends SqlAbstractStringLiteral
+6.SqlSelectKeyword implements SqlLiteral.SqlSymbol
+7.SqlExplainLevel implements SqlLiteral.SqlSymbol
+8.SqlInsertKeyword implements SqlLiteral.SqlSymbol
+
+三、SqlCall extends SqlNode 
+1.SqlSetOption extends SqlCall 设置属性 ALTER set key = value
+对应SqlSpecialOperator操作
+2.SqlSelect extends SqlCall
+对应SqlSelectOperator操作
+3.SqlDelete extends SqlCall
+对应SqlSpecialOperator操作
+4.SqlExplain extends SqlCall
+对应SqlSpecialOperator操作
+5.SqlInsert extends SqlCall
+对应SqlSpecialOperator操作
+6.SqlUpdate extends SqlCall
+对应SqlSpecialOperator操作
+7.SqlMerge extends SqlCall 
+对应SqlSpecialOperator操作
+8.SqlOrderBy extends SqlCall
+9.SqlBasicCall extends SqlCall
+10.SqlJoin extends SqlCall
+11.SqlWith extends SqlCall 
+对应SqlWithOperator extends SqlSpecialOperator操作
+12.SqlWithItem extends SqlCall
+对应 SqlWithItemOperator extends SqlSpecialOperator 操作
+13.SqlWindow extends SqlCall
+对应SqlWindowOperator extends SqlOperator操作
+
+
+四、SqlOperator操作，表示对持有的sqlNode可以做进一步操作
+比如 SqlValuesOperator extends SqlSpecialOperator，描述的是value(xx,xx),即对持有的sqlNodeList进一步的做处理
+
+SqlSyntax 表示操作的分类，包含function操作、特殊操作、一元操作、二元操作等
+
+0.SqlSelectOperator extends SqlOperator 核心select操作
+1.SqlAsOperator extends SqlSpecialOperator 代表一个重命名操作 
+--> new SqlBasicCall(SqlAsOperator, sqlNode, pos, false, null);
+2.SqlRankFunction extends SqlAggFunction -- CUME_DIST、DENSE_RANK、PERCENT_RANK、RANK、ROW_NUMBER
+	SqlAggFunction extends SqlFunction --- sum、count、min、max、avg、LAST_VALUE、FIRST_VALUE、LEAD、lag、
+											NTILE、SINGLE_VALUE、STDDEV_POP、REGR_SXX、REGR_SYY、COVAR_POP、
+											COVAR_SAMP、STDDEV_SAMP、VAR_POP、VAR_SAMP、HISTOGRAM_AGG
+	SqlUnresolvedFunction extends SqlFunction 针对转义字符特殊操作
+		SqlFunction extends SqlOperator  代表一个函数
+			--> new SqlBasicCall(SqlAggFunction, sqlNode, pos, false, null);
+3.SqlFunctionalOperator extends SqlSpecialOperator 代表 LATERAL 函数
+4.SqlInternalOperator extends SqlSpecialOperator 内置函数：CUBE、ROLLUP、GROUPING_SETS
+5.SqlValuesOperator extends SqlSpecialOperator ，values操作
+6.SqlUnnestOperator extends SqlFunctionalOperator ，针对UNNEST语法操作，但该语法不常用,因此不在花时间学习
+7.SqlBinaryOperator extends SqlOperator 代表二元操作，持有两个sqlNode进行操作
+and 、or、=、/、 >= 、>、<、<=
+8.SqlSetOperator extends SqlBinaryOperator 特殊的二元操作
+UNION ALL、EXCEPT ALL、INTERSECT ALL
+9.SqlBetweenOperator extends SqlInfixOperator ,between 、not between操作
+10.SqlPostfixOperator extends SqlOperator 持有一个sqlNode,后置操作
+窗口函数中FOLLOWING、PRECEDING
+非窗口函数中：
+DESC、
+NULLS FIRST、NULLS LAST、
+IS NOT NULL、is null
+IS NOT true、is true
+IS NOT false、is false
+IS NOT UNKNOWN、IS UNKNOWN
+IS A SET
+11.SqlPrefixOperator extends SqlOperator 持有一个sqlNode,前置操作
+EXISTS、not、+、-、TABLE
+12.SqlOverOperator extends SqlBinaryOperator ,窗口函数over操作
+13.SqlWithOperator extends SqlSpecialOperator处理with语法块
+14.SqlWithItemOperator extends SqlSpecialOperator 处理withItem语法块
+15.SqlWindowOperator extends SqlOperator 处理window窗口函数语法块
+
+五、其他辅助类
+1.SqlSampleSpec 描述抽样的对象
+2.interface SqlOperatorTable
+sql operators对象字典表接口，实现类目标返回所有的操作对象
+3.定义如何访问数据库的权限，允许访问增删改查四类权限的组合
+SqlAccessType
+SqlAccessEnum
+4.class SqlOperatorBinding
+	SqlCallBinding extends SqlOperatorBinding 每次去计算每一个参数的类型
+	ExplicitOperatorBinding extends SqlOperatorBinding 精准的知道了每一个参数的类型
+该类是SqlOperator的工具类，
+因为sql核心处理的是sqlNode，而其中有一部分sqlNode上是可以绑定操作的，比如sqlCall上绑定SqlOperator。
+该对象可以更加丰富SqlOperator信息，可以获取到对应的sqlCall上每一个参数的类型与对应的属性值

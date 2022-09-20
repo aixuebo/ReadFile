@@ -1,0 +1,38 @@
+AvaticaFactory 工厂对象
+虽然是工厂对象,但driver生产connect，connect生产Statement也是有依赖规则的。
+
+a.创建连接
+AvaticaConnection newConnection(
+      UnregisteredDriver driver,
+      AvaticaFactory factory,
+      String url,
+      Properties info);
+  return new CalciteConnectionImpl(driver, factory, url, info, rootSchema, typeFactory);
+
+b.AvaticaStatement newStatement(AvaticaConnection connection,
+      @Nullable Meta.StatementHandle h, int resultSetType,
+      int resultSetConcurrency, int resultSetHoldability) ;
+return new CalciteStatement(connection,h,resultSetType, resultSetConcurrency,resultSetHoldability);
+
+c.AvaticaPreparedStatement newPreparedStatement(AvaticaConnection connection,
+      @Nullable Meta.StatementHandle h, Meta.Signature signature,
+      int resultSetType, int resultSetConcurrency, int resultSetHoldability);
+
+return CalcitePreparedStatement(connection, h, signature, resultSetType, resultSetConcurrency,resultSetHoldability);
+
+
+d.返回ResultSet结果集的元数据信息
+  ResultSetMetaData newResultSetMetaData(AvaticaStatement statement,Meta.Signature signature)
+  new AvaticaResultSetMetaData(statement, null, signature);
+
+
+e.返回数据库级别的元数据信息
+AvaticaDatabaseMetaData newDatabaseMetaData(AvaticaConnection connection);
+ return new AvaticaDatabaseMetaData(CalciteConnectionImpl）
+
+f.返回结果集
+AvaticaResultSet newResultSet(AvaticaStatement statement,
+        Meta.Signature signature, TimeZone timeZone, Iterable<Object> iterable);
+ResultSetMetaData metaData = newResultSetMetaData(statement, signature);
+CalcitePrepare.CalciteSignature calciteSignature = (CalcitePrepare.CalciteSignature) signature;
+return new CalciteResultSet(statement, calciteSignature, metaData, timeZone,iterable);

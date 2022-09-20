@@ -1,0 +1,260 @@
+  public List<SqlMoniker> lookupHints(SqlNode topNode, SqlParserPos pos) {
+    SqlValidatorScope scope = new EmptyScope(this);
+    SqlNode outermostNode = performUnconditionalRewrites(topNode, false);
+    cursorSet.add(outermostNode);
+    if (outermostNode.isA(SqlKind.TOP_LEVEL)) {
+      registerQuery(
+          scope,
+          null,
+          outermostNode,
+          outermostNode,
+          null,
+          false);
+    }
+    final SqlValidatorNamespace ns = getNamespace(outermostNode);
+    if (ns == null) {
+      throw Util.newInternal("Not a query: " + outermostNode);
+    }
+    Collection<SqlMoniker> hintList = Sets.newTreeSet(SqlMoniker.COMPARATOR);
+    lookupSelectHints(ns, pos, hintList);
+    return ImmutableList.copyOf(hintList);
+  }
+
+
+  /**
+   * Looks up completion hints for a syntactically correct select SQL that has
+   * been parsed into an expression tree.
+   *
+   * @param select   the Select node of the parsed expression tree
+   * @param pos      indicates the position in the sql statement we want to get
+   *                 completion hints for
+   * @param hintList list of {@link SqlMoniker} (sql identifiers) that can
+   *                 fill in at the indicated position
+   */
+  void lookupSelectHints(
+      SqlSelect select,
+      SqlParserPos pos,
+      Collection<SqlMoniker> hintList) {
+    IdInfo info = idPositions.get(pos.toString());
+    if ((info == null) || (info.scope == null)) {
+      SqlNode fromNode = select.getFrom();
+      final SqlValidatorScope fromScope = getFromScope(select);
+      lookupFromHints(fromNode, fromScope, pos, hintList);
+    } else {
+      lookupNameCompletionHints(info.scope, info.id.names,
+          info.id.getParserPosition(), hintList);
+    }
+  }
+
+  private void lookupSelectHints(
+      SqlValidatorNamespace ns,
+      SqlParserPos pos,
+      Collection<SqlMoniker> hintList) {
+    final SqlNode node = ns.getNode();
+    if (node instanceof SqlSelect) {
+      lookupSelectHints((SqlSelect) node, pos, hintList);
+    }
+  }
+
+  private void lookupFromHints(
+      SqlNode node,
+      SqlValidatorScope scope,
+      SqlParserPos pos,
+      Collection<SqlMoniker> hintList) {
+    final SqlValidatorNamespace ns = getNamespace(node);
+    if (ns.isWrapperFor(IdentifierNamespace.class)) {
+      IdentifierNamespace idNs = ns.unwrap(IdentifierNamespace.class);
+      final SqlIdentifier id = idNs.getId();
+      for (int i = 0; i < id.names.size(); i++) {
+        if (pos.toString().equals(
+            id.getComponent(i).getParserPosition().toString())) {
+          List<SqlMoniker> objNames = new ArrayList<SqlMoniker>();
+          SqlValidatorUtil.getSchemaObjectMonikers(
+              getCatalogReader(),
+              id.names.subList(0, i + 1),
+              objNames);
+          for (SqlMoniker objName : objNames) {
+            if (objName.getType() != SqlMonikerType.FUNCTION) {
+              hintList.add(objName);
+            }
+          }
+          return;
+        }
+      }
+    }
+    switch (node.getKind()) {
+    case JOIN:
+      lookupJoinHints((SqlJoin) node, scope, pos, hintList);
+      break;
+    default:
+      lookupSelectHints(ns, pos, hintList);
+      break;
+    }
+  }
+
+  private void lookupJoinHints(
+      SqlJoin join,
+      SqlValidatorScope scope,
+      SqlParserPos pos,
+      Collection<SqlMoniker> hintList) {
+    SqlNode left = join.getLeft();
+    SqlNode right = join.getRight();
+    SqlNode condition = join.getCondition();
+    lookupFromHints(left, scope, pos, hintList);
+    if (hintList.size() > 0) {
+      return;
+    }
+    lookupFromHints(right, scope, pos, hintList);
+    if (hintList.size() > 0) {
+      return;
+    }
+    final JoinConditionType conditionType = join.getConditionType();
+    final SqlValidatorScope joinScope = scopes.get(join);
+    switch (conditionType) {
+    case ON:
+      condition.findValidOptions(this, joinScope, pos, hintList);
+      return;
+    default:
+
+      // No suggestions.
+      // Not supporting hints for other types such as 'Using' yet.
+      return;
+    }
+  }
+
+  /**
+   * Populates a list of all the valid alternatives for an identifier.
+   *
+   * @param scope    Validation scope
+   * @param names    Components of the identifier
+   * @param pos      position
+   * @param hintList a list of valid options
+   */
+  public final void lookupNameCompletionHints(
+      SqlValidatorScope scope,
+      List<String> names,
+      SqlParserPos pos,
+      Collection<SqlMoniker> hintList) {
+    // Remove the last part of name - it is a dummy
+    List<String> subNames = Util.skipLast(names);
+
+    if (subNames.size() > 0) {
+      // If there's a prefix, resolve it to a namespace.
+      SqlValidatorNamespace ns = null;
+      for (String name : subNames) {
+        if (ns == null) {
+          ns = scope.resolve(ImmutableList.of(name), null, null);
+        } else {
+          ns = ns.lookupChild(name);
+        }
+        if (ns == null) {
+          break;
+        }
+      }
+      if (ns != null) {
+        RelDataType rowType = ns.getRowType();
+        for (RelDataTypeField field : rowType.getFieldList()) {
+          hintList.add(
+              new SqlMonikerImpl(
+                  field.getName(),
+                  SqlMonikerType.COLUMN));
+        }
+      }
+
+      // builtin function names are valid completion hints when the
+      // identifier has only 1 name part
+      findAllValidFunctionNames(names, this, hintList, pos);
+    } else {
+      // No prefix; use the children of the current scope (that is,
+      // the aliases in the FROM clause)
+      scope.findAliases(hintList);
+
+      // If there's only one alias, add all child columns
+      SelectScope selectScope =
+          SqlValidatorUtil.getEnclosingSelectScope(scope);
+      if ((selectScope != null)
+          && (selectScope.getChildren().size() == 1)) {
+        RelDataType rowType =
+            selectScope.getChildren().get(0).getRowType();
+        for (RelDataTypeField field : rowType.getFieldList()) {
+          hintList.add(
+              new SqlMonikerImpl(
+                  field.getName(),
+                  SqlMonikerType.COLUMN));
+        }
+      }
+    }
+
+    findAllValidUdfNames(names, this, hintList);
+  }
+  
+  
+  public SqlNode validate(SqlNode topNode) {
+    SqlValidatorScope scope = new EmptyScope(this);
+    scope = new CatalogScope(scope, ImmutableList.of("CATALOG"));
+    final SqlNode topNode2 = validateScopedExpression(topNode, scope);
+    final RelDataType type = getValidatedNodeType(topNode2);
+    Util.discard(type);
+    return topNode2;
+  }
+
+  private static void findAllValidUdfNames(
+      List<String> names,
+      SqlValidator validator,
+      Collection<SqlMoniker> result) {
+    List<SqlMoniker> objNames = new ArrayList<SqlMoniker>();
+    SqlValidatorUtil.getSchemaObjectMonikers(
+        validator.getCatalogReader(),
+        names,
+        objNames);
+    for (SqlMoniker objName : objNames) {
+      if (objName.getType() == SqlMonikerType.FUNCTION) {
+        result.add(objName);
+      }
+    }
+  }
+
+  private static void findAllValidFunctionNames(
+      List<String> names,
+      SqlValidator validator,
+      Collection<SqlMoniker> result,
+      SqlParserPos pos) {
+    // a function name can only be 1 part
+    if (names.size() > 1) {
+      return;
+    }
+    for (SqlOperator op : validator.getOperatorTable().getOperatorList()) {
+      SqlIdentifier curOpId =
+          new SqlIdentifier(
+              op.getName(),
+              pos);
+
+      final SqlCall call =
+          SqlUtil.makeCall(
+              validator.getOperatorTable(),
+              curOpId);
+      if (call != null) {
+        result.add(
+            new SqlMonikerImpl(
+                op.getName(),
+                SqlMonikerType.FUNCTION));
+      } else {
+        if ((op.getSyntax() == SqlSyntax.FUNCTION)
+            || (op.getSyntax() == SqlSyntax.PREFIX)) {
+          if (op.getOperandTypeChecker() != null) {
+            String sig = op.getAllowedSignatures();
+            sig = sig.replaceAll("'", "");
+            result.add(
+                new SqlMonikerImpl(
+                    sig,
+                    SqlMonikerType.FUNCTION));
+            continue;
+          }
+          result.add(
+              new SqlMonikerImpl(
+                  op.getName(),
+                  SqlMonikerType.FUNCTION));
+        }
+      }
+    }
+  }

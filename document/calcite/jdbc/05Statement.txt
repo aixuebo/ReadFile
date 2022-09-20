@@ -1,0 +1,32 @@
+一、背景与核心
+1.非常薄的一层，因为一个connnection可以执行多次sql,而每一个sql查询都要有独立的空间，用于了解每一个sql是什么、查询的列是什么、查询结果是什么，因此有了该对象。
+他就是一个大的vo对象，核心能力还是connnection去完成的。
+2.核心功能还是执行的connection的方法，因此connection才是核心
+核心execute(String sql) 执行的是 connection.executeQueryInternal(this, signature, null);
+核心ResultSet executeQuery(String sql),执行的是 connection.prepareAndExecuteInternal(this, sql, maxRowCount1);
+
+二、abstract class AvaticaStatement implements Statement {
+1.public final AvaticaConnection connection; 持有连接对象
+2.protected boolean closed; 是否关闭
+3.public final Meta.StatementHandle handle; //Statement的唯一id,即connection中第几个Statement对象
+4.protected AvaticaResultSet openResultSet; 查询结果集对象
+5.其他配置参数
+  private int queryTimeoutMillis;//超时时间
+  final int resultSetType;//数据可支持向前、向后next查找
+  final int resultSetConcurrency;//是否只读查询
+  final int resultSetHoldability;
+  private int fetchSize;//每次抓取数据条数
+  private int fetchDirection;
+  protected int maxRowCount;//查询最大行数
+
+6.核心方法
+public boolean execute(String sql) 经常用于执行delete、update、insert
+	Meta.Signature signature = connection.meta.prepare(handle, sql, maxRowCount1);核心代码在connection中实现
+  	return connection.executeQueryInternal(this, signature, null);
+
+7.ResultSet executeQuery(String sql) 常用于执行查询结果集
+	return connection.prepareAndExecuteInternal(this, sql, maxRowCount1);//与executeQueryInternal逻辑相同,只是需要先将sql转化成Signature
+
+int executeUpdate(String sql) --> executeQuery(sql);
+
+8.public ResultSet getResultSet() return openResultSet;

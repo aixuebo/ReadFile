@@ -1,0 +1,126 @@
+一、背景与目标
+1.使用lambda表达式的方式,动态创建class对象code代码,使用编译器编译class,动态执行。
+2.Expressions 表达式工厂入口
+
+二、动态代码需要的类
+1.class ClassDeclaration extends MemberDeclaration  声明一个class,即创建一个class的代码
+  public final int modifier;
+  public final String classClass = "class";
+  public final String name;//class的名字
+  public final List<MemberDeclaration> memberDeclarations; //包含构造函数、属性、方法
+  public final Type extended; //继承自哪个类
+  public final List<Type> implemented;//实现哪个接口
+  
+  生产代码
+  public class name extends extended implements x1,x2{
+  	ConstructorDeclaration 构造函数
+  	FieldDeclaration 属性
+  	MethodDeclaration 方法
+  }
+
+2.class ConstructorDeclaration extends MemberDeclaration 创建构造函数代码
+  public final int modifier;
+  public final Type resultType;//构造函数对应的class
+  public final List<ParameterExpression> parameters;//构造函数参数
+  public final BlockStatement body;//构造函数方法体
+  
+  生产代码
+  public resultType(String x,String x){body}
+
+3.class FieldDeclaration extends MemberDeclaration 声明class里的成员,比如声明field
+  public final int modifier;
+  public final ParameterExpression parameter;
+  public final Expression initializer;//属性初始化的值对象
+  
+  生产代码
+  public String name = initializer
+  
+ 4.class MethodDeclaration extends MemberDeclaration 创建class中method方法
+  public final int modifier;
+  public final String name;//方法名
+  public final Type resultType;//方法返回类型
+  public final List<ParameterExpression> parameters;//方法参数类型与参数名称
+  public final BlockStatement body;//方法体
+  
+  生产代码
+  public resultType name (String x1,String x2){body}
+  
+三、相关核心表达式
+1.class Expression extends AbstractNode 
+ExpressionType nodeType 表达式本身归属分类,比如常数表达式、变量表达式
+Type type 表达式对应的类型
+
+2.class ConstantExpression extends Expression 常数表达式
+Object value 常数值
+
+3.class ConstantUntypedNull extends ConstantExpression 代表一个null,常数表达式
+
+4.class ParameterExpression extends Expression 参数/变量表达式
+即demo:  private String name
+ExpressionType = ExpressionType.Parameter
+Type type 返回值
+int modifier;//代表public 等定义方式
+String name; 变量名
+
+5.操作表达式
+class UnaryExpression extends Expression 代表一元操作
+BinaryExpression extends Expression 代表二元操作
+TernaryExpression extends Expression 代表三元操作
+
+参数:
+ExpressionType nodeType 操作类型
+Type type 操作返回值类型
+Expression1、Expression2、Expression3 对应待操作的表达式
+
+6.class NewExpression extends Expression new一个新对象
+  public final Type type;//new的对象类型
+  public final List<Expression> arguments;//new对象的参数
+  public final List<MemberDeclaration> memberDeclarations;//如果要override方法和属性,则有以下内容
+  
+  生产代码
+  new type(String name,int age)
+  new type(String name,int age) { 重写属性、方法 }
+  
+7.class NewArrayExpression extends Expression  新创建一个数组
+  ExpressionType = ExpressionType.NewArrayInit
+  Type = Types.arrayType(type, dimension) 方法返回值类型
+  public final int dimension;//多少维数组
+  public final Expression bound;//不清楚做什么的
+  public final List<Expression> expressions;//初始化数组元素
+  
+  生产代码
+  new double[]{90, 80, 70, 60, 50};
+  new double[][]{{90, 80, 70, 60, 50},{...},{...}};
+  
+8.class MethodCallExpression extends Expression 代表一个方法的调用
+  ExpressionType = ExpressionType.Call
+  Type returnType 方法返回值类型
+  public final Method method; //调用的方法名称,从该对象中可以获取class以及方法名称
+  public final Expression targetExpression; // null for call to static method 等同于method,只是用表达式的方式表示
+  public final List<Expression> expressions; //参数信息
+  
+	生产代码
+	xx.xx.xx.class.methodName(Expression,Expression)
+	
+9.class IndexExpression extends Expression 获取数组中的某一个元素
+  ExpressionType = ExpressionType.ArrayIndex
+  Type Types.getComponentType(array.getType()) 方法返回值类型
+  public final Expression array;//数组对象
+  public final List<Expression> indexExpressions; 提取数据中的哪些下标的数据
+  
+	生产代码
+	array[Expression,Expression,Expression]
+	  
+10.函数表达式
+LambdaExpression extends Expression 
+class FunctionExpression<F extends Function<?>> extends LambdaExpression
+
+
+11.其他似乎被抛弃的表达式
+ElementInit --- 初始化数组
+ListInitExpression --- 初始化list集合
+InvocationExpression
+MemberExpression extends Expression 代表一个属性或者字段的表达式
+TypeBinaryExpression extends Expression
+
+

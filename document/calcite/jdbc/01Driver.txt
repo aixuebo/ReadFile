@@ -1,0 +1,59 @@
+
+一、背景与核心
+
+
+二、driver
+向服务器告知一个驱动,即可以解析一种url前缀,去查询数据库信息
+1.基础能力
+a.String getConnectStringPrefix();获取driver需要适配的url前缀
+return "jdbc:calcite:"
+b.boolean acceptsURL(String url) 校验是否url是合法的以xxx前缀开头的
+    return url.startsWith(getConnectStringPrefix());
+c.DriverPropertyInfo[] getPropertyInfo(String url, java.util.Properties info) 返回driver需要的PropertyInfo信息
+d.DriverVersion getDriverVersion() Driver的元数据信息,包括版本号等信息
+
+2.核心能力
+void register() 注册,系统就知道如何解析了
+DriverManager.registerDriver(this);
+
+3.高级能力
+a.AvaticaFactory createFactory() 创建工厂,工厂可以创建Connection、Statement
+b.Handler handler 处理监听拦截器
+    void onConnectionInit(AvaticaConnection connection)
+    void onConnectionClose(AvaticaConnection connection)
+    void onStatementExecute(AvaticaStatement statement,ResultSink resultSink)
+    void onStatementClose(AvaticaStatement statement)
+c.Meta createMeta(AvaticaConnection connection) 获取连接的元数据信息
+    return new CalciteMetaImpl((CalciteConnectionImpl) connection)
+
+4.特殊实现
+a.CalcitePrepare prepareFactory = new CalcitePrepareImpl()
+
+b.protected Handler createHandler() {
+    return new HandlerImpl() {
+      @Override public void onConnectionInit(AvaticaConnection connection_) {
+        final String model = connection.config().model();
+        if (model != null) {
+          try {
+            new ModelHandler(connection, model);//找到对应的model对象
+          } catch (IOException e) {
+            throw new SQLException(e);
+          }
+        }
+        connection.init();//调用连接的init方法
+      }
+    };
+  }
+
+c.Connection connect(String url, java.util.Properties info) throws SQLException;
+确保acceptsURL(url) = true校验通过。
+Properties info2 = ConnectStringParser.parse(urlSuffix, info) 通过url获取配置信息
+AvaticaConnection connection = factory.newConnection(this, factory, url, info2); 创建连接,返回说明连接成功
+handler.onConnectionInit(connection); 处理事件,会调用connection的init方法。
+return connection;
+
+d.利用schema信息,说明已经有连接成功了,则直接调用工厂方法创建连接对象
+CalciteConnection connect(CalciteRootSchema rootSchema,JavaTypeFactory typeFactory) {
+      return (CalciteConnection) ((CalciteFactory) factory).newConnection(this.driver, factory,
+      "jdbc:calcite:", new Properties(),rootSchema, typeFactory);
+}

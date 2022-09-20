@@ -1,0 +1,17 @@
+一、核心的非表达式Node对象
+1.class ConditionalExpression extends AbstractNode   if表达式
+  ExpressionType = ExpressionType.Conditional
+  Type type if表达式返回的lambda表达式结果类型
+  List<Node> expressionList;//if中的内容
+  
+   生产代码
+   if(Node){Node} else if(Node) {Node} ... else {Node}
+
+
+
+二、其他似乎被抛弃的对象
+class MemberBinding
+class MemberAssignment extends MemberBinding
+class MemberListBinding extends MemberBinding
+class MemberMemberBinding extends MemberBinding
+

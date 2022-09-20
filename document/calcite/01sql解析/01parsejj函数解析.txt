@@ -1,0 +1,400 @@
+SqlParserPos
+代表一个token的信息，是语法解析器解析的最小单元
+  private final int lineNumber;//taken开始的行与列位置
+  private final int columnNumber;
+  private final int endLineNumber;//token结束的行与列位置
+  private final int endColumnNumber;
+
+一、SqlIdentifier SimpleIdentifier() 
+解析成xxx.xx.xx字符串
+是SqlNode子类
+
+二、SqlNodeList SimpleIdentifierCommaList()
+解析xxx.xx.xx,yy.yy.yy
+返回 SqlNodeList<SqlIdentifier>()
+
+按照逗号拆分成数组，常用于join两个表时的表示形式
+
+三、SqlNodeList ParenthesizedSimpleIdentifierList()  
+匹配 (xx,xx,xx) 
+返回 SqlNodeList<SqlIdentifier>()
+
+四、ColumnType(List<SqlNode> list)
+解析DDL，把字段名称SqlIdentifier、字段信息SqlDataTypeSpec ，分别追加到list中。即list是偶数
+1.下解析列名SqlIdentifier。
+2.再解析字段类型SqlDataTypeSpec。
+3.设置 字段是否允许null -- withNullable false表示设置了 not null标识。
+
+SqlDataTypeSpec DataType()  解析字段的DDL
+1.SqlIdentifier typeName = TypeName() 解析并且设置字段类型
+2. (precision,scale) 解析并且设置精准度
+3.CHARACTER SET Identifier(),解析并且设置charSetName
+4.解析并且设置collectionTypeName = CollectionsTypeName() --- 不太重要，核心关键词是MULTISET
+
+五、SqlDynamicParam DynamicParam() 
+解析？，返回new SqlDynamicParam(nDynamicParams++, pos)，即第几个?
+
+六、SqlLiteral JoinType() :
+joinType = JoinType.INNER;  JoinType.LEFT;  JoinType.RIGHT; JoinType.FULL;
+<CROSS> <JOIN> 时 joinType = JoinType.CROSS; 
+
+七、SqlNumericLiteral UnsignedNumericLiteral() 
+解析 正数、小数、科学计数法对应的数字
+无论正数、负数、还是科学计数法，最终都转换成了BigDecimal，存储到SqlNumericLiteral对象中。
+
+SqlLiteral NumericLiteral()  会解析数字前面的正负号，如果是负号，也会转换成SqlNumericLiteral对象。
+
+八、SqlIntervalLiteral parseIntervalLiteral
+(
+    SqlParserPos pos,
+    int sign,
+    String intervalStr,
+    SqlIntervalQualifier intervalQualifier) throws ParseException
+{
+    return SqlLiteral.createInterval(sign, intervalStr, intervalQualifier, pos);
+}
+解析时间类型字符串
+
+九、SqlCase CaseExpression() :
+解析case when then else 语法,转换成SqlCase对象
+case Expression(ExprContext.ACCEPT_SUBQUERY) 
+when ExpressionCommaList(pos, ExprContext.ACCEPT_SUBQUERY) 
+then Expression(ExprContext.ACCEPT_SUBQUERY)
+else Expression(ExprContext.ACCEPT_SUBQUERY)
+
+详细细节参考表达式语法。
+
+十、SqlNode Literal()
+解析一个字面量有含义的字符串
+1.SqlNumericLiteral NumericLiteral() 返回BigDecimal数据。（正数、小数、科学计数法、负数）
+2.SqlLiteral SpecialLiteral 返回特殊的字面量字符串，包括boolean、null、unknow
+3.解析日期字符串
+SqlDateLiteral = date xxx
+SqlTimeLiteral = time xxx
+SqlTimestampLiteral = TIMESTAMP xxx
+4.SqlIntervalLiteral IntervalLiteral()  解析日期间隔字符串
+5.解析带有带有``的字符串，转换成一个动作call对象
+Call = StringLiteral()
+
+十一、SqlNodeList ParenthesizedQueryOrCommaList(ExprContext exprContext) :
+返回list，每一个元素是()包裹的查询语句或者表达式
+用于WHERE x IN ((select count(*) from t where c=d),5)
+解析(OrderedQueryOrExpr),([Expression]) ---> new SqlNodeList(List<Expression>)
+
+十二、SqlIdentifier CompoundIdentifier() :
+解析xx.xx 或者xx.xx.*对应的字符串对象
+
+十三、SqlIdentifier ReservedFunctionName()  
+基础函数名称组成的字符串，比如count、sum、avg、求均值、求方差等函数名
+
+十四、List FunctionParameterList(ExprContext exprContext) :
+代码函数的参数部分
+(DISTINCT/ALL OrderedQueryOrExpr [,Expression]) -->
+List(new SqlLiteral("DISTINCT/ALL", SqlTypeName.SYMBOL),OrderedQueryOrExpr,Expression...)
+
+十五、SqlNode NamedFunctionCall() 
+解析函数表达式
+<SPECIFIC> --> funcType = SqlFunctionCategory.USER_DEFINED_SPECIFIC_FUNCTION;
+xx.xx 或者xx字段 或者函数名--> 比如 user.user_name
+函数名(*) --> 比如count(*)
+函数名() --> 比如length()
+自定义函数名(参数1,参数2)
+函数名(DISTINCT 参数1,参数2)
+
+返回 function = createCall(函数名或者字段名, null或者funcType, null或者distinct关键词,函数参数集合）
+或者 SqlStdOperatorTable.OVER.createCall(pos, new SqlNode[] {function, SimpleIdentifier});
+或者 SqlStdOperatorTable.OVER.createCall(pos, new SqlNode[] {function, WindowSpecification});
+
+十六、SqlPostfixOperator PostfixRowOperator() :
+is [not] null --> SqlStdOperatorTable.IS_NOT_NULL/IS_NULL
+is [not] true ---> SqlStdOperatorTable.IS_NOT_TRUE/IS_TRUE
+is [not] false ---> SqlStdOperatorTable.IS_NOT_FALSE/IS_FALSE
+is [not] UNKNOWN ---> SqlStdOperatorTable.IS_NOT_UNKNOWN/IS_UNKNOWN
+is a set ---> SqlStdOperatorTable.IS_A_SET 用于检测嵌套表是否包含重复的元素值
+
+十七、SqlPrefixOperator PrefixRowOperator() :
++ ---> SqlStdOperatorTable.UNARY_PLUS
+- ---> SqlStdOperatorTable.UNARY_MINUS
+NOT ---> SqlStdOperatorTable.NOT
+EXISTS ---> SqlStdOperatorTable.EXISTS
+
+十八、SqlNode WhereOpt() :
+where 条件，用于select、update、delete
+格式 where Expression ---> Expression
+
+十九、SqlNodeList GroupByOpt() :
+用于解析select语法中的group by部分
+返回值SqlNodeList<Expression,Expression..>
+语法
+group by Expression,[Expression..] ---> List<Expression>
+group by (),[Expression..] ---> List<Expression>
+group by Expression,[Expression..] GROUPING SETS (Expression,[Expression..]) 
+---> List(Expression,[Expression..],SqlStdOperatorTable.GROUPING_SETS.createCall(List<Expression>))
+group by Expression,[Expression..] ROLLUP(List<Expression> —>list) 
+---> List(Expression,[Expression..],SqlStdOperatorTable.ROLLUP.createCall(List<Expression>))
+group by Expression,[Expression..] CUBE(List<Expression> —>list)
+---> List(Expression,[Expression..],SqlStdOperatorTable.CUBE.createCall(List<Expression>))
+
+二十、SqlNode HavingOpt() :
+解析select中having部分
+格式 having Expression --> Expression
+
+二十一、SqlNodeList OrderBy(boolean accept) :
+order by Expression1,[Expression2..] ---> SqlNodeList<Expression1,Expression2>
+order by Expression1 desc,[Expression..] ---> SqlNodeList<SqlStdOperatorTable.DESC.createCall(Expression1),Expression2>
+order by Expression1 desc NULLS FIRST/LAST,[Expression..] 
+---> SqlStdOperatorTable.NULLS_FIRST/NULLS_LAST.createCall(
+	SqlNodeList<SqlStdOperatorTable.DESC.createCall(Expression1),
+	Expression2>
+	
+二十二 SqlNode OrderedQueryOrExpr() : 
+查询语句 + 排序 + limit
+语法
+select ... order by xx,xx,xx limit 3 
+select ... order by xx,xx,xx OFFSET 5 FETCH FIRST/NEXT 3
+创建对象 new SqlOrderBy(pos, e, orderBy, OFFSET, LIMIT/FETCH); --> new SqlOrderBy(QueryOrExpr, SqlNodeList, UnsignedNumericLiteral, UnsignedNumericLiteral)
+
+二十三、SqlNode ParenthesizedExpression(ExprContext exprContext) :
+子查询 或者 row表达式，大多数场景都是子查询
+语法 (OrderedQueryOrExpr) --> OrderedQueryOrExpr
+
+二十四、基础对象
+SqlNode TableConstructor() :
+配置化的方式组成一个table用于查询
+values row (),()... --> SqlStdOperatorTable.VALUES.createCall(List<SqlNodeList<Expression>>)
+
+例如
+values (1,2,3),(10,9,8)
+values row(1,2,3),row(10,9,8)
+select * from (values (1,2,3),(10,9,8)) a
+-------
+SqlNode ArrayConstructor() :
+输出一个ARRAY数组对象
+1.ARRAY[SqlNodeList<Expression>] --> SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR.createCall(SqlNodeList<Expression>)
+2.ARRAY(LeafQueryOrExpr) ---> SqlStdOperatorTable.ARRAY_QUERY.createCall(LeafQueryOrExpr)
+
+例子
+SELECT ARRAY[1, 2, 3] as numbers
+
+SELECT ARRAY[a, b, c]
+FROM (SELECT 5 AS a,37 AS b,406 AS c)
+
+-------
+SqlNode MapConstructor() :
+输出一个Map数组对象
+1.map[SqlNodeList<Expression>] --> SqlStdOperatorTable.MAP_VALUE_CONSTRUCTOR.createCall(SqlNodeList<Expression>)
+2.map(LeafQueryOrExpr) --> SqlStdOperatorTable.MAP_QUERY.createCall(LeafQueryOrExpr)
+
+
+二十五、SqlNode ExplicitTable() :
+精准的查询某一个表。类似于from 表名
+语法 TABLE xx.xx ---> SqlStdOperatorTable.EXPLICIT_TABLE.createCall(SqlIdentifier);
+
+等同from 表名的方式 
+1.table 表名
+2.select * from (table 表名)
+
+二十六、SqlSelect SqlSelect()
+解析一个select查询语句块
+select [DISTINCT/ALL] SelectList() from FromClause() WhereOpt() GroupByOpt() HavingOpt() WindowOpt()
+--> new SqlSelect(
+            new SqlNodeList(SqlLiteral(DISTINCT/ALL, SqlTypeName.SYMBOL)),##对应DISTINCT/all关键词对象
+            new SqlNodeList(selectList),###对应select对象
+            fromClause, where, groupBy, having, windowDecls, null, null, null);
+如果 有DISTINCT/ALL --> List<SqlLiteral> keywords.add(SqlLiteral(DISTINCT/ALL, SqlTypeName.SYMBOL))
+
+
+1.SqlNode SelectItem() :
+表示一个select元素
+a.* --> SqlIdentifier(*)
+b.Expression --> SqlNode(Expression) 多数表达式都是字面量对象SqlLiteral
+c.Expression as SimpleIdentifier --> SqlStdOperatorTable.AS.createCall(SqlNode,SimpleIdentifier)
+
+2.List<SqlNode> SelectList() :
+输出select的集合
+SelectItem,[SelectItem..] --> List<SqlNode>
+
+
+二十七、SqlNode LeafQuery(ExprContext exprContext) :
+解析一个子表的三种方式
+TableConstructor() ---> SqlNode
+ExplicitTable() ---> SqlNode
+SqlSelect() ---> SqlNode
+
+
+二十八、SqlNode SqlDelete() :
+delete from xx.xx as SimpleIdentifier WhereOpt() --> SqlDelete(SqlIdentifier, WhereOpt, null, SimpleIdentifier)
+
+二十九、SqlNode SqlUpdate() :
+update xx.xx as SimpleIdentifier1 set SimpleIdentifier = Expression,[SimpleIdentifier = Expression..] WhereOpt()
+---> SqlUpdate(SqlIdentifier, targetColumnList, sourceExpressionList,WhereOpt, null, SimpleIdentifier1);
+注意:
+xx.xx = SqlIdentifier
+targetColumnList = new SqlNodeList() 存储set的SimpleIdentifier
+sourceExpressionList = new SqlNodeList(pos) 存储set的Expression
+
+三十、SqlNode FromClause() :
+返回整体from的内容
+注意:
+NATURAL 表示自然连接，没什么现实价值，只是规范两个表所有字段相同的都默认参与on的意思吧？没太研究过，可忽略该参数。
+
+1.TableRef() --> SqlNode
+2.TableRef1(),TableRef2()
+--> new SqlJoin(TableRef1,### 左表
+	SqlLiteral.createBoolean(false, pos),###无关键词NATURAL
+	SqlLiteral(JoinType.COMMA, SqlTypeName.SYMBOL);###逗号join连接的
+	TableRef2,###右表
+	SqlLiteral(JoinConditionType.NONE, SqlTypeName.SYMBOL);###无on语法
+	null) ###无on的条件
+3.TableRef1(),TableRef2(),TableRef2() --> 
+前两个组成一个SqlJoin，作为左表，重复2操作。----left join的方式也同理
+
+3.TableRef1() [NATURAL] join TableRef2() on Expression 
+--> new SqlJoin(TableRef1
+	SqlLiteral(Boolean.TRUE/false, SqlTypeName.BOOLEAN),###是否有关键词NATURAL
+	SqlLiteral<JoinType.LEFT>,###join类型
+	TableRef2,
+	SqlLiteral(JoinConditionType.ON, SqlTypeName.SYMBOL) ### on 语法
+	Expression);### on的条件
+
+4.TableRef1() [NATURAL] join TableRef2()
+--> new SqlJoin(TableRef1
+	SqlLiteral(Boolean.TRUE/false, SqlTypeName.BOOLEAN),###是否有关键词NATURAL
+	SqlLiteral<JoinType.LEFT>,###join类型
+	TableRef2,
+	SqlLiteral(JoinConditionType.NONE, SqlTypeName.SYMBOL);###无on语法
+	null);### on的条件
+
+5.TableRef1() [NATURAL] join TableRef2() USING ParenthesizedSimpleIdentifierList 比如(xx,xx,xx) 
+---> TableRef1() [NATURAL] join TableRef2() USING SqlNodeList<SqlIdentifier>
+--> new SqlJoin(TableRef1
+	SqlLiteral(Boolean.TRUE/false, SqlTypeName.BOOLEAN),###是否有关键词NATURAL
+	SqlLiteral<JoinType.LEFT>,###join类型
+	TableRef2,
+	SqlLiteral(JoinConditionType.USING, SqlTypeName.SYMBOL) ### on 语法
+	new SqlNodeList(list.getList()));### USING的条件
+	
+from exam_record join examination_info using(exam_id) 简化on语法，当两个表字段和类型相同的时候，可以这样使用。
+
+	
+三十一、SqlNode TableRef() :
+代表from中的某一个子查询
+第一部分tableRef
+1.xx.xx  --> SqlIdentifier
+2.table (TableFunctionCall) --> TableFunctionCall
+3.xx.xx LATERAL OrderedQueryOrExpr ---> SqlIdentifier && SqlStdOperatorTable.LATERAL.createCall(OrderedQueryOrExpr)
+即优先匹配xx.xx成SqlIdentifier，然后再继续匹配LATERAL OrderedQueryOrExpr的语法，即会产生两个tableRef，注意不是同一时间产生的，而是有先后顺序的。
+
+第二部分 -- 获取别名
+tableRef as Identifier --> SqlStdOperatorTable.AS.createCall(tableRef,SqlIdentifier(Identifier))
+
+第三部分 --- 抽样数据
+针对查询的表，进一步筛选子集。
+大概思路是设置一个百分比，按照百分比抽样。   &&  同时设置是否允许重复抽样。因此需要两个参数：百分比 和 是否允许重复抽样
+
+1.为抽样取一个名字
+TABLESAMPLE SUBSTITUTE (StringLiteral) 
+-->  SqlLiteral sampleLiteral = SqlLiteral.createSample(SqlSampleSpec.createNamed(StringLiteral));//设置抽样对象名字
+tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(tableRef,sampleLiteral) //对tableRef进行抽样。
+2.不重复抽样
+BERNOULLI/SYSTEM (0~100的整数) 
+--> sampleLiteral = SqlSampleSpec.createTableSample(BERNOULLI/SYSTEM,double--0~1之间的小数)
+tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(tableRef,sampleLiteral) //对tableRef进行抽样。
+3.重复抽样
+BERNOULLI/SYSTEM (0~100的整数) REPEATABLE (IntLiteral)
+--> sampleLiteral = SqlSampleSpec.createTableSample(BERNOULLI/SYSTEM,double--0~1之间的小数,true)
+tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(tableRef,sampleLiteral) //对tableRef进行抽样。
+ 
+三十二、SqlNodeList WithList() :
+定义一组数据表
+with WithItem,[WithItem..] --> SqlNodeList<SqlWithItem>
+
+SqlWithItem WithItem() :
+定义每一个字数据表
+语法格式 tableName (字段1,字段2) as (OrderedQueryOrExpr) 
+--> SimpleIdentifier ParenthesizedSimpleIdentifierList as (OrderedQueryOrExpr)
+--> SqlWithItem(SimpleIdentifier,ParenthesizedSimpleIdentifierList,SqlNodeList<SqlIdentifier>(),OrderedQueryOrExpr)
+
+三十三、SqlNode QueryOrExpr(ExprContext exprContext) :
+这部分没有order by语法，因为他们在做union all等操作，此时是不需要order by的
+多个查询语句块的union all等合并操作
+
+1.LeafQueryOrExpr BinaryQueryOperator LeafQueryOrExpr [BinaryQueryOperator LeafQueryOrExpr ..]
+--> SqlParserUtil.toTree(List.add(LeafQueryOrExpr)
+.add(SqlParserUtil.ToTreeListItem(BinaryQueryOperator))
+.add(LeafQueryOrExpr)
+...
+.add(SqlParserUtil.ToTreeListItem(BinaryQueryOperator))
+.add(LeafQueryOrExpr)
+)
+2.WithList LeafQueryOrExpr BinaryQueryOperator LeafQueryOrExpr [BinaryQueryOperator LeafQueryOrExpr ..]
+---> SqlWith(withList, 1的结果);
+
+3.例如 with aa(col1,col2) (select * from xx) select * from biao union all select * from biao 
+
+三十四、SqlNode LeafQueryOrExpr(ExprContext exprContext) :
+一组查询块
+1.Expression -->
+2.LeafQuery --> LeafQuery
+
+三十五、SqlSetOption SqlSetOption() :
+设置信息
+ALTER [SYSTEM/SESSION] set Identifier = SimpleIdentifier/Identifier ---> SqlSetOption(SYSTEM/SESSION, String, SqlNode);
+
+三十六、SqlNodeList ExpressionCommaList()
+返回表达式List
+Expression,[Expression..] ---> SqlNodeList<Expression>
+
+三十七、SqlNode SqlInsert()
+1.insert/upsert into xx.xx (xx,xx,xx) OrderedQueryOrExpr --> SqlInsert(new SqlNodeList(keywords), SqlIdentifier表名, OrderedQueryOrExpr查询表达式,SqlNodeList<SqlIdentifier>列集合);
+2.insert/upsert into xx.xx OrderedQueryOrExpr --> SqlInsert(new SqlNodeList(keywords), SqlIdentifier表名, OrderedQueryOrExpr查询表达式,null);
+注意:
+如果是upsert时,keywords是有内容的，该值是SqlLiteral("UPSERT", SqlTypeName.SYMBOL);
+
+三十八、SqlNode SqlMerge() :
+1.merge into SimpleIdentifier as SimpleIdentifier USING source_TableRef on Expression WhenMatchedClause [WhenNotMatchedClause]
+2.merge into SimpleIdentifier as SimpleIdentifier USING source_TableRef on Expression WhenNotMatchedClause
+---> SqlMerge(SimpleIdentifier表名, Expression表示on后面的条件, TableRef,updateCall, insertCall, null, SimpleIdentifier别名);
+合并操作语法，将结果合并到xxx表 查询哪个表 如果已存在则做更新操作，如果不存在则作insert操作
+
+
+SqlUpdate WhenMatchedClause(SqlNode table, SqlIdentifier alias) : 相同数据做update操作
+传入目标表与别名，处理如何更新目标表的数据
+when matched then update set SimpleIdentifier = Expression,[SimpleIdentifier = Expression]
+--> SqlUpdate(table, SqlNodeList<SimpleIdentifier>字段集合, SqlNodeList<Expression>表达式集合, null,null, alias)
+
+SqlInsert WhenNotMatchedClause(SqlNode table) 
+1.when not matched then insert (xx,xx,xx) values (xx,xx,xx) --> SqlInsert(null,table,SqlStdOperatorTable.VALUES.createCall(SqlNodeList<Row>), SqlNodeList<SqlIdentifier>列名)
+2.when not matched then insert values (xx,xx,xx) --> SqlInsert(null,table,SqlStdOperatorTable.VALUES.createCall(SqlNodeList<Row>), null)
+
+
+例如:
+MERGE INTO Orders O  --确定目标表Orders
+USING Customers C ON C.客户ID=O.客户ID  --从源表Customers确定关联条件 C.客户ID=O.客户ID  
+WHEN MATCHED THEN --当匹配时对目标表的订单日期执行更新操作
+ UPDATE SET O.订单日期=DATEADD(HOUR,1,O.订单日期)
+WHEN NOT MATCHED THEN --当不匹配时对目标表进行插入操作
+INSERT (客户ID,员工ID,订单日期,发货ID) 
+VALUES (C.客户ID,NULL,NULL,NULL)
+
+三十九、SqlNode SqlStmt() :
+查询入口
+1.OrderedQueryOrExpr 带order by的查询块
+2.SqlSetOption()
+3.SqlInsert
+4.SqlDelete
+5.SqlUpdate
+6.SqlMerge
+7.SqlExplain
+
+
+四十、SqlNode TableFunctionCall() :
+调用函数function
+1.NamedRoutineCall --> SqlStdOperatorTable.COLLECTION_TABLE.createCall(NamedRoutineCall(SqlFunctionCategory.USER_DEFINED_FUNCTION)))
+2.SPECIFIC NamedRoutineCall --> SqlStdOperatorTable.COLLECTION_TABLE.createCall(NamedRoutineCall(SqlFunctionCategory.USER_DEFINED_SPECIFIC_FUNCTION)))
+
+SqlNode NamedRoutineCall(SqlFunctionCategory routineType) :
+返回一个Function函数
+1.xx() --> (SqlNode)createCall(SqlIdentifier函数名, pos忽略该参数, routineType函数分类, null, SqlNodeList<>无参数因此是空)
+2.xx(Expression,Expression) --> (SqlNode)createCall(SqlIdentifier函数名, pos忽略该参数, routineType函数分类, null, SqlNodeList(List<Expression>))
+

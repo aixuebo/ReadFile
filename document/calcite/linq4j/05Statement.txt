@@ -1,0 +1,21 @@
+一、背景与核心
+1.Statement结合expression,可以实现动态生产class代码的能力。
+2.Statement更多表示的是控制语法，比如if、 for、语法块、try catch等。
+
+二、涉及到的java类
+BlockBuilder.java
+Blocks.java
+BlockStatement.java
+CatchBlock.java
+ConditionalStatement.java
+DeclarationStatement.java
+ForStatement.java
+GotoStatement.java
+LabelStatement.java
+LabelTarget.java
+Statement.java
+SwitchCase.java
+SwitchStatement.java
+ThrowStatement.java
+TryStatement.java
+WhileStatement.java

@@ -1,0 +1,32 @@
+一、核心
+1.Queryable 可以基于表达式的方式创建sql
+
+二、interface Queryable<T> extends RawQueryable<T>, ExtendedQueryable<T> 查询接口
+定义如何通过接口的表达式,动态创建sql。
+
+	interface RawQueryable<T> extends Enumerable<T> 集合的基础上,增加查询表达式信息,该表达式是可以生成Enumerable的。
+		  Type getElementType();返回表达式树的元素类型
+		  Expression getExpression();返回查询对应的表达式树
+		  QueryProvider getProvider();查询数据源提供者
+
+	ExtendedQueryable<TSource> extends ExtendedEnumerable<TSource>  扩展接口，丰富aggr等集合函数
+		相对ExtendedEnumerable,丰富了lambda表达式方式的接口，比如:
+		TSource aggregate(FunctionExpression<Function2<TSource, TSource, TSource>> selector);可以通过FunctionExpression提取Function2
+		Queryable<TSource> distinct() 可以自由的在Enumerable与Queryable之间转换
+		
+
+class EnumerableQueryable<T> extends DefaultEnumerable<T> implements Queryable<T>
+    默认的实现类,调用的是EnumerableDefaults方式,其实该类没做什么
+
+三、其他类
+AbstractQueryable.java
+BaseQueryable.java
+DefaultQueryable.java
+EnumerableOrderedQueryable.java
+ExtendedOrderedQueryable.java
+OrderedQueryable.java
+QueryableDefaults.java
+QueryableFactory.java
+QueryableRecorder.java
+QueryProvider.java
+QueryProviderImpl.java

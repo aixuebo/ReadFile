@@ -1,0 +1,104 @@
+一、SqlNode 抽象的最小单位
+
+二、SqlNodeList extends SqlNode implements Iterable<SqlNode> 
+List<SqlNode>
+
+三、SqlIdentifier extends SqlNode 
+xxx.xxx这种字符串
+
+四、SqlDataTypeSpec extends SqlNode
+包含字段描述符、类型、精准度、字符串编码、时间分区、是否允许null，将这些信息都解析后生成该SqlDataTypeSpec节点
+用于定义字段的DDL部分，columnName varchar(20) key  comment  ''
+注意:
+1.SqlDataTypeSpec只是表示一个字段的定义。 并且不包含字段的name
+2.最终表的DDL组成形式是Map<SqlIdentifier,SqlDataTypeSpec>
+
+五、SqlDynamicParam extends SqlNode
+动态参数,即代表?
+private final int index;//第几个参数，从0开始计数
+
+六、SqlIntervalQualifier extends SqlNode 
+日期类型的格式解析
+INTERVAL '1:23:45.678' HOUR TO SECOND
+INTERVAL '1 2:3:4' DAY TO SECOND
+INTERVAL '1 2:3:4' DAY(4) TO SECOND(4)
+
+七、SqlLiteral 
+有含义的字符串或者对象
+1.SqlLiteral JoinType() : 转换成特殊SYMBOL类型的SqlLiteral
+joinType = JoinType.INNER;  JoinType.LEFT;  JoinType.RIGHT; JoinType.FULL;
+<CROSS> <JOIN> 时 joinType = JoinType.CROSS; 
+转换成 new SqlLiteral("left", SqlTypeName.SYMBOL);
+
+JoinConditionType implements SqlLiteral.SqlSymbol  包含 ON 、NONE、USING
+SemiJoinType implements SqlLiteral.SqlSymbol 枚举对象，代表如何去真实的做join操作。比如SEMI
+
+2.null字符串
+new SqlLiteral(null, SqlTypeName.NULL)
+
+3.boolean字符串
+new SqlLiteral(Boolean.TRUE, SqlTypeName.BOOLEAN)
+
+4.Unknown字符串
+SqlLiteral createUnknown(SqlParserPos pos) {
+    return new SqlLiteral(null, SqlTypeName.BOOLEAN);
+  }
+
+5.SqlIntervalLiteral createInterval  
+时间函数字符串
+INTERVAL '1' SECOND
+INTERVAL '1:00:05.345' HOUR
+INTERVAL '3:4' YEAR TO MONTH
+
+八、SqlLiteral子类
+1.SqlNumericLiteral extends SqlLiteral
+表示一个数字，正数、小数、科学计数法3.1e+5、负数
+总之无论是正数、负数 、还是科学计数法，最终都会转换成BigDecimal对象
+SqlLiteral（SqlTypeName.DECIMAL : SqlTypeName.DOUBLE）
+核心指标是存储了一个BigDecimal。
+
+2.SqlAbstractStringLiteral extends SqlLiteral 
+字符串常量，他有可能是可执行的字符串，属于字面量的意思，即 ``
+
+3.SqlIntervalLiteral extends SqlLiteral
+时间函数字符串
+INTERVAL '1' SECOND
+INTERVAL '1:00:05.345' HOUR
+INTERVAL '3:4' YEAR TO MONTH
+
+4.SqlAbstractDateTimeLiteral extends SqlLiteral
+解析日期类型的字符串
+DATE '2004-10-22'  对应 SqlDateLiteral extends SqlAbstractDateTimeLiteral
+TIME '14:33:44.567' 对应 SqlTimeLiteral extends SqlAbstractDateTimeLiteral
+TIMESTAMP '1969-07-21 03:15 GMT' 对应 SqlTimestampLiteral extends SqlAbstractDateTimeLiteral
+
+九、SqlCall extends SqlNode
+可执行命令对象
+sqlCall本身只表示解析parse.jj后的对象，比如sqlSelect对象，包含select from where等对象，分别代表解析后的结果。
+只是sqlCall除了包含解析后的对象外，还有一个能力，就是他可以根据参数信息做一些处理，因此每一个sqlCall对象都实现了自己的SqlOperator对象。
+SqlCall 用于调用一个操作 SqlOperator
+主要子类实现两个方法:
+SqlOperator getOperator() 返回对应的操作是什么操作。
+List<SqlNode> getOperandList() 操作的参数集合
+
+
+十、SqlCall子类
+1.SqlCase extends SqlCall
+  SqlNode value;//case xxx
+  SqlNodeList whenList; //when
+  SqlNodeList thenList; //then
+  SqlNode elseExpr; //else
+  
+2.SqlBasicCall 基础对象
+比如 from () as xx --> SqlStdOperatorTable.AS.createCall(tableRef,SqlIdentifier(Identifier))
+即操作是SqlStdOperatorTable.AS = SqlAsOperator对象，创建一个SqlBasicCall对象。
+  private SqlOperator operator;//SqlAsOperator
+  public final SqlNode[] operands;//实际query对象
+  
+总结:
+SqlBasicCall 就是一个sqlNode，只描述了sql如何转换成对象的过程。
+比如上面的例子中，将query转换成as，这个用对象套对象的方式不好表达，因此就转换成call对象，即对query对象套一层具体的操作，此时操作是SqlAsOperator。
+
+至于该SqlAsOperator操作该具体怎么做，会在SqlAsOperator中使用query对象，进行处理。
+
+

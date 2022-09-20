@@ -1,0 +1,165 @@
+
+一、背景与核心
+1.Connection最核心的逻辑都在Connection实现。
+
+二、Connection接口
+Connection 可以获取自身连接信息、创建Statement/PreparedStatement、获取数据库元数据
+java.util.sql接口
+   String setSchema/getSchema()
+   String setCatalog/getCatalog()
+   DatabaseMetaData getMetaData()
+   Statement createStatement()
+   Statement createStatement(int resultSetType, int resultSetConcurrency,int resultSetHoldability)
+   Statement createStatement(int resultSetType, int resultSetConcurrency)
+   PreparedStatement prepareStatement(String sql)
+   PreparedStatement prepareStatement(String sql, String columnNames[])
+   PreparedStatement prepareStatement(String sql, int resultSetType,int resultSetConcurrency)
+   PreparedStatement prepareStatement(String sql, int resultSetType,int resultSetConcurrency, int resultSetHoldability)
+
+   void setAutoCommit(boolean autoCommit)
+   void commit()
+   void rollback()
+   void close()
+
+
+特别说明:
+prepareStatement(String sql, int resultSetType,int resultSetConcurrency, int resultSetHoldability)
+
+1.参数resultSetType:
+ResultSet的数据集合,在客户端是一个游标,使用next的方式一条一条信息读取。而游标本身是可以向上读取的,也可以向下读取.因此有不同的取值参数。
+
+a.ResultSet.TYPE_FORWARD_ONLY:
+默认的cursor 类型，仅仅支持结果集forward ，不支持backforward ，random ，last ，first 等操作。 此时性能最佳,因为不需要缓存数据,用完销毁,因此查询1000万条数据的时候，也不会出现OOM问题。
+b.ResultSet.TYPE_SCROLL_INSENSITIVE:
+支持结果集backforward ，random ，last ，first 等操作，对其它session 对数据库中数据做出的更改是不敏感的。
+实现方法：从数据库取出数据后，会把全部数据缓存到cache 中，对结果集的后续操作，是操作的cache 中的数据，数据库中记录发生变化后，不影响cache 中的数据，所以ResultSet 对结果集中的数据是INSENSITIVE(数据集变更不敏感) 的。
+c.ResultSet.TYPE_SCROLL_SENSITIVE
+支持结果集backforward ，random ，last ，first 等操作，对其它session 对数据库中数据做出的更改是敏感的，即其他session 修改了数据库中的数据，会反应到本结果集中。
+实现方法：从数据库取出数据后，不是把全部数据缓存到cache 中，而是把每条数据的rowid 缓存到cache 中，对结果集后续操作时，是根据rowid 再去数据库中取数据。所以数据库中记录发生变化后，通过ResultSet 取出的记录是最新的。
+但insert 和delete 操作不会影响到ResultSet ，因为insert 数据的rowid 不在ResultSet 取出的rowid 中，所以insert 的数据对ResultSet 是不可见的，
+而delete 数据的rowid 依旧在ResultSet 中，所以ResultSet 仍可以取出被删除的记录（ 因为一般数据库的删除是标记删除，不是真正在数据库文件中删除 ）。
+
+2.参数resultSetConcurrency:
+ResultSet.CONCUR_READ_ONLY 在ResultSet中的数据记录是只读的，不可以修改
+ResultSet.CONCUR_UPDATABLE 在ResultSet中的数据记录可以任意修改，然后更新到数据库，可以插入，删除，修改。
+
+3.参数resultSetHoldability:
+ResultSet.HOLD_CURSORS_OVER_COMMIT: 在事务commit 或rollback 后，ResultSet 仍然可用。
+ResultSet.CLOSE_CURSORS_AT_COMMIT: 在事务commit 或rollback 后，ResultSet 被关闭。
+
+
+
+扩展信息
+   Properties getProperties(); 连接属性信息
+   SchemaPlus getRootSchema(); 连接器对应的schema对象
+   JavaTypeFactory getTypeFactory(); 连接器对应的字段类型与sql类型映射关系
+   void getSchema/setSchema(String schema) 设置连接器连接的是哪一个数据库schema
+   CalciteConnectionConfig config();连接属性信息
+
+三、class AvaticaConnection implements Connection 实现的一种抽象能力
+1.属性
+  protected int statementCount;//创建的第几个statement
+  private boolean autoCommit;//是否自动commit
+  private boolean closed;
+  private boolean readOnly;
+  private int transactionIsolation;//隔离级别
+  private int holdability;
+  private int networkTimeout;
+  private String catalog;//是schema的父层名称，一般都是空,即一个catalog包含多个schema,每一个schema包含多个table
+
+  public final int id;//Connection的唯一id,该id是自增长的
+  protected final UnregisteredDriver driver;
+  protected final AvaticaFactory factory;
+  final String url;
+  protected final Properties info;//连接的配置信息
+  protected final Meta meta;//通过持有connection,创建一个元数据管理对象,查询数据库元信息 new CalciteMetaImpl((CalciteConnectionImpl) connection);
+  private String schema;
+  protected final AvaticaDatabaseMetaData metaData;//数据库本身的元数据信息，比如url等信息
+  public final Helper helper = Helper.INSTANCE;
+  public final Map<InternalProperty, Object> properties = new HashMap<InternalProperty, Object>();
+  public final Map<Integer, AvaticaStatement> statementMap = Maps.newHashMap();//该连接产生的所有segment
+
+  private static int nextId;//全局静态id,用于为每一个Connection创建唯一id
+
+2.编译sql
+  public PreparedStatement prepareStatement(String sql) throws SQLException {
+    return prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY,holdability);
+  }
+  //子类核心要实现的功能
+  public PreparedStatement prepareStatement(String sql,int resultSetType,int resultSetConcurrency,int resultSetHoldability) 
+    throw new UnsupportedOperationException(); // TODO:
+  }
+
+3.public AvaticaStatement createStatement(int resultSetType,int resultSetConcurrency,int resultSetHoldability)
+ return factory.newStatement(this, null, resultSetType, resultSetConcurrency,resultSetHoldability);
+
+4.executeQueryInternal 查询并且执行
+  protected ResultSet executeQueryInternal(AvaticaStatement statement,Meta.Signature signature, Iterable<Object> iterable)
+       throws SQLException {
+      final TimeZone timeZone = getTimeZone();
+      statement.openResultSet = factory.newResultSet(statement, signature, timeZone, iterable);
+      statement.openResultSet.execute();
+      return statement.openResultSet;
+  }
+
+  protected ResultSet prepareAndExecuteInternal(final AvaticaStatement statement, String sql, int maxRowCount)
+    与executeQueryInternal逻辑相同,只是需要先将sql转化成Signature
+  }
+
+  protected ResultSet createResultSet(Meta.MetaResultSet metaResultSet)
+      throws SQLException {
+    final Meta.StatementHandle h =
+        new Meta.StatementHandle(metaResultSet.statementId);
+    final AvaticaStatement statement = lookupStatement(h);
+    return executeQueryInternal(statement,
+        metaResultSet.signature,
+        metaResultSet.iterable);
+  }
+
+四、CalciteConnectionImpl extends AvaticaConnection
+1.基础方法
+仅简单的创建一个很薄的CalciteStatement对象，用于存储此次执行sql的语句 以及返回结果、列集合信息而已，核心功能还是由connection完成
+  @Override public CalciteStatement createStatement(int resultSetType,
+      int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+    return (CalciteStatement) super.createStatement(resultSetType,
+        resultSetConcurrency, resultSetHoldability);
+  }
+
+  @Override public CalcitePreparedStatement prepareStatement(
+      String sql,int resultSetType,int resultSetConcurrency,int resultSetHoldability) throws SQLException {
+      
+      Meta.Signature signature = parseQuery(sql, new ContextImpl(this), -1);
+      return (CalcitePreparedStatement) factory.newPreparedStatement(this, null,
+
+  }
+  
+2.核心方法
+编译sql,转化成编译后的逻辑表达式
+  <T> CalcitePrepare.CalciteSignature<T> parseQuery(String sql, CalcitePrepare.Context prepareContext, int maxRowCount) {
+     
+    CalcitePrepare.Dummy.push(prepareContext);
+    try {
+      final CalcitePrepare prepare = prepareFactory.apply();
+      return prepare.prepareSql(prepareContext, sql, null, Object[].class,maxRowCount);
+    } finally {
+      CalcitePrepare.Dummy.pop(prepareContext);
+    }
+  }
+
+
+  //核心执行sql的方法,即有了表达式,去真正执行表达式,返回结果集
+  public <T> Enumerable<T> enumerable(Meta.StatementHandle handle,
+      CalcitePrepare.CalciteSignature<T> signature) throws SQLException {
+    Map<String, Object> map = Maps.newLinkedHashMap();
+    AvaticaStatement statement = lookupStatement(handle);
+    final List<Object> parameterValues = TROJAN.getParameterValues(statement);//获取动态参数值
+    for (Ord<Object> o : Ord.zip(parameterValues)) {
+      map.put("?" + o.i, o.e);//添加key?1 value动态值序号对应的数值
+    }
+    map.putAll(signature.internalParameters);//追加其他请求参数信息
+    final DataContext dataContext = createDataContext(map);//如果是prepare动态参数,则key是?index序号 value是index位置对应的具体动态值。否则是connect中所有的请求参数映射
+    return signature.enumerable(dataContext);
+  }
+  
+  
+这两个核心方法都由class CalcitePrepareImpl implements CalcitePrepare 来承接,因此他才是最核心的方法。

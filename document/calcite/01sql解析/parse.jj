@@ -1,0 +1,282 @@
+
+public class ${parser.class} extends SqlAbstractParserImpl
+{
+    private static Metadata metadata = new MetadataImpl(this);
+
+    public static final SqlParserImplFactory FACTORY = new SqlParserImplFactory() {
+        public SqlAbstractParserImpl getParser(Reader stream) {
+            return new ${parser.class}(stream);
+        }
+    };
+
+    private SqlNode extend(SqlNode table, SqlNodeList extendList) {
+        return SqlStdOperatorTable.EXTEND.createCall(
+            table.getParserPosition().plus(extendList.getParserPosition()),
+            table, extendList);
+    }
+}
+
+/**
+ * Parses the optional WINDOW clause for SELECT
+ 语法window SimpleIdentifier as window语法
+ 返回值SqlNodeList<SqlWindow>
+ */
+SqlNodeList WindowOpt() :
+{
+    SqlIdentifier id;
+    SqlWindow e;
+    List<SqlNode> list;
+    SqlParserPos pos;
+}
+{
+    <WINDOW> id = SimpleIdentifier() <AS> e = WindowSpecification()
+    {
+        pos = getPos();
+        e.setDeclName(id);
+        list = startList(e);
+    }
+    (
+        // NOTE jhyde 22-Oct-2004:  See comments at top of file for why
+        // hint is necessary here.
+        LOOKAHEAD(2)
+        <COMMA> id = SimpleIdentifier() <AS> e = WindowSpecification()
+        {
+            e.setDeclName(id);
+            list.add(e);
+        }
+    ) *
+    {
+        return new SqlNodeList(list, pos);
+    }
+    |
+    {
+        return null;
+    }
+}
+
+/**
+ * Parses a window specification.
+ 窗口函数WindowSpecification
+ 语法格式:
+ Over
+ (
+ [SimpleIdentifier]
+ partition by ExpressionList Order By SqlNodeList[Expression]
+ [ROWS/RANGE BETWEEN WindowRange and  WindowRange] / [ROWS/RANGE WindowRange ]
+ [ALLOW / DISALLOW PARTIAL ]
+ )
+ 返回值:
+ SqlWindow.create(
+             null, SimpleIdentifier, partitionList, orderList,
+             ROWS/RANGE, lowerBound, upperBound, allowPartial,
+             Pos);
+ 比如：
+ OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) as rn
+
+ WindowRange格式:
+ CURRENT ROW  返回SqlWindow.createCurrentRow(pos.plus(endPos));
+ UNBOUNDED PRECEDING 返回SqlWindow.createUnboundedPreceding(pos.plus(endPos));
+ UNBOUNDED FOLLOWING 返回SqlWindow.createUnboundedFollowing(pos.plus(endPos));
+ Expression PRECEDING 返回 SqlWindow.createPreceding(e, getPos());
+ Expression FOLLOWING 返回 SqlWindow.createFollowing(e, getPos());
+ */
+SqlWindow WindowSpecification() :
+{
+    SqlIdentifier id;
+    List list;
+    SqlNodeList partitionList;
+    SqlNodeList orderList;
+    SqlLiteral isRows = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+    SqlNode lowerBound = null, upperBound = null;
+    SqlParserPos startPos;
+    SqlParserPos endPos;
+    SqlParserPos pos;
+    SqlLiteral allowPartial = null;
+}
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
+
+{
+    <LPAREN> { startPos = pos = getPos(); }
+    (
+        id = SimpleIdentifier()
+        |
+        { id = null; }
+    )
+    (
+        <PARTITION>
+        { pos = getPos(); }
+        <BY>
+        partitionList = ExpressionCommaList(pos, ExprContext.ACCEPT_NONQUERY)
+        |
+        { partitionList = SqlNodeList.EMPTY; }
+    )
+    (
+        orderList = OrderBy(true)
+        |
+        { orderList = SqlNodeList.EMPTY; }
+    )
+    [
+        (
+            <ROWS> { isRows = SqlLiteral.createBoolean(true, getPos()); }
+            |
+            <RANGE> { isRows = SqlLiteral.createBoolean(false, getPos()); }
+        )
+        (
+            <BETWEEN> lowerBound = WindowRange()
+            <AND> upperBound = WindowRange()
+            |
+            lowerBound = WindowRange()
+        )
+    ]
+    [
+        <ALLOW> { pos = getPos(); } <PARTIAL> {
+            allowPartial = SqlLiteral.createBoolean(true, pos.plus(getPos()));
+        }
+    |
+        <DISALLOW> { pos = getPos(); } <PARTIAL> {
+            allowPartial = SqlLiteral.createBoolean(false, pos.plus(getPos()));
+        }
+    ]
+    <RPAREN>
+    {
+        endPos = getPos();
+        return SqlWindow.create(
+            null, id, partitionList, orderList,
+            isRows, lowerBound, upperBound, allowPartial,
+            startPos.plus(endPos));
+    }
+}
+
+SUM(pv) OVER(PARTITION BY cookieid ORDER BY createtime ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+
+SqlNode WindowRange() :
+CURRENT ROW --> SqlWindow.createCurrentRow()
+UNBOUNDED PRECEDING --> SqlWindow.createUnboundedPreceding()
+UNBOUNDED FOLLOWING --> SqlWindow.createUnboundedFollowing()
+Expression PRECEDING --> SqlWindow.createPreceding(Expression)
+Expression FOLLOWING --> SqlWindow.createFollowing(Expression)
+
+
+SqlCall SequenceExpression() :
+{
+    final SqlParserPos pos;
+    final SqlOperator f;
+    final SqlNode sequenceRef;
+}
+{
+    (
+        <NEXT> { f = SqlStdOperatorTable.NEXT_VALUE; pos = getPos(); }
+    |
+        <CURRENT> { f = SqlStdOperatorTable.CURRENT_VALUE; pos = getPos(); }
+    )
+    <VALUE> <FOR> sequenceRef = CompoundIdentifier() {
+        return f.createCall(pos, sequenceRef);
+    }
+}
+
+
+
+
+
+/**
+ * Parses a NEW UDT(...) expression.
+ */
+SqlNode NewSpecification() :
+{
+    SqlParserPos callPos;
+    SqlNode routineCall;
+}
+{
+    <NEW>
+    {
+        callPos = getPos();
+    }
+    routineCall =
+    NamedRoutineCall(
+        SqlFunctionCategory.USER_DEFINED_CONSTRUCTOR,
+        ExprContext.ACCEPT_SUBQUERY)
+    {
+        return SqlStdOperatorTable.NEW.createCall(callPos, routineCall);
+    }
+}
+
+
+
+
+/**
+ * Parses a CURSOR(query) expression.  The parser allows these
+ * anywhere, but the validator restricts them to appear only as
+ * arguments to table functions.
+ */
+SqlNode CursorExpression(ExprContext exprContext) :
+{
+    SqlNode e;
+    SqlParserPos pos;
+}
+{
+    <CURSOR>
+    {
+        pos = getPos();
+        if (exprContext != ExprContext.ACCEPT_ALL
+            && exprContext != ExprContext.ACCEPT_CURSOR)
+        {
+            throw SqlUtil.newContextException(pos,
+                RESOURCE.illegalCursorExpression());
+        }
+    }
+    e = Expression(ExprContext.ACCEPT_QUERY)
+    {
+        return SqlStdOperatorTable.CURSOR.createCall(pos, e);
+    }
+}
+
+/**
+ * Parses a function call expression with JDBC syntax.
+ */
+SqlNode JdbcFunctionCall() :
+{
+    String name;
+    SqlIdentifier id;
+    SqlNodeList args;
+    SqlParserPos pos;
+    SqlParserPos starPos;
+}
+{
+    (
+        <LBRACE_FN>
+        {
+            pos = getPos();
+        }
+        (
+            // INSERT is a reserved word, but we need to handle {fn insert}
+            <INSERT> { name = unquotedIdentifier(); }
+            |
+            // For cases like {fn power(1,2)} and {fn lower('a')}
+            id = ReservedFunctionName() { name = id.getSimple(); }
+            |
+            // For cases like {fn substring('foo', 1,2)}
+            name = NonReservedJdbcFunctionName()
+            |
+            name = Identifier()
+        )
+        (
+            LOOKAHEAD(2) <LPAREN> <STAR> {starPos = getPos();} <RPAREN>
+            {
+                args = new SqlNodeList(starPos);
+                args.add(new SqlIdentifier("*", starPos));
+            }
+            | LOOKAHEAD(2) <LPAREN> <RPAREN>
+            { args = new SqlNodeList(pos); }
+            | args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_SUBQUERY)
+        )
+        <RBRACE>
+        {
+            return new SqlJdbcFunctionCall(name).createCall(
+                pos.plus(getPos()), SqlParserUtil.toNodeArray(args));
+        }
+    )
+}
+
+
+
+
