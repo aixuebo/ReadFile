@@ -1,0 +1,20 @@
+
+一、背景与总结
+
+
+二、broadcast join
+1.设置广播join的阈值: set spark.sql.autoBroadcastJoinThreshold=26214400 //即25M
+2.如果广播的表太大,广播的表会占用executor的堆内内存，容易出现OOM，要考虑缓存的数据内容大小,适当调整堆内内存；有时候ORC格式压缩比在2~3之间，甚至有时候10倍，所以要考虑配合设置spark.executor.memory。
+2.使用hint强制做broadcastjoin
+
+spark语法 /*+ MAPJOIN(表名) */ 和 /*+ BROADCASTJOIN(表名) */
+Hive只能识别/*+ MAPJOIN(表名) */，
+因此建议使用/*+ MAPJOIN(表名) */。
+
+三、调优
+优化小表，比如小表虽然很大，但是经过过滤有效信息后，数据会变少；
+根据数据变小后的数据大小,通过设置spark.sql.autoBroadcastJoinThreshold,调节广播的数据体量；
+
+四、shuffle_hash join
+在一定shuffle的情况下,有一些场景 使用select /*+ shuffle_hash(表) */  强制使用ShuffledHashJoin，而不是SortMergeJoin。
+因为SortMergeJoin会有排序耗时情况,如果数据分布均匀,不会OOM的情况下,hash方式会更划算。

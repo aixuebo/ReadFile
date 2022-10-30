@@ -1,0 +1,15 @@
+
+1.设置executor的gc参数。
+set spark.executor.extraJavaOptions="-XX:NewRatio=3 -XX:+UseG1GC"。
+
+
+2.设置driver的gc参数
+set spark.driver.extraJavaOptions="XXXXXXXXXX "
+
+3.注意事项
+a.多个gc参数使用空格拆分
+b.其他GC参数:
+打开GC打印：-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps
+full GC 频繁：内存不够用，调大spark.executor.memory，调小spark.executor.cores。
+minor GC频繁，而full GC比较少：可以适当提高Eden区大小-Xmn
+c.如果spark.executor.memory调的很大且GC仍是程序运行的瓶颈，可以尝试启用G1垃圾回收器（-XX:+UseG1GC）

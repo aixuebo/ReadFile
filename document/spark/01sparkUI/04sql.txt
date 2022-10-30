@@ -1,0 +1,88 @@
+一、背景与总结
+1.基础模块含义
+WholeStageCodegen代表机器生成的过程。
+Exchange,代表Shuffle。
+Sort 代表排序。
+Aggregate 代表聚合计算。
+
+2.选择 Show the Stage ID and Task ID that corresponds to the max metric，即展示stageid和taskid,此时显示的仅仅是统计值最大的stageid和taskid。
+
+3.核心指标
+number of output rows:操作产生的行数,来自于Aggregate operators, Join operators, Sample, Range, Scan operators, Filter, etc.
+data size:broadcast/shuffled/collected data产生的数据大小, 来自以下操作BroadcastExchange, ShuffleExchange, Subquery
+time to collect:收集数据花费的时间,来自以下操作 BroadcastExchange, Subquery
+scan time:扫描数据表花费的时间,来自以下操作ColumnarBatchScan, FileSourceScan
+metadata time:获取元数据花费时间 比如文件数量、分区等信息,来自以下操作FileSourceScan
+shuffle bytes written:shuffle写入字节数,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+shuffle records:shuffle写入行数,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+shuffle write time:shuffle写入数据花费时间,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+remote blocks read:读取远程数据块数,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+remote bytes read:读取远程数据字节数,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+remote bytes read to disk:读取远程数据块字节数 并且写入到本地磁盘,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+local blocks read:读取本地数据块数,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+local bytes read:读取本地数据字节数,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+fetch wait time:花费在抓取本地+远程数据时,等待的时间,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+records read:读取多少条数据,来自以下操作CollectLimit, TakeOrderedAndProject, ShuffleExchange
+sort time:排序耗时,来自以下操作Sort
+peak memory:高峰期使用内存资源大小,来自以下操作Sort, HashAggregate
+spill size:多少字节从内存spill到磁盘,来自以下操作Sort, HashAggregate
+time in aggregation:聚合计算操作花费时间,来自以下操作HashAggregate, ObjectHashAggregate
+avg hash probe bucket list iters:在聚合操作中,平均每一个lookup查多少个bucket桶,来自以下操作HashAggregate
+data size of build side:构建hashmap数据集合占用的资源大小,来自以下操作ShuffledHashJoin
+time to build hash map:构建hashmap数据集合花费的时间,来自以下操作ShuffledHashJoin
+
+二、WholeStageCodegen
+WholeStageCodegen (15) 通过括号15 可以知道归属第几个stage,15表示第16个stage。；也可能通过stage页面的coordinator_id定位,这个是老系统逻辑
+ duration: total (min, med, max (stageId: taskId))
+ 6.8 m (2.2 s, 18.4 s, 1.2 m (stage 21.0: task 30428)
+描述 最耗费资源的stageid 与 tasg_id。
+即stage = 21，他有一个task=30428，这个task是最消耗资源的task，即耗时最多的task ；运行周期的分布最小值、最大值、中位数
+通过stage=21id，可以去stage里面找到该stage归属于那个job action。同时可以知道该stage对应的是否数据倾斜，以及stage对应的代码位置。
+
+
+三、Exchange
+1.hashpartitioning(key1#148,,500),true,[id=#1079]
+Exchange hashpartitioning(key1#113L, key2#114, key3#120L, 500), true, [id=#1059] 表示sql中提取key1、key2、key3三个字段参与partition的key，分发到500个partition中。
+因此可以获取到每一个stage有多少个partition信息。
+源码 ： case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
+
+2.检查分区过滤条件是否生效。
+
+3.检查join的方式，判断是否可以用BroadcastHashJoin代替SortMergeJoin。
+
+
+四、join -- sql页面看到的join方式
+参考 spark/join的几种形式.txt笔记。
+BroadcastHashJoin -- BHJ
+ShuffledHashJoin -- SHJ
+	在一定shuffle的情况下,有一些场景 使用select /*+ shuffle_hash(表) */  强制使用ShuffledHashJoin，而不是SortMergeJoin。
+	因为SortMergeJoin会有排序耗时情况,如果数据分布均匀,不会OOM的情况下,hash方式会更划算。
+SortMergeJoin -- SMJ
+CartesianProduct
+BroadcastNestedLoopJoin -- BNLJ
+
+五、Sort -- reduce接收数据后排序。
+1.sort time total 排序消耗的时间
+(min, med, max )
+861 ms (6 ms, 42 ms, 92 ms )
+2.peak memory total 内存消耗峰值
+ (min, med, max ) 
+498.0 MiB (18.0 MiB, 24.0 MiB, 24.0 MiB )
+3.spill size total 排序过程中spill到磁盘的数据量
+(min, med, max )
+0.0 B (0.0 B, 0.0 B, 0.0 B )
+
+使用场景:
+“Peak memory total”和“Spill size total”这两个数值，足以指导我们更有针对性地去设置spark.executor.memory、spark.memory.fraction、spark.memory.storageFraction，
+从而使得Execution Memory区域得到充分的保障。
+
+
+以上图为例，结合18.8GB的峰值消耗，以及12.5GB的磁盘溢出这两条信息，我们可以判断出，当前3GB的Executor Memory是远远不够的。那么我们自然要去调整上面的3个参数，来加速Sort的执行性能。
+比如设置内存10G，结果没有出现spill size total，那是不是可以减少一下内存。
+
+六、Aggregate -- reduce的计算
+1.也是耗费内存资源的程序，所以与Sort一样，用于评估是否加大/减少executor内存配置。
+2.页面显示 HashAggregate ,即代表Aggregate的一种方式,即hash方式参与聚合。此方式非常占用内存。sort+并归排序方式参与聚合,会节省内存,但增加了排序过程。
+
+七、如何通过sql UI页面优化sql代码
+参考 00总结实战 内容。

@@ -1,0 +1,63 @@
+一、背景与总结
+1.从第0个job的stage中的input指标，评估数据源头数据量，从而设置reduce的数量。（要考虑任务的膨胀程度）。
+也可以从最后一个job的output指标中，评估输出的数据体量。
+2.关注shuffle write和read数据，评估是否数据倾斜不合理。
+3.具体的stage上有task日志，executor上也有日志。
+4.stage上可以看到task执行的数据条数，以及shuffle read数据量，可以评估哪个task发生了倾斜，反推哪块代码发生了倾斜。
+5.查看stage和job模块,input文件的分布,max是不是很小，并且task很多，比如上万个task。
+此时说明上游数据小文件居多，需要优化，上游优化后，减少task数量需求。
+
+
+二、汇总
+User: hadoop-xxx-xxx   spark任务提交的用户，用以进行权限控制与资源分配。
+Total Uptime: 7.1 min  application总的运行时间，从appmaster开始运行到结束的整体时间。
+Scheduling Mode: FIFO  application中task任务的调度策略，由参数spark.scheduler.mode来设置
+Completed Jobs: 19  已完成Job的基本数量
+Active Jobs: 正在运行的Job的基本信息。
+
+三、明细
+Job Id (Job Group) 
+Description job详情页跳转
+Submitted  job提交时间 比如 2022/09/28 03:40:07
+Duration 耗时 比如 60s
+Stages: Succeeded/Total	比如 1/1 (6 skipped)   说明该job有多少个stage,其中跳过了多少个stage
+Tasks (for all stages): Succeeded/Total 比如 21/21 (30244 skipped) (1 killed: Stage finished)  说明该job包含多少个task,其中跳过了多少个task
+是job下所有stage对应的task总数，相当于Details for Job的aggr层数据。
+
+四、Details for Job  job详情页
+
+Staus: 展示Job的当前状态信息。
+Active Stages: 正在运行的stages信息，点击某个stage可进入查看具体的stage信息。
+Pending Stages: 排队的stages信息，根据解析的DAG图stage可并发提交运行，而有依赖的stage未运行完时则处于等待队列中。
+Completed Stages: 已经完成的stages信息。
+
+
+1.stage_id 
+2.description stage执行内容
+3.Submitted stage提交时间 比如 2022/09/28 03:40:07	
+4.Duration stage耗时 比如 60s
+5.Tasks: Succeeded/Total	
+stage包含的task数量 比如 21/21 (1 skipped)
+6.input 输入
+这个输入指代从hdfs 或者 spark的storage存储里读取到的数据。
+一般第一个job都会有数据，表示数据源头读取到的数据，可以用来评估输出结果，从而设置输出的reduce数量。一般不膨胀的话都会比数据源小。
+7.output 输出
+这个输出指代输出到hdfs或者spark的storage存储里的数据体量。
+不包含shuffler到下一个节点的数据，该数据不算到output里。
+8.shuffle read / shuffle write
+a.数据发生交互时，产生shuffle write，下一个job读取上一个节点的值，因此是shuffle read。
+一般第一个job都会产生shuffle write，下一个job包含shuffle read + shuffle write，最后一个job只会shuffle read
+b.shuffle write 指代该节点向本地磁盘写入的数据量。
+c.shuffle read 指代该节点所有读取到的数据量，包含本地读取 + 远程读取。因为就近原则,所以经常会本地读取数据，他理应算到shuffle read中。
+
+9.DAG Visualization 
+该stage阶段做了什么事儿。展示一个DAG流程图。
+
+10.Event Timeline 
+记录了每一个时间点对应不同的图形颜色，可以通过颜色更直观的对比每一个阶段耗时情况，比如是否解压缩耗时更严重。
+
+五、跳转到具体的stage页面上，看stage的具体task执行日志与数据处理量。
+
+
+
+

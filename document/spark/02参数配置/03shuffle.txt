@@ -1,0 +1,41 @@
+一、背景与总结
+1.核心配置
+spark.shuffle.file.buffer map端输出的时候写入缓冲区大小。缓冲区越大，能够缓存的落盘数据越多，Spark需要刷盘的次数就越少。
+spark.reducer.maxSizeInFlight reduce端读取数据时的读取缓冲区大小。
+
+
+二、控制map端输出reduce的个数
+1.set spark.sql.shuffle.partitions=30 在有JOIN或聚合等需要shuffle的操作时，从mapper端写出的partition个数。
+即map端的任意一个task任务,都会将结果,根据shuffle的key,分发写入到30个本地文件中。
+然后reduce阶段，启动30个reduce任务,分别从每一个mapper端拉去对应的partition序号文件。
+
+注意:它运行过程中的所有阶段的reduce个数都是同一个值。
+
+2.当作业数据较多时，适当调大该值，当作业数据较少时，适当调小以节省资源。
+注意网络IO的影响，所以该值不适合调解很大。
+比如reduce有1万个，map有1万个，相当于1万*1万个网络IO在交互。非常恐怖，影响性能。
+解决方式是，要么控制map的数量，要么控制reduce的数量。而map的数量受上游文件块数量影响，不好控制，需要联动配置。
+
+3.开启调整partition功能 -- 自适应执行框架的开关。
+解决所有阶段reduce数量相同的问题。动态调整每一个阶段reduce的数量。
+
+spark.sql.adaptive.enabled：是否开启调整partition功能，如果开启，spark.sql.shuffle.partitions设置的partition可能会被合并到一个reducer里运行。平台默认开启，同时强烈建议开启。
+理由：更好利用单个executor的性能，还能缓解小文件问题。
+
+
+当spark.sql.adaptive.enabled=true,set spark.sql.adaptive.minNumPostShufflePartitions=5,set spark.sql.adaptive.maxNumPostShufflePartitions=20
+有时会导致很多分区被合并，为了防止分区过少，可以设置参数，防止分区过少而影响性能。
+即设置动态reduce数量范围，范围在5~20之间。
+
+
+
+当spark.sql.adaptive.enabled=true时,SET spark.sql.adaptive.shuffle.targetPostShuffleInputSize=134217728;//128M
+当mapper端两个partition的数据合并后数据量小于targetPostShuffleInputSize时，Spark会将两个partition进行合并到一个reducer端进行处理。
+当调大该值时，一个reduce端task处理的数据量变大，最终产出的数据，存到HDFS上的文件也变大。
+
+
+spark.sql.adaptive.shuffle.targetPostShuffleInputSize=67108864	动态调整reduce个数的partition大小依据，如设置64MB则reduce阶段每个task最少处理64MB的数据
+spark.sql.adaptive.shuffle.targetPostShuffleRowCount=20000000	动态调整reduce个数的partition条数依据，如设置20000000则reduce阶段每个task最少处理20000000条的数据
+
+三、shuffle过程哪个阶段容易OOM,产生的原因是什么
+参考 spark/shffle内存管理原理.txt

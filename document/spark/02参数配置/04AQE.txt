@@ -1,0 +1,91 @@
+一、背景与总结
+1.参考图13
+2.spark.sql.adaptive.enabled 开启AQE。
+
+二、自动分区合并相关配置
+1.核心配置
+spark.sql.adaptive.coalescePartitions.enabled 是否开启自动分区合并功能，默认是true
+spark.sql.adaptive.advisoryPartitionSizeInBytes 开发人员推荐的分区大小
+spark.sql.adaptive.coalescePartitions.minPartitionNum 合并后分区数量最小值
+
+2.背景
+作用是按照分区序号,将小分区的文件进行merge合并。
+分区合并的场景用一句概括就是，在Shuffle过程中，因为数据分布不均衡，导致Reduce阶段存在大量的小分区，这些小分区的数据量非常小，调度成本很高。
+
+那么问题来了，
+a.AQE是如何判断某个分区是不是足够小，到底需不需要合并的呢？
+b.既然是对多个分区进行合并，自然就存在一个收敛条件的问题，简单来说，就是：“分区合并从哪里开始，又到哪里结束呢？”
+
+3.原理:
+AQE事先并不判断哪些分区足够小，而是按照分区编号进行扫描，当扫描量超过“目标尺寸”时，就合并一次。
+
+4.配置后的生效例子:
+假设，Shuffle过后数据大小为20GB，minPartitionNum设置为200，反推过来，每个分区的尺寸就是20GB / 200 = 100MB。
+再假设，advisoryPartitionSizeInBytes设置为200MB，最终的目标分区尺寸就是取（100MB，200MB）之间的最小值，也就是100MB。
+因此你看，并不是你指定了advisoryPartitionSizeInBytes是多少，Spark就会完全尊重你的意见，我们还要考虑minPartitionNum的设置。
+
+三、自动数据倾斜处理 有关配置
+1.核心配置
+spark.sql.adaptive.skewJoin.enabled 是否开启自动数据倾斜处理功能，默认是true。
+spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes  数据分区是否倾斜的最低阈值。
+spark.sql.adaptive.skewJoin.skewedPartitionFactor 数据分区是否倾斜的比例系数。
+spark.sql.adaptive.advisoryPartitionSizeInBytes 开发人员推荐的分区大小，取决于”自动分区合并相关配置“是否开启。
+
+2.背景
+在join场景下,当AQE检测到倾斜的数据分区时，会自动进行拆分操作，把大分区拆成多个小分区，从而避免单个任务的数据处理量过大。
+不过，Spark 3.0版本发布的AQE，暂时只能在Sort Merge Join中自动处理数据倾斜，其他的Join实现方式如Shuffle Join还有待支持。
+
+那么，AQE如何判定数据分区是否倾斜呢？它又是怎么把大分区拆分成多个小分区的？
+
+3.原理:
+a.分区的大小，超过skewedPartitionThresholdInBytes 才有可能被判定为倾斜分区。
+b.AQE统计所有分区的数据大小,然后大小排序处理,获取中位数作为放大基数。
+尺寸大于中位数一定倍数的分区会被判定为倾斜分区，中位数的放大倍数也是由参数spark.sql.adaptive.skewJoin.skewedPartitionFactor控制。
+c.确定分区是否倾斜
+即 分区尺寸 > skewedPartitionThresholdInBytes && 分区尺寸 > 中位数 * skewedPartitionFactor。
+d.对倾斜的分区已经拆分。
+
+4.demo
+a.假设数据表A有3个分区，分区大小分别是80MB、100MB和512MB。显然，这些分区按大小个排序后的中位数是100MB，
+因为skewedPartitionFactor的默认值是5倍，所以大于100MB * 5 = 500MB的分区才有可能被判定为倾斜分区。
+在我们的例子中，只有最后一个尺寸是512MB的分区符合这个条件。
+
+
+b.这个时候，Spark还不能完全判定它就是倾斜分区，还要看skewedPartitionThresholdInBytes配置项，这个参数的默认值是256MB。
+因此满足c条件,因此512M的分区是倾斜了。
+假设skewedPartitionThresholdInBytes是1G，因此不满足c条件的&&操作,因此不是数据倾斜。
+
+c.假设数据已经倾斜。检测到倾斜分区之后，接下来就是对它拆分。
+
+拆分的时候还会用到advisoryPartitionSizeInBytes参数。
+假设我们将这个参数的值设置为256MB，那么，刚刚那个512MB的倾斜分区会以256MB为粒度拆分成多份，
+因此，这个大分区会被拆成 2 个小分区（ 512MB / 256MB =2）。拆分之后，原来的数据表就由3个分区变成了4个分区，每个分区的尺寸都不大于256MB。
+
+四、与Join策略调整有关配置
+1.核心配置
+spark.sql.autoBroadcastJoinThreshold 默认10M，自动广播join的数据阈值。
+spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin 非空分区比例<该值,才会调整join策略。 默认0.2。
+2.背景
+动态更改执行计划，将sortMergeJoin 转换成广播join 或者 hashJoin
+
+非AQE产生的问题：
+一是可靠性较差。尽管开发者明确设置了广播阈值，而且小表数据量在阈值以内，但Spark对小表尺寸的误判时有发生，导致Broadcast Join降级失败。
+二来，预先设置广播阈值是一种静态的优化机制，它没有办法在运行时动态对数据关联进行降级调整。
+
+一个典型的例子是，两张大表在逻辑优化阶段都不满足广播阈值，此时Spark SQL在物理计划阶段会选择Shuffle Joins。
+但在运行时期间，其中一张表在Filter操作之后，有可能出现剩余的数据量足够小，小到刚好可以降级为Broadcast Join。在这种情况下，静态优化机制就是无能为力的。
+
+3.原理
+AQE的Join策略调整是一种动态优化机制，AQE会在数据表完成过滤操作之后动态计算剩余数据量，当数据量满足广播条件时，AQE会重新调整逻辑执行计划，在新的逻辑计划中把Shuffle Joins降级为Broadcast Join。
+再者，运行时的数据量估算要比编译时准确得多，因此AQE的动态Join策略调整相比静态优化会更可靠、更稳定。
+
+如果过滤后非空的数据集<nonEmptyPartitionRatioForBroadcastJoin阈值,则会触发join策略。
+感觉这个条件有点牵强，不过实际中建议把该比例调大，让其触发join。
+
+4.demo
+假设，大表过滤之前有100个分区，经过fileter后，只有15个分区有数据。
+因此非空数据比例 15 / 100 = 15%，因为小于0.2，所以会触发join策略。
+
+相反，如果大表过滤之后，非空分区占比大于0.2，那么剩余数据量再小，AQE也不会把Shuffle Joins降级为Broadcast Join。
+因此，如果你想要充分利用Broadcast Join的优势，可以考虑把这个参数适当调高。
+

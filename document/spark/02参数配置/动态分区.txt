@@ -1,0 +1,3 @@
+set hive.exec.dynamic.partition=true; // 是否允许动态生成分区
+set hive.exec.dynamic.partition.mode=nonstrict; // 是否容忍指定分区全部动态生成
+set hive.exec.max.dynamic.partitions = 100; // 动态生成的最多分区数

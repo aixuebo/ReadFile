@@ -1,0 +1,144 @@
+一、背景与总结
+1.stage是核心
+a.因为job代表一个action行为的触发，action行为会根据是否shuffle产生多个stage，
+而stage会依次串行执行无环图，进行shuffle write ---> shuffle read操作。从而可以再stage中识别出是否数据倾斜，以及stage所属代码判断哪个环节发生了数据倾斜。
+b.又因为具体的执行任务由task触发，因此该阶段可以知道每一个task处理的数据量与条数。
+因此stage是核心。
+2.有task的执行日志可以查看。
+3.task数量相当于reduce数量，通过该数量可以评估每一个stage阶段reduce数量是否合理。
+reduce数量大，shuffle产生的网络IO大，性能就会差。
+3.Event Timeline 
+记录了每一个时间点对应不同的图形颜色，可以通过颜色更直观的对比每一个阶段耗时情况，比如是否解压缩耗时更严重。
+
+4.查看stage和job模块,input文件的分布,max是不是很小，并且task很多，比如上万个task。
+此时说明上游数据小文件居多，需要优化，上游优化后，减少task数量需求。
+
+二、概览
+1.Details for Stage 52 (Attempt 0) 
+明确该stage的唯一序号，以及第几个尝试任务。
+2. Associated Job Ids: 18  
+明确该stage归属于第18序号的job action。
+3.Total Time Across All Tasks: 6.1 min 该stage总执行时间耗时。
+4.Locality Level Summary 任务执行本地化的级别统计。
+比如 Any: 13; Node local: 4; Rack local: 5
+按照速度快慢如下排序:
+PROCESS_LOCAL进程本地化：task与计算的数据在同一个Executor中。
+NODE_LOCAL节点本地化：情况一：task要计算的数据是在同一个Worker的不同Executor进程中；情况二：task要计算的数据是在同一个Worker的磁盘上，或在 HDFS 上，恰好有 block 在同一个节点上。
+RACK_LOCAL机架本地化，数据在同一机架的不同节点上：情况一：task计算的数据在Worker2的Executor中；情况二：task计算的数据在Worker2的磁盘上。
+ANY跨机架，数据在非同一机架的网络上，速度最慢。
+
+5.Input Size / Records
+比如 24.8 MiB / 247340，从hdfs上读取了24M数据,条数是247340条。
+一般用于第0个stage。
+
+6.Output Size / Records: 567.4 MiB / 22139737  
+一般用于最后一个stage,表示向hdfs写入了这些数据量。
+
+7.中间stage的串行无环图,大多数使用的是shuffle内容看。
+shuffle过程中通过网络传输的数据，因此应尽量减少shuffle的数据量及其操作次数。
+Shuffle Write Size / Records: 10.1 MiB / 247340  为下一个stage输入。
+Shuffle Read Size / Records: 5.2 GiB / 99817952  从上一个stage读取的数据。
+
+8.是否内存不足进行了spill,以及通过观察splill的大小,评估内存设置是否合理，再增加多少会更合理。
+Spill (Memory): 608.0 MiB
+Spill (Disk): 207.4 MiB
+
+9.DAG Visualization 该stage的无环图。
+
+10.Event Timeline 
+记录了每一个时间点对应不同的图形颜色，可以通过颜色更直观的对比每一个阶段耗时情况，比如是否解压缩耗时更严重。
+
+ 
+三、统计
+Aggregated Metrics by Executor: 将task运行的指标信息按excutor做聚合后的统计信息，并可查看某个Excutor上任务运行的日志信息。
+即展示每一个统计指标对应的 四个分位数。
+
+1.多少个task数量，即该stage阶段产生上游多少个reduce。
+2.Duration 每一个task执行的耗时分布。
+3.GC Time,每一个task执行时,gc的时间分布。
+这个比较重要，如果gc很高，说明内存不足，总在回收垃圾。内存是否充足的核心监控数据。
+
+
+四、task明细
+1.task_id+index+attemp 确定task数量。
+taskid肯定是唯一id，但同一个task可能有多个尝试任务，因此task_id+attemp只有一个会成功。
+index位taskid做了一个排序，即如果attemp多次，则同一个taskid会共享相同的index。
+index的作用是可以计算一共有多少个task。
+
+2.state 确定task的执行状态，是成功还是失败
+3.Locality Level 确定task获取数据的位置。影响读取性能的因素。
+4.executorId+host+log
+确定task在哪个节点机器的哪个executor上执行的。以及对应的log日志。
+用于排查task的错误信息。
+如果写spark代码，则打印的信息很重要。sparksql的话,可能没有关键日志用于debug。
+
+5.task执行环境信息
+启动时间、task执行耗时、task执行过程中gc的耗时。
+
+6.各种运行环节时间
+a.duration 表示task在driver上收到信息后 到driver上收到结束信息总耗时。 其中包含了等待调度executor分配、数据块解压、代码解压、结果文件压缩、传输给driver结果文件的全部耗时。
+这个时间价值不是很大，因为他不知道任务执行真实时间，调度时间等。其实我们更应该关注如果资源配置好了，到底纯粹执行花费多久。
+b.scheduler Delay = duration - runTime - deserializeTime - serializeTime - gettingResultTime 
+  表示 总耗时 - (executor上解压代码+解压数据块+运行计算时间+序列化结果时间+把结果传输到driver时间)
+  即 LaunchTime 到 deserializeStartTimeNs之间等待executor调度的时间 + (fetchStart - afterSerializationNs)这段driver等待接受数据的调度时间。
+  评估任务调度耗时情况。此时属于没有资源。该值过大,需要考虑减小任务的大小或减小任务结果的大小。
+c.task deserialization time:总反序列化时间，即反序列化代码 + 反序列化数据块 + 反序列化广播数据的总时间。评估数据块是否太大
+d.result serialization time:在executor上的结果序列化时间，评估下一个节点传输成本。序列化时间长，说明生产的文件大，需要增加reduce数量。
+e.get result time :driver获取executor结果的网络传输时间，耗时久，说明文件太大，或者网络io不好，此时需要考虑减少从每个任务返回的数据量
+
+7.评估stage在各个无环图管道中的数据传输量。
+评估数据倾斜程度。哪个任务，哪段代码。
+Shuffle Read Size / Records 总读取的字节数，包含本地读取+远程读取
+Shuffle Write Size / Records 
+Shuffle Remote Reads 从远程节点读取的字节数，他是Shuffle Read Size 的子集，只包含远程的字节数，两者差就是本地读取的字节数。该值越小越好，说明从本地读取的字节数越多。
+Shuffle Read Blocked Time	表示从远程读取数据时，等待耗时，该值越大肯定越不好，说明没有资源去远程读取数据。会增加任务总耗时。
+Shuffle Write Time: is the time that tasks spent writing shuffle data.表示输出到shuffer write写文件的耗时。越小越好。理论上也应该非常小才对。
+
+8.内存消耗
+表示当内存不足,需要spill时,会将内存的内容写入到文件中,而此时写入文件后，是序列化的写入。而一部分还在内存中尚未存储到文件中的内容是非序列化的。
+因此有可能Shuffle spill (memory)的内容大小 > Shuffle spill (disk)大小。
+Shuffle spill (memory) ,非序列化的内容存储在内存中。
+Shuffle spill (disk) 表示内存的内容序列化后，存储到磁盘上的文件总大小。
+Peak Execution Memory  join、shuffler、广播时，高峰内存消耗量。评估内存到底分配多少合适。
+
+用Spill（Memory）除以Spill（Disk），就可以得到“数据膨胀系数”的近似值，我们把它记为Explosion ratio。
+有了Explosion ratio，对于一份存储在磁盘中的数据，我们就可以估算它在内存中的存储大小，从而准确地把握数据的内存消耗。
+
+
+五、task关于时间的基础知识。
+参考代码 https://github.com/apache/spark/blob/295dd57c13caaa9f9e78cd46dfda4e17ced7c449/core/src/main/scala/org/apache/spark/executor/Executor.scala 其中有各种时间点。
+
+
+
+stage submit时间 ---> LaunchTime ---> 
+| deserializeStartTimeNs -->  taskStartTimeNs --> deserializeTime ---> runtime+task.executorDeserializeTimeNs ---> taskFinishNs ---> beforeSerializationNs --->  afterSerializationNs  |
+ ---> fetchStart ---> finishTime
+
+1.Driver中Task运行时间:
+LaunchTime: 开始运行 Task 的时间.说明task在driver上已经可以开始调度的。
+LaunchDelay: launchTime - stage.submissionTime，表示task在driver上还是参与调度时,stage已经开始多久了。
+fetchStart：driver上开始获取task结果文件的时间。
+finishTime:表示task完成,并且通知driver的时间，即在driver上收到task完成的时间。
+
+gettingResultTime:获取文件总耗时 = finishTime - fetchStart，文件越大，传输的耗时越大。可能导致driver OOM。
+duration: = finishTime - launchTime ，即task在driver上从开始调度，到完成结束的总耗时。
+
+2.在executor上task的运行时间
+基础知识: spark传输的是代码以及数据文件，即有了代码和数据文件，在哪里都可以执行结果。
+而通过网络传输需要压缩与解压缩，即序列化与反序列化。
+代码部分占用小，优先全部解压放到内存；数据块太大，甚至可能压缩比高的情况下，如果数据块是128M，10倍压缩比，则1G数据，全部解压后放内存不合适，所以是逐行解压。因此这部分耗时统一记录在task对象内。
+
+
+deserializeStartTimeNs 解压缩代码的开始时间。
+taskStartTimeNs 任务开始执行时间。
+runtime+task.executorDeserializeTimeNs:表示运行中的时间 与 运行中不断解压缩数据文件的总时间。
+taskFinishNs 表示task在executor上完成时间
+
+计算时间:
+deserializeTime:表示解压代码+数据块的总耗时，即用在反序列化上的时间
+	= (taskStartTimeNs - deserializeStartTimeNs) + task.executorDeserializeTimeNs(task任务花费总解压时间)
+executorRunTime: 表示task纯粹花费在执行上的时间，即不包含解压缩代码、解压缩数据块、压缩结果文件的时间。
+ = (taskFinishNs - taskStartTimeNs) - executorDeserializeTimeNs
+ 即解压缩代码后，开始计时时间，到执行完成的时间，期间因为task数据块在解压需要耗时，因此再刨除该时间。
+serializeTime: 表示Task直接结果在发往Driver之前，进行序列化的时间。 
+	= afterSerializationNs - beforeSerializationNs

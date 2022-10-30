@@ -1,0 +1,33 @@
+一、背景与总结
+1.假设申请了executor为1000个，而每一个executor上可以并行两个task。即spark.executor.cores=2.
+因此如果spark拆解后有2000个task,则一次性都可以被调度运行。
+如果是3000个，则先执行2000个，然后再资源空闲时,执行另外1000个task。
+通过job和stage ui中task数量，可以评估出executor大概需要多少个。
+
+2.参考阅读 "CPU相关属性.txt"
+
+二、基础配置
+0.spark.executor.instances   job 一共申请多少个executor
+1.设置每一个executor上可以同时运行的task数。
+set spark.executor.cores=1
+Spark中的task调度在线程上，该参数决定了一个executor上可以并行执行几个task。
+2.同一个executor的所有并行task,共享executor的内存，即堆内+对外内存（spark.executor.memory+spark.yarn.executor.memoryOverhead）。
+适当提高该参数的值，可以有效增加程序的并发度，是作业执行的更快，但使executor端的日志变得不易阅读，同时增加executor内存压力，容易出现OOM。
+
+3.多个task在同一个executor的内存管理
+a.Executor内多任务共享内存。
+b.每一个task分配内存有边界。(1/2n,1/n)
+比如有3个task,则初始化的时候会分配1/6内存。最多分配1/3内存。
+c.每个task在启动时，要向 MemoryManager 申请最少 l/2n 的执行内存，如果不能满足要求， 则该任务被阻塞，直到有其 他任务释放了足够的执行内存 ， 该任务才能被唤醒 。 
+在执行期间， Executor 中活跃的任务数目 是不断变化的， Spark采用 wait和 notifyAll机制同步状态并重新计算 n 的值。
+
+4.申请多少个executor如何控制
+spark.dynamicAllocation.enabled=true 动态扩展executor数量
+spark.dynamicAllocation.maxExecutors=1000 设置最大值  如果task较大，可以放大该值,申请更多executor,会让任务更快执行完成。
+spark.dynamicAllocation.minExecutors=3 设置最小值
+spark.executor.instances=100 设置固定的executor数量。
+
+原理:spark会最终拆分成task去执行，但他需要在机器上执行，而executor就是机器。
+因此申请足够覆盖task数量的executor,会让任务快速执行完成，当然如果executor数量>task,则会造成浪费。
+
+通过job和stage ui中task数量，可以评估出executor大概需要多少个。

@@ -1,0 +1,90 @@
+一、背景与总结
+
+二、影响join
+1.广播join
+/*+ MAPJOIN(表名) */
+/*+ BROADCAST(t1) */
+/*+ BROADCASTJOIN (t1) */
+
+2.ShuffledHashJoin
+在一定shuffle的情况下,有一些场景 使用select /*+ shuffle_hash(表) */  强制使用ShuffledHashJoin，而不是SortMergeJoin。
+因为SortMergeJoin会有排序耗时情况,如果数据分布均匀,不会OOM的情况下,hash方式会更划算。
+
+3.shuffle sort merge join
+SELECT /*+ SHUFFLE_MERGE(t1) */ * FROM t1 INNER JOIN t2 ON t1.key = t2.key;
+SELECT /*+ MERGEJOIN(t2) */ * FROM t1 INNER JOIN t2 ON t1.key = t2.key;
+SELECT /*+ MERGE(t1) */ * FROM t1 INNER JOIN t2 ON t1.key = t2.key;
+
+4.Join Hints for shuffle-and-replicate nested loop join
+SELECT /*+ SHUFFLE_REPLICATE_NL(t1) */ * FROM t1 INNER JOIN t2 ON t1.key = t2.key;
+
+三、repartion
+解决上游任务小文件多,引起task多,同时当reduce设置多的时候，产生过多网络IO传输问题，造成任务失败。
+产生问题：ExecutorLostFailure
+
+解决方案:/*+ MAPJOIN(a) COALESCE(500)*/ 
+
+REPARTITION 、REBALANCE 参数内容可以是分区数量、按照某个字段分区、或者两者都包含
+COALESCE 参数只能是数字指定分区数量
+REPARTITION_BY_RANGE 执行的是 RDD的repartition by range方法
+
+原理:
+def coalesce(numPartitions: Int, shuffle: Boolean = false,
+               partitionCoalescer: Option[PartitionCoalescer] = Option.empty)
+              (implicit ord: Ordering[T] = null)
+              
+def repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T] = withScope {
+    coalesce(numPartitions, shuffle = true)
+  }
+  
+demo:
+
+SELECT /*+ COALESCE(3) */ * FROM t;
+
+SELECT /*+ REPARTITION(3) */ * FROM t; 
+
+SELECT /*+ REPARTITION(c) */ * FROM t;
+
+SELECT /*+ REPARTITION(3, c) */ * FROM t;
+
+SELECT /*+ REPARTITION_BY_RANGE(c) */ * FROM t;
+
+SELECT /*+ REPARTITION_BY_RANGE(3, c) */ * FROM t;
+
+SELECT /*+ REBALANCE */ * FROM t;
+
+SELECT /*+ REBALANCE(3) */ * FROM t;
+
+SELECT /*+ REBALANCE(c) */ * FROM t;
+
+SELECT /*+ REBALANCE(3, c) */ * FROM t;
+
+-- multiple partitioning hints
+EXPLAIN EXTENDED SELECT /*+ REPARTITION(100), COALESCE(500), REPARTITION_BY_RANGE(3, c) */ * FROM t;
+== Parsed Logical Plan ==
+'UnresolvedHint REPARTITION, [100]
++- 'UnresolvedHint COALESCE, [500]
+   +- 'UnresolvedHint REPARTITION_BY_RANGE, [3, 'c]
+      +- 'Project [*]
+         +- 'UnresolvedRelation [t]
+
+== Analyzed Logical Plan ==
+name: string, c: int
+Repartition 100, true
++- Repartition 500, false
+   +- RepartitionByExpression [c#30 ASC NULLS FIRST], 3
+      +- Project [name#29, c#30]
+         +- SubqueryAlias spark_catalog.default.t
+            +- Relation[name#29,c#30] parquet
+
+== Optimized Logical Plan ==
+Repartition 100, true
++- Relation[name#29,c#30] parquet
+
+== Physical Plan ==
+Exchange RoundRobinPartitioning(100), false, [id=#121]
++- *(1) ColumnarToRow
+   +- FileScan parquet default.t[name#29,c#30] Batched: true, DataFilters: [], Format: Parquet,
+      Location: CatalogFileIndex[file:/spark/spark-warehouse/t], PartitionFilters: [],
+      PushedFilters: [], ReadSchema: struct<name:string>
+      

@@ -1,0 +1,10 @@
+一、背景与总结
+
+二、切换join方式 
+select /*+ shuffle_hash(表) */ 
+	在一定shuffle的情况下,有一些场景 使用select /*+ shuffle_hash(表) */  强制使用ShuffledHashJoin，而不是SortMergeJoin。
+	因为SortMergeJoin会有排序耗时情况,如果数据分布均匀,不会OOM的情况下,hash方式会更划算。
+	
+	
+三、使用广播join
+select /*+ mapjoin(表)*/

@@ -1,0 +1,13 @@
+一、背景与总结
+1.了解线上环境配置信息。
+判断是否配置信息生效,线上配置数据是否符合预期。
+2.只有一级菜单，比较简单。即只有详情页。
+
+
+
+二、比较简单，包含以下几部分的配置信息
+Runtime Information
+Spark Properties
+Hadoop Properties
+System Properties
+Classpath Entries

@@ -1,0 +1,61 @@
+一、背景
+由于知识图谱的工作，最近一直在百亿级数量上做数据开发。最近由于数据量的提升，有一张表的生产时间极大的延长，造成数据就绪时间不达标。
+该表是一个分区表，一级分区是日期，二级分区是partition_tuple_type（共有30个）。
+
+二、问题
+查看该表生成的文件数，足足有5.7w个！
+发现总job运行1.8h，但完成任务总运行时间页面上才显示只有30分钟，难道剩下的1个小时是用于结果文件上传到hdfs的过程么。
+日志 SQLHadoopMapReduceCommitProtocol: Committer commit job use 3397.871 s 发现这个日志确实上传hdfs写了一个小时。
+
+三、设置与疑问
+set spark.hadoopRDD.targetBytesInPartition=256000000;--256m --无效
+set spark.sql.adaptive.shuffle.targetPostShuffleInputSize=1024000000;-- 1024m --无效 --- 意味着每1G数据源,需要一个reduce
+set spark.sql.shuffle.partitions=1000;-- 集群默认是2000，减小了一半。结果：文件数减少了50%至2.9w
+
+疑惑1：为什么各方都说好使的参数spark.sql.adaptive.shuffle.targetPostShuffleInputSize，在我用来完全不起作用呢？
+“spark.sql.adaptive.shuffle.targetPostShuffleInputSize等价于hive中的hive.exec.reducers.bytes.per.reducer“,即根据数据源的字节大小来预估需要的reduce数量。
+虽然spark.sql.shuffle.partitions显式的指定了partition数量。但他只是影响了ShuffleMapStage中的partition数量。不影响最后一个ResultStage中的partition数量。
+最后一个ResultStage数量由min(spark.sql.shuffle.partitions,spark.sql.adaptive.shuffle.targetPostShuffleInputSize)决定。
+计算公式是min(spark.sql.shuffle.partitions,Shuffle Read/spark.sql.adaptive.shuffle.targetPostShuffleInputSize)
+结论：在任意有shuffle的stage(ShuffleMapStage或者ResultStage)中，参数spark.sql.shuffle.partitions控制了Shuffle Read的最大partition数量
+
+因此解释了为什么设置参数spark.sql.adaptive.shuffle.targetPostShuffleInputSize不好使。
+因为ResultStage阶段的Shuffle Read有1500+GB，spark.sql.adaptive.shuffle.targetPostShuffleInputSize=128MB，计算得到的partition数量有10000+，所以取spark.sql.shuffle.partitions设置的值（集群默认是2000）。
+如此造成了参数不生效的假象（设置与否都是2000），同时也解释了尝试3中设置为1GB时（计算可得partition为1500+，小于2000），文件数减少的原因。但是当时疑惑为什么只减少了500个这么少的partition。
+
+疑惑2：各方资料都在说spark.sql.shuffle.partitions的值等于最终的文件数，为什么我的任务文件数却增加了几十倍？
+
+疑惑2的原因说来也简单，spark在ResultStage阶段partition和task是一一对应的，最终一个task会写一个结果文件，但这里有一个隐含的条件：
+在同一个目录下一个task会写一个结果文件。
+因为partition数量的设置的前提是在同一个分区内生效的。
+那么对于动态分区插入的方式，总体的文件数大约等于partition数量*表分区数量。
+以上面的case为例，partition数量=2000，表分区数=30，计算可得总体结果为6w个文件，实际结果是5.7w个文件，基本吻合。
+
+四、参数分析
+
+一、控制reducer数量
+1.set hive.exec.reducers.bytes.per.reducer=<number>
+根据数据源的字节大小来预估需要的reduce数量。
+单位是字节数
+用于提示引擎每一个reduce最大处理多少数据源。
+比如number = 1024K=1M，当数据源是10M，因此就会预估需要10个reduce。
+比如执行sql后，会有如下提示:
+Number of reduce tasks not specified. Estimated from input data size: 159 没有指定reducer任务数量，根据输入的数据量估计会有159个reducer任务
+.....
+Hadoop job information for Stage-1: number of mappers: 1; number of reducers: 159.确定该SQL最终生成159个reducer
+
+2.set hive.exec.reducers.max=<number>
+用于设置Hive的最大reducer数量.
+
+3.set mapreduce.job.reduces=number
+设置reducer的数据，不用预估。优先级最大。
+
+4.reduce不是越多越好，越多，会有小文件；同时下游加载的文件也多，查询速度慢。
+  reduce过小，会有数据倾斜，数据生产耗时长。
+
+五、如何优化该问题
+提出了distribute by来再分区。distribute by的原理很简单，就是把后面跟着的字段作为key，key相同则分发到相同的partition进行处理。
+distribute by 分区列,case when 大分区 then cast(rand()*10 as int) when 小分区 then 1 end 
+这样同一个分区，根据分区业务上的数据内容多少，可以固定设置每一个分区多少个分区。
+但由于每次rand会变化，当发生在部分任务重导时，数据会被错误分发(结果数据总行数正确，但是一部分数据重复出现了2次，相应地一部分数据缺失。)，
+因此每一条数据分发到哪个分区，会因为重导后变化。推荐使用如下方式cast(hash(id) % 10 as int) 固定散列。

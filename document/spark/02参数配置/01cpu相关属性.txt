@@ -1,0 +1,27 @@
+一、背景与总结
+1.核心配置
+spark.cores.max 集群一共多少CPU核数
+spark.executor.instances job一共申请多少个executor
+spark.executor.cores 单个executor分配CPU核数。
+spark.task.cpus 单个task使用CPU核数。默认都是1.
+spark.executor.cores/spark.task.cpus 表示单个executor上可以并发多少个task。即并发度。
+	又因为，spark.task.cpus默认数值为1，并且通常不需要调整，所以，并发度基本由spark.executor.cores参数敲定。
+	而一个task是处理一个分区的数据，因此在运行时，线程、任务与分区是一一对应的关系。
+spark.default.parallelism 默认并行度。即默认reduce数量,用于RDD
+spark.sql.shuffle.partitions 默认并行度,即默认reduce数量，用于sql
+
+
+二、核心配置可以了解的信息
+1.集群整体上是按照cpu核数分配资源的，所以yarn等资源分配器也是分配的内存+cpu。
+spark只是扩展了,允许一个cpu核可以并发使用线程分配执行任务，因此增加了spark.task.cpus参数。比如该参数设置0.5,那分配一个cpu核,也可以执行2个task并发任务。
+
+2.知道集群整体上有多少cpu核、以及我按照理论上可以申请多少个executor,从而计算好我有多少核，以及我可以并行一次性执行多少个task。
+
+3.spark.executor.cores>1时,表示一个executor节点可能执行多个task，缺点和关注点应该在于 这些task共享内存，可能存在内存不足的情况。
+
+4.并行度 指代的是分布式数据集被划分为多少份，即reduce数量。
+并行度越高，数据的粒度越细，数据分片越多，数据越分散。
+
+5.并发度,指代的是 在任一时刻整个集群能够同时计算的任务数量。
+即 Executors数量 * 每一个Executor可以并发执行的task数量 = Executors数量 * (spark.executor.cores/spark.task.cpus)
+

@@ -1,0 +1,142 @@
+一、背景与总结
+1.堆内内存与对外内存
+executorMemory：堆内内存,由spark.executor.memory参数决定，如果不存在则取环境变量里的SPARK_EXECUTOR_MEMORY。
+overhead：对外内存,由参数spark.yarn.executor.memoryOverhead来控制，如果没有设置则取executorMemory * 0.1，并且满足最小384MB。
+
+2.内存作用
+堆内内存作用：
+	存储内存(Storage Memory)：该部分的内存主要是用于缓存或者内部数据传输过程中使用的，比如缓存RDD或者广播数据
+	执行内存(Execution Memory)：该部分的内存主要用于计算的内存，包括shuffles,Joins,sorts以及aggregations
+	其他内存(Other Memory)：该部分的内存主要给存储用户定义的数据结构或者spark内部的元数据
+	预留内存：和other内存作用是一样的，但由于spark对堆内内存采用估算的方式，所以提供了预留内存来保障有足够的空间
+堆外内存作用:
+	针对堆外内存来说，划分了2块(前面也提到过了spark对堆外内存的使用可以精准计算)：
+	存储内存(Storage Memory)
+	执行内存(Execution Memory)
+
+即看用户选择堆内还是堆外内存，而本质上堆内和堆外都是可以用于执行程序、以及缓存中间文件的。
+
+从代码角度感受一下内存的区域消耗归属
+val dict: List[String] = List(“spark”, “scala”) //Driver端,会广播到Executor端。
+val words: RDD[String] = sparkContext.textFile(“~/words.csv”)
+val keywords: RDD[String] = words.filter(word => dict.contains(word)) //dict在Executor内存中，Dict字典属于开发者自定义数据结构，因此，Executor将其存储在User Memory区域。
+keywords.cache // 分布式数据集的缓存占用的正是Storage Memory内存区域
+keywords.count
+keywords.map((_, 1)).reduceByKey(_ + _).collect 
+//我们知道，reduceByKey算子会引入Shuffle，而Shuffle过程中所涉及的内部数据结构，如映射、排序、聚合等操作所仰仗的Buffer、Array和HashMap，都会消耗Execution Memory区域中的内存。
+
+
+3.核心配置
+堆外内存:
+  分为两个区域，Execution Memory和Storage Memory。
+  spark.memory.offHeap.enabled=true 开启堆外内存。
+  spark.memory.offHeap.size 单个executor设置堆外内存大小。
+堆内内存:
+	分为四个区域，Reserved Memory、User Memory、Execution Memory和Storage Memory。
+  spark.executor.memory 单个executor的堆内内存大小。
+  spark.memory.fraction 堆内内存中,Execution Memory+Storage Memory占比。
+  spark.memory.storageFraction 堆内内存中,Storage Memory / (Execution Memory+Storage Memory)的占比。
+  spark.rdd.compress RDD缓存是否压缩,默认不压缩
+  
+4.内存空间是有限的，该把多少内存划分给堆内，又该把多少内存留给堆外呢？
+堆外与堆内的平衡
+a.假设数据schema如下 userid int、age int、name string、sex char。
+b.堆内内存存储，则存储一行数据需要4个对象。而堆外内存使用字节数组的形式，一个字节数组即可存储全部内容，更为合适。
+c.字节数组size是多少是需要平衡的，比如例子中，只有name是非固定的，其他都是固定的。
+存储格式为 4个字节userid+4个字节age+1个字节name在字节数组的偏移量+1个字节的sex+4个字节的name的length+length个字节的name真实内容。
+
+
+事实上，Spark开辟的堆外内存就是以这样的方式来存储应用数据的。正是基于这种紧凑的二进制格式，相比JVM堆内内存，Spark通过Java Unsafe API在堆外内存中的管理，才会有那么多的优势。
+不过，成也萧何败也萧何，字节数组自身的局限性也很难突破。比如说，如果用户表1新增了兴趣列表字段，类型为List[String]，
+这个时候，如果我们仍然采用字节数据的方式来存储每一条用户记录，不仅越来越多的指针和偏移地址会让字段的访问效率大打折扣，而且，指针越多，内存泄漏的风险越大，数据访问的稳定性就值得担忧了。
+
+结论:当数据模式（Data Schema）开始变得复杂时，Spark直接管理堆外内存的成本将会非常高。
+那么，针对有限的内存资源，我们该如何平衡JVM堆内内存与off heap堆外内存的划分，我想你心中也该有了答案。
+对于需要处理的数据集，如果数据模式比较扁平，而且字段多是定长数据类型，就更多地使用堆外内存。
+相反地，如果数据模式很复杂，嵌套结构或变长字段很多，就更多采用JVM堆内内存会更加稳妥。
+
+5.在堆内内存里，该怎么平衡User Memory和Spark用于计算的内存空间？
+User Memory与Spark可用内存如何分配？即参数spark.memory.fraction该如何设置
+
+那么，User Memory都用来存啥呀？需要预留那么大的空间吗？简单来说，User Memory存储的主要是开发者自定义的数据结构，这些数据结构往往用来协助分布式数据集的处理。
+
+User Memory比如用来存储自定义的一个list。
+
+当在JVM内平衡Spark可用内存和User Memory时，你需要考虑你的应用中类似的自定义数据结构多不多、占比大不大？然后再相应地调整两块内存区域的相对占比。
+如果应用中自定义的数据结构很少，不妨把spark.memory.fraction配置项调高，让Spark可以享用更多的内存空间，用于分布式计算和缓存分布式数据集。
+
+6.Execution Memory该如何与Storage Memory平衡？
+判断是否需要rdd的cache，以及cache的数据重要程度，以及cache的数据大小。
+比如机器学习阶段,防止迭代重复计算，cache是有帮助提高效率的，因此应该多分配一下Storage Memory空间。
+
+二、设置内存
+SET spark.executor.memory=10g;//设置堆内内存
+SET spark.yarn.executor.memoryOverhead=1024;//设置对外内存 单位M
+set spark.driver.memory=10G 设置driver内存
+SET spark.memory.fraction=0.7;
+SET spark.executor.cores=1;//设置一个executor同一时间只执行一个task,即单线程执行task。执行完成后再调度下一个task。
+
+三、堆内内存用处
+spark.executor.memory,设置堆内内存。
+executor用于JVM运行时需要的内存(正常JVM运行时需要的内存)、代码执行的堆内存(java或者scala任务计算时比如new Map等使用的内存)以及 缓存数据(广播,cache等缓存数据)。
+该参数一般可以根据表中单个文件的大小进行估计，但是如果是压缩表如ORC，则需要对文件大小乘以2~3倍。
+
+四、堆外内存
+spark.memory.offHeap.enabled 开启堆外内存。
+默认值 executorMemory * 0.1,即内存的10%。
+
+背景：为了进一步优化内存的使用以及提高 Shuffle 时排序的效率，Spark 引入了堆外（Off-heap）内存，使之可以直接在工作节点的系统内存中开辟空间，存储经过序列化的二进制数据。
+
+通过spark.yarn.executor.memoryOverhead设置堆外内存。
+直接向系统申请、释放，不需要垃圾回收流程。
+用于数据传输时的netty等。因此shuffle时,传输数据量大,会造成OOM。
+
+
+五、executor申请内存原理
+Spark根据spark.executor.memory+spark.yarn.executor.memoryOverhead的值向RM申请一个容器,运行executor，当executor运行时使用的内存超过这个限制时，会被yarn kill掉。
+在Spark UI中相应失败的task的错误信息为：
+Container killed by YARN for exceeding memory limits. 2.7G of 2.5G physical memory used. Consider boosting spark.yarn.executor.memoryOverhead.
+因此以上信息可以说明堆内内存 或者 堆外内存不足。
+
+需要用户了解自己的代码在executor中的行为，合理使用堆内堆外内存。
+
+六、内存模型
+MemoryManager将内存分为存储内存，执行内存，其他，预留内存。
+
+0.JVM heap space = spark.executor.memory设置的内存
+
+1.底层预留内存
+SystemReserved(预留内存) 系统会预留300MB内存，留出充足空间，防止OOM,
+
+2.UnifiedMemory:统一内存 = storage+Execution
+(JVM heap space - 预留内存300M) * spark.memory.fraction(0.7)分配storage(存储内存)+Execution(计算内存)。
+其中 spark.memory.storageFraction 分配storage的占比。默认0.5
+即 Execution = (spark.executor.memory - 300) * spark.memory.fraction(0.7) * (1-spark.memory.storageFraction)
+storage = (spark.executor.memory - 300) * spark.memory.fraction(0.7) * spark.memory.storageFraction
+
+即spark.memory.fraction设置越大,说明计算和存储用的内存越大，越不容易OOM。
+
+Execution:主要用于shuffle,join, sort, aggregation计算的临时数据。
+storage:主要存储spark的缓存数据，rdd缓存,广播变量等。
+
+3.Other:其他内存
+(spark.executor.memory - 300) * (1 - spark.memory.fraction(0.7))
+用于spark内部元素数据、用户自定义数据、以及防止OOM时使用。
+比如 用于存储 RDD 转换操作所需要的数据，例如 RDD 依赖等信息
+
+
+------
+1.多个task在同一个executor的内存管理,参考"executor并行度"文章。
+2.内存常见报错
+OOM的问题通常出现在execution这块内存中，因为storage这块内存在存放数据满了之后，会直接丢弃内存中旧的数据，对性能有影响但是不会有OOM的问题。即storage会split。
+
+内存溢出
+java.lang.OutOfMemoryError: GC overhead limit execeeded
+java.lang.OutOfMemoryError: Java heap space
+Container killed by YARN for exceeding memory limits. 1*.4 GB of 1* GB physical memory used.
+shuffle file cannot find，
+executor lost、
+task lost
+该类错误一般是由于Heap已达上限，Task计算需要更多的内存，而又得不到足够的内存而导致。因此，解决方案要从增加每个Task的内存使用量，满足任务需求 或 降低单个Task的内存消耗量。
+
+解决方案，增加内存；减少executor上的task数量；减少task的数据量(这个有点难,需要联通上游任务一起优化)。

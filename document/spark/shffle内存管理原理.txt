@@ -1,0 +1,182 @@
+一、背景与总结
+1.个人感觉 shuffle的OOM发生不在map阶段,map阶段可控制，在reduce阶段容易发生OOM；适当调低map数量，调高reduce数量，让reduce接收少量的数据，防止oom发生。
+2.减少reduce OOM的方式
+a.避免null或者-1等默认值引起的数据倾斜。将其数据过滤掉或者分发到其他节点去执行。
+b.如果就是有个别user对应的数据非常多，是否考虑设置一个阈值，超过阈值的数据过滤掉不考虑。 ---- 此case不好处理原因是 数据本身就是有问题，但又不符合预期，比如不可能某一个用户就访问100万次，不符合业务场景。
+
+3.sql方式好像不能设置mapSideCombine，但spark编码是可以设置mapSideCombine的，因此有效减少shuffle的数据内容。
+参考BlockStoreShuffleReader代码:
+
+    val aggregatedIter: Iterator[Product2[K, C]] = if (dep.aggregator.isDefined) {
+      if (dep.mapSideCombine) {
+        val combinedKeyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, C)]]
+        dep.aggregator.get.combineCombinersByKey(combinedKeyValuesIterator, context)
+      } else {
+        val keyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, Nothing)]]
+        dep.aggregator.get.combineValuesByKey(keyValuesIterator, context)
+      }
+    } else {
+      interruptibleIter.asInstanceOf[Iterator[Product2[K, C]]]
+    }
+4.reduce读取map数据的可控参数
+spark/core/src/main/scala/org/apache/spark/internal/config/package.scala
+
+reduce读取某一个map内容 ---> 每次读取固定大小内容返回 --->存在内存中。
+reduce读取N个map结果，每一个都是不分内容，存在内存中。
+N个结果本身是有序的，因此在外套一层并归排序对象，找到最小的key，然后不断的获取key所在的map内容，读取到内存中进行迭代器处理。此时如果数据量大会OOM
+	（代码可以优化，当读了多少内存后，达到阈值，则将相同key的数据写入磁盘，reduce计算过程不从内存读取数据，而是从磁盘读取数据即可。）
+
+override def read(): Iterator[Product2[K, C]] = {
+    val wrappedStreams = new ShuffleBlockFetcherIterator(
+      context,
+      blockManager.blockStoreClient,
+      blockManager,
+      mapOutputTracker,
+      blocksByAddress,
+      serializerManager.wrapStream,
+      // Note: we use getSizeAsMb when no suffix is provided for backwards compatibility
+      SparkEnv.get.conf.get(config.REDUCER_MAX_SIZE_IN_FLIGHT) * 1024 * 1024,
+      SparkEnv.get.conf.get(config.REDUCER_MAX_REQS_IN_FLIGHT),
+      SparkEnv.get.conf.get(config.REDUCER_MAX_BLOCKS_IN_FLIGHT_PER_ADDRESS),
+      SparkEnv.get.conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM),
+      SparkEnv.get.conf.get(config.SHUFFLE_MAX_ATTEMPTS_ON_NETTY_OOM),
+      SparkEnv.get.conf.get(config.SHUFFLE_DETECT_CORRUPT),
+      SparkEnv.get.conf.get(config.SHUFFLE_DETECT_CORRUPT_MEMORY),
+      readMetrics,
+      fetchContinuousBlocksInBatch).toCompletionIterator
+      
+a.SparkEnv.get.conf.get(config.REDUCER_MAX_SIZE_IN_FLIGHT) * 1024 * 1024
+	spark.reducer.maxSizeInFlight,默认48M,在map端设置固定的缓冲池，读取固定数据返回到reduce。 他设置小时有好处的，减少OOM，但会导致任务执行慢,需要网络IO次数多。
+	从每个reduce上可获取的最大map output数据量，默认单位Mb，每个output需要reduce创建buf来接收。这个参数也是表示每个reduce的固定内存开销量，所以保持较小的值，除非你有更多内存
+
+b.SparkEnv.get.conf.get(config.REDUCER_MAX_REQS_IN_FLIGHT)
+	spark.reducer.maxReqsInFlight,默认Integer最大值,
+	用于限制每个reduce端fetch block请求数，当集群节点数增长后，会创建大量连接到1-n个节点，造成SSS/worker过载失败，通过限制最大请求数可以缓解
+
+c.SparkEnv.get.conf.get(config.REDUCER_MAX_BLOCKS_IN_FLIGHT_PER_ADDRESS)
+	spark.reducer.maxBlocksInFlightPerAddress,默认Integer最大值,用于限制每个redcue task获取单个host的block数。
+d.SparkEnv.get.conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM)
+	spark.network.maxRemoteBlockSizeFetchToMem,默认200M,限制每一个reduce任务抓取远程blocks数量
+	获取远程block如果超过这个阈值则会被写到磁盘，这个配置主要是避免请求block使用大量内存。
+	注意该项配置即影响shuffle fetch也影响BlockManager获取远程block（RDD广播/缓存场景）。
+    在2.3后如果开启ESS才仅用于ESS
+e.SparkEnv.get.conf.get(config.SHUFFLE_MAX_ATTEMPTS_ON_NETTY_OOM)
+	spark.shuffle.maxAttemptsOnNettyOOM,默认10,shuffle fetch在发生Netty OOM问题后的最大重试次数，超过阈值则抛 fetch faild
+f.SparkEnv.get.conf.get(config.SHUFFLE_DETECT_CORRUPT)
+	spark.shuffle.detectCorrupt,默认true,是否检查抓取的数据块是否坏块
+g.SparkEnv.get.conf.get(config.SHUFFLE_DETECT_CORRUPT_MEMORY)
+	spark.shuffle.detectCorrupt.useExtraMemory,默认false,是否检查抓取的数据块是否坏块
+
+二、Spark 内存管理和消费模型
+1.task在Executor上运行时,spark是如何管理和消费内存模型的。
+TaskMemoryManager --> 提交内存申请MemoryManager --> 生产MemoryConsumer内存消费者 ---> MemoryConsumer
+a.在 Spark 中，使用抽象类 MemoryConsumer 来表示需要使用内存的消费者。在这个类中定义了分配，释放以及 Spill 内存数据到磁盘的一些方法或者接口。
+如在 Spark Shuffle 中使用的 ExternalAppendOnlyMap, ExternalSorter内存对象消费内存。
+
+b.MemoryConsumer 会将申请，释放相关内存的工作交由 TaskMemoryManager 来执行。
+当一个 Spark Task 被分配到 Executor 上运行时，会创建一个 TaskMemoryManager。
+在 TaskMemoryManager 执行分配内存之前，需要首先向 MemoryManager 进行申请，然后由 TaskMemoryManager 借助 MemoryAllocator 执行实际的内存分配。
+
+c.Executor 中的 MemoryManager 会统一管理内存的使用。
+由于每个 TaskMemoryManager 在执行实际的内存分配之前，会首先向 MemoryManager 提出申请。因此 MemoryManager 会对当前进程使用内存的情况有着全局的了解。
+MemoryManager，TaskMemoryManager 和 MemoryConsumer 之前的对应关系：
+一个 MemoryManager 对应N个TaskMemoryManager（具体由 executor-core 参数指定）,一个TaskMemoryManager对应N个MemoryConsumer (具体由任务而定)。
+
+2.了解了以上内存消费的整体过程以后，有两个问题需要注意下：
+
+当有多个 Task 同时在 Executor 上执行时， 将会有多个 TaskMemoryManager 共享 MemoryManager 管理的内存。
+
+那么 MemoryManager 是怎么分配的呢？答案是每个任务可以分配到的内存范围是 [1 / (2 * n), 1 / n]，其中 n 是正在运行的 Task 个数。
+
+因此，多个并发运行的 Task 会使得每个 Task 可以获得的内存变小。
+前面提到，在 MemoryConsumer 中有 Spill 方法，当 MemoryConsumer 申请不到足够的内存时，可以 Spill 当前内存到磁盘，从而避免无节制的使用内存。
+但是，对于堆内内存的申请和释放实际是由 JVM 来管理的。因此，在统计堆内内存具体使用量时，考虑性能等各方面原因，Spark 目前采用的是抽样统计的方式来计算 MemoryConsumer 已经使用的内存，
+从而造成堆内内存的实际使用量不是特别准确。从而有可能因为不能及时 Spill 而导致 OOM。
+
+三、Spark Shuffle 过程
+
+1.Spark Shuffle 主要分为两个阶段：Shuffle Write 和 Shuffle Read。
+
+Shuffle Write:
+a.Write阶段,按照分区输出到不同区域内，并且内部按照分区key排序。
+b.map端可能的聚合 (combine) 
+c.归并（有多个文件 spill 磁盘的情况 ），最终task会产生2个文件,data文件和index文件。
+
+Shuffle Read:
+a.从网络请求所有的ma段,获取该节点需要的数据。
+b.多个map端数据再一次排序，归并，形成计算结果。
+这个过程可能OOM，分情况。
+如果是先将所有的map文件都拉去回来，存储在本地，然后再进行reduce操作，可以采用本地归并读取的方式，不耗费内存，不会OOM。
+如果是将读取到的文件都放在内存，直接参与计算，不用把所有的map数据都获取到再计算，而是随着不断获取，不断计算，计算结果继续存储内存中等待下一次在用，
+	很容易OOM。因为多个Map端拉去的数据可能因为膨胀会变很大。此时应该设置足够多的reduce,减少reduce的接收量，同时一定要控制好map端数量，否则网络笛卡尔IO数将会吃不消。
+如果拉去文件后，在本地方内存排序，归并，splill磁盘，在归并成一个大文件也是可行的，不会OOM，但性能会差。
+
+2.当前Shuffle Write的三种实现方式。
+map端三种实现方式:BypassMergeSortShuffleWriter, UnsafeShuffleWriter 和 SortShuffleWriter
+
+2.1.1 BypassMergeSortShuffleWriter
+大体实现过程是首先为每个分区创建一个临时分区文件，数据写入对应的分区文件，最终所有的分区文件合并成一个数据文件，并且产生一个索引文件。
+由于这个过程不做排序，combine（如果需要 combine 不会使用这个实现）等操作，因此不怎么耗费内存的。
+
+2.1.2 SortShuffleWriter
+是最一般的实现，也是日常使用最频繁的。
+主要委托 ExternalSorter这个容器 做数据插入，排序，归并 （Merge），聚合 (Combine) 以及最终写数据和索引文件的工作。
+ExternalSorter 实现了之前提到的 MemoryConsumer 接口。
+
+从中可以看出主要的内存消耗在写入 PartitionedAppendOnlyMap 或者 PartitionedPairBuffer 这个阶段。
+
+a.对于数据写入，根据是否需要做 Combine，数据会被插入到 PartitionedAppendOnlyMap 这个 Map 或者 PartitionedPairBuffer 这个数组中。
+每隔一段时间，当向 MemoryManager 申请不到足够的内存时，或者数据量超过 spark.shuffle.spill.numElementsForceSpillThreshold 这个阈值时 ，就会进行 Spill 内存数据到文件。
+由此可见，PartitionedAppendOnlyMap 或者 PartitionedPairBuffer 是比较吃内存的。
+
+b.无论是 PartitionedAppendOnlyMap 还是 PartitionedPairBuffer， 使用的排序算法是 TimSort。
+最坏情况下是 n / 2，其中 n 表示待排序的数组长度（具体见 TimSort 实现）。
+
+c.当插入数据因为申请不到足够的内存将会 Spill 数据到磁盘。
+在将最终排序结果写入到数据文件之前,需要将内存中的 PartitionedAppendOnlyMap 或者 PartitionedPairBuffer 和已经 spill 到磁盘的 SpillFiles 进行合并。
+
+该过程是归并排序,因此不会消耗内存。
+
+2.1.3 UnsafeShuffleWriter -- UnsafeShuffleWriter是对SortShuffleWriter 的优化
+从内存使用角度看，主要差异在以下两点：
+
+a.PartitionedAppendOnlyMap 或者 PartitionedPairBuffer中，存储的是键值或者值的具体类型，也就是 Java 对象，是反序列化过后的数据。
+而在 UnsafeShuffleWriter 的 ShuffleExternalSorter 中数据是序列化以后存储到实际的 Page 中，而且在写入数据过程中会额外写入长度信息。
+总体而言，序列化以后数据大小是远远小于序列化之前的数据。
+
+b.UnsafeShuffleWriter 中需要额外的存储记录（LongArray），它保存着分区信息和实际指向序列化后数据的指针（经过编码的Page num 以及 Offset）。增加了额外的开销。
+
+3.Shuffle Read 只有一种实现。
+shuffleFetchIterator 抓取数据
+反序列化数据
+Iterator 合并map端结果,组成按照key全局的迭代器 --- 此时容易OOM ，
+	代码参见 spark/core/src/main/scala/org/apache/spark/shuffle/BlockStoreShuffleReader.scala ；spark completionIterator ； https://zhuanlan.zhihu.com/p/541499321
+Aggregation聚合计算:同一个key的数据进行迭代器获取,并参与计算。--- 此时如果程序写的不好,计算过程内部new Map等,也可能造成OOM。
+聚合计算的结果，在经过一系列的map本地操作，最后在根据新的key再shuffle到下游，此时又进行shuffle write的排序操作。
+
+
+四、Shuffle Read 中 读取数据块源码解析
+1.reduce节点,计算好去哪些map节点拉去数据。即获取元数据信息。
+2.ShuffleBlockFetcherIterator 如何真正拉去数据
+localBlocks 存储map端数据就是本地数据的情况下，存储本地数据量集合。
+remoteBlocks：需要远程获取的数据块
+results：是一个数据获取的结果列表。
+
+shuffleClient ：用来发送rpc请求,采用netty的方式去抓取数据。
+blocksByAddress：抓取哪些数据
+maxMbInFlight：每次拉去数据的最大临界值，分批拉去数据。  
+注意:控制该参数可以控制reduce拉去的数据量,最好的方式就是抓取一个key,消费一个key消费，不占用内存。
+  也可以不用一个key内容全部抓取完成，可以按照固定size大小抓取数据，当同一个key抓取一半，在迭代器中会进行所有map端数据的key排序。同一个key的map上会不断的迭代读取数据，所以会全部读全的。
+参见第一部分，总结里的参数配置信息说明。
+
+注意事项:不需要全部把数据都拉去过来，而是拉一部分就可以了。只要把一个map结果中相同的key的集合都拉去完成即可。
+
+3.因为ShuffleBlockFetcherIterator返回的是一个Iterator[（blockId，Try[Iterator[Any]]）]形式的iterator。
+即读取的一个map结果，肯定是按照key分组后已经有一个集合了。
+
+但reduce要处理的是（blockId，Try[Iterator[Any]]),因此要使用flatMap,将所有的map结果组成集合。
+此时由于每一个map接收到了数据，已经按照key分组好，因此此时就需要组装所有的相同的key数据,使用并归即可。
+(map的数据再ShuffleBlockFetcherIterator中不是全部读取完,所以不会特别耗费内存,除非相同key的内容倾斜,数据非常大)
+
+4.unpackBlock 主要作用就是将（blockId，Try[Iterator[Any]]）转换成iterator。
+5.进行计算操作。该过程可能耗费内存。

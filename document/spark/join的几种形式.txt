@@ -1,0 +1,139 @@
+一、背景与总结
+1.当前spark支持的5种join策略。
+2.Spark 的 JoinSelection选择策略的方式
+Join hints 策略
+Join 表的大小
+等值Join（equi-join） 
+不等值join（non-equi-joins）
+参与 Join 的 key 是否可以排序
+
+3.sql页面看到的join方式
+BroadcastHashJoin
+ShuffledHashJoin
+SortMergeJoin
+CartesianProduct
+BroadcastNestedLoopJoin
+
+
+二、Broadcast hash join (BHJ) 广播join, 又称 map-side-only join --- BroadcastHashJoin
+无shuffle操作。
+1.常见策略之一。
+2.应用于 是等值Join
+3.join在map端进行，前提是一张表很小,可以放到内存中，避免shuffle,效率最高。
+在map端存放在类似hashmap数据结构中，on关联时,主表使用hash方式寻找广播小表内容。所以叫做广播hash join策略。
+4.通过 spark.sql.autoBroadcastJoinThreshold = 10M,设置广播小表的阈值。
+5.不支持full join。
+
+注意事项:
+1.不要求参与 Join 的 Keys 可排序。
+
+三、Shuffle hash join（SHJ） --- ShuffledHashJoin
+有shuffle操作。
+Shuffle hash join 利用了分治思想，把大问题拆解成小问题去解决。
+1.应用于 是等值Join
+2.应用于 大表 与 相对小表的join。此时小表也不会非常小，也不会非常大。
+3.将小表和大表的数据,按照on条件,打入到相同的分区内。此时产生shuffle。
+4.reduce阶段,相同可以join的数据，就可以再同一个Executor中进行本地hash join了。
+5.将redue节点的小表,存放在内存hashMap中，因为此时已经是最初小表的一部分子集了,因此数据量就会相对少很多。是分治思想的时间。
+此时问题也凸显,如果依然reduce的数据超过内存限制，也会oom,因此Shuffle sort merge join才是最常见的应用方式。
+
+注意事项:
+1.不要求参与 Join 的 Keys 可排序。
+2.spark.sql.join.preferSortMergeJoin=false,默认是true,表示进行Sort Merge Join。
+3.在一定shuffle的情况下,有一些场景 使用select /*+ shuffle_hash(表) */  强制使用ShuffledHashJoin，而不是SortMergeJoin。
+因为SortMergeJoin会有排序耗时情况,如果数据分布均匀,不会OOM的情况下,hash方式会更划算。
+
+
+四、Shuffle sort merge join (SMJ) --- SortMergeJoin
+有shuffle操作。
+1.常见策略之一。
+2.应用于 是等值Join
+3.应用于 大表 join 大表。
+4.是Shuffle hash join的升级版,Shuffle hash join由于key不必须排序,因此他依然是在reduce节点进行hash join,是非常占用内存资源的。
+升级内容是,reduce节点的内容要基于key排序，利用并归的方式进行join。
+reduce内,迭代器找到相同key的两个数据源集合，进行笛卡尔内存计算。
+
+
+注意事项:
+1.必须要求参与 Join 的 Keys 可排序。
+2.有可能OOM，只是比较小的概率,原因是笛卡尔乘积数量很大的时候，可能会引起OOM。
+3.会有一定耗时,因为reduce要对key进行排序操作。
+
+
+五、Shuffle-and-replicate nested loop join 又称笛卡尔积（Cartesian product join)  -- CartesianProduct
+1.应用于 不等值join、没有join的on条件的场景。
+因为没有on 或者 不等式操作,所以只能先笛卡尔乘积结果，然后做where过滤on的条件判断。
+
+注意事项:
+1.必须是inner Join。
+主要是利用shuffle方式,分治,否则笛卡尔乘积数量太大，跑不动。
+2.支持等值和不等值 Join。
+3.当 Join 的表很大时，其效率是非常低下的，所以我们尽量不要使用这种 Join。
+甚至join表很大的时候,这种需求本身是有问题的。
+
+
+
+六、Broadcast nested loop join (BNLJ)
+1.应用于 等值 或者 不等值join、没有join的on条件的场景。
+2.等值操作肯定就不用他了，直接用广播就好，性能好。
+3.主要场景就是不等操作，必须笛卡尔乘积，然后在过滤。因此采用小表广播的方式，在本地map端实现多次扫描小表。
+4.实现原理
+本质是双重循环
+for(大表)
+  for(小表广播)
+   	if(on条件不等式成立) 执行代码
+
+
+注意事项:
+1.必须有一个小表可以被广播。
+2.性能极差,需要扫描N次。
+
+七、Semi与Anti join
+1.left semi 
+相当于 select a.* from A join B on a.id = b.id
+即 是inner join && 仅返回主表的字段，不考虑返回右表字段。
+等同于 in / exists 操作的转换形式
+select * from A where id in ( select id from B)
+
+比如:
+val jointDF: DataFrame = salaries.join(employees, salaries("id") === employees("id"), "inner")
+/** 结果打印
++---+------+---+-------+---+------+
+| id|salary| id| name|age|gender|
++---+------+---+-------+---+------+
+| 1| 26000| 1| Mike| 28| Male|
+| 2| 30000| 2| Lily| 30|Female|
+| 3| 20000| 3|Raymond| 26| Male|
++---+------+---+-------+---+------+
+*/
+ 
+// 左半关联
+val jointDF: DataFrame = salaries.join(employees, salaries("id") === employees("id"), "leftsemi")
+ 
+/** 结果打印
++---+------+
+| id|salary|
++---+------+
+| 1| 26000|
+| 2| 30000|
+| 3| 20000|
++---+------+
+*/
+
+2.left anti join
+
+相当于 select a.* from A left join B on a.id = b.id
+即 是 left  join 保留是那些不满足关联条件的数据记录 && 仅返回主表的字段，不考虑返回右表字段。
+等同于 not in / not exists 操作的转换形式
+select * from A where id not in ( select id from B)
+
+
+// 左逆关联
+val jointDF: DataFrame = salaries.join(employees, salaries("id") === employees("id"), "leftanti")
+/** 结果打印
++---+------+
+| id|salary|
++---+------+
+| 4| 25000|
++---+------+
+*/

@@ -1,0 +1,13 @@
+一、背景与总结
+
+
+二、应用场景
+1.对RDD执行了persist和cache,则会再该页面显示数据。
+记录RDD占用多少内存资源等。
+
+包括缓存级别、cached partitions已缓存的分区数、fraction cache缓存比例、size in memory内存大小、size on disk磁盘大小。
+
+Cached Partitions与Fraction Cached分别记录着数据集成功缓存的分区数量，以及这些缓存的分区占所有分区的比例。
+当Fraction Cached小于100%的时候，说明分布式数据集并没有完全缓存到内存（或是磁盘），对于这种情况，我们要警惕缓存换入换出可能会带来的性能隐患。
+即假设RDD一共100个分区，结果只缓存了20个，说明有80个以磁盘的方式被缓存了。
+

@@ -1,0 +1,60 @@
+一、背景与总结
+executor UI 提供的能力:
+a.一共申请了多少个executor节点，以及节点状态是正在用着，还是已经用完归还了。
+b.了解每一个executor使用了多少磁盘存储、多少堆内内存/堆外内存用于存储cache信息、每一个executor分配了多少个core。
+c.可以通过shuffler内容,直观的判断是否有倾斜现象，至于哪个环节发生的倾斜，需要看state找到对应的job action归属，从而找到代码。
+
+
+1.只有一级目录详情页，最多增加每一executor的日志连接。
+2.包含executor单节点信息、汇总信息。
+3.申请多少个executor如何控制
+spark.dynamicAllocation.enabled=true 动态扩展executor数量
+spark.dynamicAllocation.maxExecutors=1000 设置最大值  如果task较大，可以放大该值,申请更多executor,会让任务更快执行完成。
+spark.dynamicAllocation.minExecutors=3 设置最小值
+spark.executor.instances=100 设置固定的executor数量。
+
+原理:spark会最终拆分成task去执行，但他需要在机器上执行，而executor就是机器。
+因此申请足够覆盖task数量的executor,会让任务快速执行完成，当然如果executor数量>task,则会造成浪费。
+
+通过job和stage ui中task数量，可以评估出executor大概需要多少个。
+
+3.可以查看日志，也可以运行中打印堆栈信息，查看机器上的运行信息。
+
+二、executor节点信息
+1.知道任务一共申请了多少个executor节点。
+2.获取每一个节点的log日志信息。
+即该节点上打印的日志。如果一个executor上一次只有一个task执行，则看到的日志是有序的,有助于debug程序。
+3.Executor基础信息
+ExecutorID 节点ID。
+Address 节点地址
+Status 节点当前状态，是活跃还是已经被yarn回收。
+4.RDD Blocks
+
+5.Storage Memory/On Heap Storage Memory/Off Heap Storage Memory 
+比如0.0 B / 12.2 GiB 表示分配了12G内存用于存储cache信息,但实际上没有cache被用。因此可以配置参数把这段cache节省掉。
+
+表示 在内存中存储RDD的cache占用的内存空间/总内存存储RDD的cache的总空间。  后两者表示堆内内存、堆外内存限制。
+通过分母，可以调解SET spark.yarn.executor.memoryOverhead=1024;spark.memory.storageFraction参数。
+比如没有用到堆外内存，将堆外内存设置小。
+如果没有用到storage信息,则设置spark.memory.storageFraction占比小一些，都给计算内存使用。
+
+6.Disk Used executor上使用了多少物理磁盘存储cache信息。
+
+7.Cores 每一个executor分配多少core。
+
+8.运行任务数
+每一个executor总共接收了多少个task任务，以及正在运行、失败、完成的task数量。
+Active Tasks	Failed Tasks	Complete Tasks	Total Tasks
+
+9.Task Time (GC Time)
+任务task执行耗时，以及gc耗时，如果gc耗时占比超过任务耗时的10%，则红色提示，表示此时你要去优化一下内存了，经常垃圾回收，肯定内存不足。
+
+10.文件IO
+Input文件数据源大小，从hdfs上读取数据
+Shuffle Read	Shuffle Write
+
+可以通过shuffler内容,直观的判断是否有倾斜现象，至于哪个环节发生的倾斜，需要看state找到对应的job action归属，从而找到代码。
+
+
+
+					

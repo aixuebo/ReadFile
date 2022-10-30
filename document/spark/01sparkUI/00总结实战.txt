@@ -1,0 +1,81 @@
+一、背景与总结
+
+
+二、查找数据倾斜
+1.去job页面找到stage耗时最长的。
+2.进到stage页面，找到task耗时最长的，该task多半是数据倾斜。
+3.通过stage页面的coordinator_id(老系统逻辑)或者WholeStageCodegen (15) 新系统逻辑。确定第几个stage。
+WholeStageCodegen (15) 通过括号15 可以知道归属第几个stage,15表示第16个stage。；也可能通过stage页面的coordinator_id定位,这个是老系统逻辑
+4.去sql页面，找到stage对应的sql语法块，通过悬停,找到join的on条件 或者 扫描的是哪个表，确定大概出问题的代码块位置。
+5.可以对该表的关联字段进行count统计，发现字段存在比较多的-1，和空值，导致数据倾斜。
+肯定是on条件分组不平衡造成的，因此简单的跑一下数据即可初步识别。
+6.解决方案
+比如过滤掉这部分数据。
+
+三、每一个stage阶段,partition分区数量是多少？
+去sql ui页面，找到exchange位置，悬停即可查看到有多少个partition数。
+
+四、尽量join使用广播join
+优化小表，比如小表虽然很大，但是经过过滤有效信息后，数据会变少；
+根据数据变小后的数据大小,通过设置spark.sql.autoBroadcastJoinThreshold,调节广播的数据体量；
+
+五、确定是否优化上游任务的小文件数
+查看stage和job模块,input文件的分布,max是不是很小，并且task很多，比如上万个task。
+此时说明上游数据小文件居多，需要优化，上游优化后，减少task数量需求。
+
+六、如何通过sql UI页面优化sql代码
+1.sql页面的执行计划要与sql对比这看。
+首先看sql页面的scan部分，通过这部分找到sql代码的入口。
+这部分受数据源上游的小文件影响，可能task会很大，但关键是非上游的task(排除掉skip的task)数量一定要保证少。
+因为reduce的数量我们已经设置好了，理论上不会再出现小文件问题。
+2.一段一段的看sql的stage逻辑，确定sql代码是如何进行shuffle以及sort的。
+判断是否sql的shuffle过于多,能否数据量减小后，用广播join优化shuffle次数。
+
+比如:
+原本只是扫描了3个表,产生三个核心WholeStageCodegen,但因为每一个表join的key不同,因此发生了5次shuffle
+比如
+第1次,a表scan+shuffle分发出去。
+第2次,b表scan+shuffle分发出去。
+第3次,a+b的结果计算，然后再shuffle分发出去。
+第4次,c表scan+shuffle分发出去。
+第5次,将第3次+第4次的结果进行计算,然后再shuffle分发出去。
+
+这么多shuffle过程,是否有一个表可以放内存当广播join处理呢?此时看数据量 以及 看sql代码对照即可很容易发现问题。
+
+  ### WholeStageCodegen 17 18 19 20 22 各种shuffle操作
+    select c.group_id,c.chat_id,c.user_id,
+    count(distinct(a.session_id)) session_cnt
+    from 
+    (
+      ###WholeStageCodegen 2
+      select open_gid,user_id,session_id
+      from a
+    ) flow
+    join b rel ### WholeStageCodegen 3
+    on a.open_gid = b.open_gid
+    join c ### WholeStageCodegen 4
+    on a.user_id = c.user_id and b.chat_id = c.chat_id 
+    group by c.group_id,c.chat_id,c.user_id
+    
+3.此时可能会产生问题，但比较好优化
+产生问题：ExecutorLostFailure
+
+原因是如果上游任务task数量多，原因是小文件多，比如1万个，而shuffle分区设置也多，比如500个。
+相当于网络上要传输1万*500，会产生丢文件块的问题。
+此时应该优化上游，将减少上游task数量即可。或者适当减少reduce的数量。但由于sql的reduce数量只能控制一次，不能针对性的控制某一段的reduce数量，所以此时优化reduce有点不合理，还是优化上游合理。
+
+
+七、综合案例
+1.从stage先看
+因为stage列表页,包含了执行的所有stage，而stageList中包含了若干个读取数据源的入口。
+重点关注:
+a.哪些stage input大、output大、shuffle大、哪些stage耗时久。这些都是值得重点优化的地方。
+b.shuffle大 大概率会发生倾斜。
+shuffle的数据量/task数，判断是否task分担了过重的过重，调整task合理性。
+c.关注input < shuffle write数据量的stage，说明数据膨胀了。并且shuffle write过大,说明网络IO多，倾斜概率也会增大。
+
+2.查看executor
+a.查看使用的堆内内存还是堆外内存，用于存储rdd中间结果。
+RDD中间文件系统存储的结果，是否很大。这部分是否可以优化掉。
+
+
