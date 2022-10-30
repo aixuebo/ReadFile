@@ -4,6 +4,17 @@ ALTER TABLE summary.leave_users ADD COLUMNS (create_date STRING);
 ALTER TABLE invites ADD COLUMNS (new_col2 INT COMMENT 'a comment');
 
 
+批量增加列
+ALTER TABLE database.user_info
+ADD COLUMN 
+(
+  xxx                    BIGINT  key  COMMENT  'id',
+  xxxx                  varchar(20) key  comment  '名称',
+  xxx bigint SUM DEFAULT NULL COMMENT "xxx-sum",
+  xxx bitmap BITMAP_UNION COMMENT "xxx-distinct"
+)
+
+
 删除该分区
 ALTER TABLE summary.leave_users DROP IF EXISTS PARTITION (log_day='20160531');
 ALTER TABLE summary.leave_users DROP IF EXISTS PARTITION (log_day>='20160531');
@@ -22,6 +33,7 @@ drop view 视图Name
 二、修改一个列
 更改一个列名字和类型
 ALTER TABLE database.user_info change  column discount discount_new double COMMENT '活动力度 满减 折扣存在该值';
+
 
 三、加载数据
 load data local inpath '/server/test/mark.log.2017-05-09' overwrite into table databases.table partition (log_day='2017-05-09'); 加载本地文件到hive中

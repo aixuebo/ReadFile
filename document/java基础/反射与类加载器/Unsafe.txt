@@ -1,0 +1,74 @@
+一、背景与总结
+1.创建堆外内存空间，用于存储和获取数据，可以按照int、long等对象形式进行读取和存放数据。
+2.
+
+二、创建Unsafe对象
+因为安全的原因，所以只能如下方法创建该对象，不能通过new的方式创建。
+
+import sun.misc.Unsafe;
+    public static final Unsafe unsafe = getUnsafe();
+
+    static sun.misc.Unsafe getUnsafe() {
+        try {
+            Field field = Unsafe.class.getDeclaredField("theUnsafe");
+            field.setAccessible(true);
+            return  (Unsafe) field.get(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+ 注意:
+ 1.创建后可能提示import sun.misc.Unsafe;报错，原因是eclipse设置问题。
+ Properties/java compiler/error ，将deprecated and restricted api下面的设置为Warning即可。
+ 
+三、设置堆外内存，并且存储数据。
+堆外内存是以地址为基础，存储和获取数据的。
+
+总结:
+一切参数都以地址为基础，去读取与存储数据
+unsafe.putInt(存储的地址, 存储的int值); //存储数据
+System.out.println(unsafe.getInt(读取的内存地址作为参数)); //读取数据,读取int
+
+    public void test1() {
+    
+        //nio的方式
+    	ByteBuffer directBuffer = ByteBuffer.allocateDirect(16);//创建16个字节,返回内存地址的引用
+    	//分别向其地址内添加4个整数
+        directBuffer.putInt(1);
+        directBuffer.putInt(2);
+        directBuffer.putInt(3);
+        directBuffer.putInt(100);
+        directBuffer.flip();
+        //读取四个整数
+        System.out.println(directBuffer.getInt());
+        System.out.println(directBuffer.getInt());
+        System.out.println(directBuffer.getInt());
+        System.out.println(directBuffer.getInt());
+        
+        //unsafe的方式
+        long address = unsafe.allocateMemory(16); //创建16个字节的内存,返回内存地址
+        unsafe.putInt(address, 1); //向其存储数字1
+        unsafe.putInt(address + 4, 2);//向地址+4位置,继续存储字节。
+        unsafe.putInt(address + 8, 3);
+        unsafe.putInt(address + 12, 200);
+
+        System.out.println(unsafe.getInt(address));
+        System.out.println(unsafe.getInt(address + 4));
+        System.out.println(unsafe.getInt(address + 8));
+        System.out.println(unsafe.getInt(address + 12));
+    }
+    
+四、内存复制
+1.Unsafe 提供了内存拷贝的 native 方法，可以实现堆内到堆内、堆外到堆外、堆外和堆内互相拷贝，总之就是哪儿到哪儿都可以拷贝。
+public native void copyMemory(Object src, long offset, Object dst ,long dstOffset, long size);
+注意:对于堆外内存来说，会更加直观一点，dst 设为 null，dstOffset 设置为 Unsafe 获取的内存地址即可。
+
+以下代码没执行成功，所以只当是一个demo用来看一下吧。
+ 	ByteBuffer heapBuffer = ByteBuffer.allocate(4);
+ 	heapBuffer.putInt(1234);
+ 	
+    long address = unsafe.allocateMemory(4)
+    unsafe.copyMemory(heapBuffer.array(), 0, null, address, 4);
+
+    

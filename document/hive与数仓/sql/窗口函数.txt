@@ -5,6 +5,9 @@ if(row_number <= ceiling(sum(总数)*0.1),1,0) as 是否是top10
 
 
 汇总窗口函数:
+DENSE_RANK() OVER(PARTITION BY if(cookieid = 1,cookieid,99999) ORDER BY if(pv = 1,pv,99999) desc) AS rn2, 支持if语法
+
+
 RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn1,
 DENSE_RANK() OVER(PARTITION BY cookieid ORDER BY pv desc) AS rn2,
 ROW_NUMBER() OVER(PARTITION BY cookieid ORDER BY pv DESC) AS rn3,

@@ -3,6 +3,18 @@ github:hiveJdbc 项目/src/java/org/apache/hadoop/hive/ql/udf/
 hive支持的数据类型
 boolean、tinyint、smallint、int、bigint、float、double、decimal、string、varchar、ts、date、binary
 
+如果hive的字段类型本来是double,当下游使用该字段时,设置为bigint,即相当于 cast xx as bigint 操作,而该操作会有歧义,不同引擎处理结果是不同的,比如hive会四舍五入,doris会舍。
+因此这种场景要取消歧义,使用cast(round(xx) as bigint)方式代替,强制四舍五入,或者ceil函数处理。
+
+
+使用hash(id) % 10 代替 rand()*10。
+提出了distribute by来再分区。distribute by的原理很简单，就是把后面跟着的字段作为key，key相同则分发到相同的partition进行处理。
+distribute by 分区列,case when 大分区 then cast(rand()*10 as int) when 小分区 then 1 end 
+这样同一个分区字段，根据分区业务上的数据内容多少，可以固定设置每一个分区多少个分区。
+但由于每次rand会变化，当发生在部分任务重导时，数据会被错误分发(结果数据总行数正确，但是一部分数据重复出现了2次，相应地一部分数据缺失。)，
+因此每一条数据分发到哪个分区，会因为重导后变化。推荐使用如下方式cast(hash(id) % 10 as int) 固定散列。
+
+
 常用函数
 COALESCE(null,'aaa')
 正数除法  100/200 = 0 ,但是小数double除法就可以得到小数,因此改写一下cast(字段 as Double)/cast(字段 as Double)

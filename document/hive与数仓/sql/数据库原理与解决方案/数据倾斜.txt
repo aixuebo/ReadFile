@@ -1,4 +1,18 @@
-一、不允许使用rand函数来解决shuffle倾斜问题。
+一、背景与总结
+1.容易忽略产生数据倾斜的原因。即当left join xx on dt = dt时，（当dt匹配不上的时候）容易产生数据倾斜，并且还经常被忽视。
+以下sql很简单，b表是ord表的子集，理论上不会产生数据倾斜，但实际运行中发现OOM了，说明发生了数据倾斜。
+select *
+from ord 
+left join b on ord.id = b.id and ord.dt = b.dt 
+where ord.dt = xxx
+原因是什么？
+因为b是ord的子集，所以left join 后，dt=dt作为条件，会导致很多子集没有覆盖的数据，倾斜了。
+所以b表要写成子查询，把dt写到子查询里。即没有办法做view视图了。
+
+注意:
+后来我想了下，应该也不会发生倾斜，因为即是dt没有匹配上,也会按照唯一的id去hash打散，不应该会出现数据倾斜问题。后续再思考一下该问题吧，暂时这个倾斜原因close,先不考虑这个case了。
+
+二、不允许使用rand函数来解决shuffle倾斜问题。
 作业在进行的shuffle的时候，同一行数据，shuffle的结果不是幂等的。
 如果shuffle的mapper task由于失败重算，就有可能导致shuffle的数据分配错误。
 
@@ -11,7 +25,7 @@
 这种情况下，可以改成abs(hash(col)  % 99) *-1，这样结果是(-99, 0] 之间的整数。
 如果要不希望包括0 ，可以用-1 - abs(hash(col)  % 99) 
 
-二、解决数据倾斜方案
+三、解决数据倾斜方案
 1.将reduce join转为map join
 2.提高shuffle操作的并行度（减少倾斜）---但针对null这种某一个值超级大,导致的倾斜，这个方案是无效的。
 spark.sql.shuffle.partitions=4000
@@ -30,7 +44,8 @@ spark.sql.shuffle.partitions=4000
 from t1 left join t2 
 on (t1.id = case when t2.id is not null then t2.id 
     else (-1 - abs(hash(t2.user_id)  % 99)) end )
-    
+因为rand不支持幂等性，如果用rand,重复执行两次,结果是不一致的,因此要用固定的key进行hash取模，尽量保证key足够分散，因此key最好是自增主键。
+
 实现原理:在加载t2表数据的时候，要按照key去分发数据。正常按照id去分发，这样保证t1和t2相同id的数据会在同一个节点上。
 但如果id是null的时候，会导致该节点上null的数据非常多，又无法与t1匹配成功。
 
