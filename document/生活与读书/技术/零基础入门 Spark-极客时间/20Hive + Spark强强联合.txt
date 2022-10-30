@@ -1,0 +1,136 @@
+一、背景与总结
+1.归类
+Hive on Spark:Hive采用Spark作为底层的计算引擎。
+Spark with Hive:spark仅仅使用hive的Metastore获取表元数据信息。
+
+二、hive架构
+1.User Interface 为开发者提供SQL接入服务
+提供三种提交sql任务的方式:
+Hive Server 2:通过提供JDBC/ODBC客户端连接，允许开发者从远程提交SQL查询请求。
+CLI:在hive服务器节点上,使用命令行提交sql。
+Web Interface:（Web界面入口）,sql语法直接在hive节点上被接受。
+2.Driver
+接收到sql后 --> Driver进行Parser --> 将sql转化为AST --> Planner组件根据AST生成执行计划 --> Optimizer则进一步优化执行计划。
+3.Hive Metastore
+依赖普通的关系型数据库（RDBMS）存储hive元数据。
+数据表的元信息才行，比如表名、列名、字段类型、数据文件存储路径、文件格式。
+目标:辅助SQL语法解析、执行计划的生成与优化;帮助底层计算引擎高效地定位并访问分布式文件系统中的数据源;
+4.分布式文件系统
+HDFS
+5.执行
+Hive目前支持3类计算引擎，分别是Hadoop MapReduce、Tez和Spark。
+
+三、Spark with Hive -- spark仅仅使用hive的Metastore获取表元数据信息。
+1.作用
+我们知道hive的Metastore存储了数据表的元数据信息。
+Spark SQL通过访问Hive Metastore这本“户口簿”，即可扩充数据访问来源。而这，就是Spark with Hive集成方式的核心思想。
+直白点说，在这种集成模式下，Spark是主体，Hive Metastore不过是Spark用来扩充数据来源的辅助工具。
+
+2.3种途径来实现Spark with Hive的集成方式，它们分别是：
+创建SparkSession，访问本地或远程的Hive Metastore；
+通过Spark内置的spark-sql CLI，访问本地Hive Metastore；
+通过Beeline客户端，访问Spark Thrift Server。
+
+3.SparkSession + Hive Metastore
+a.如何让spark知道hive的Metastore的地址。
+在创建SparkSession的时候，通过config函数来明确指定hive.metastore.uris参数。
+Spark读取Hive的配置文件hive-site.xml,其中就包括hive.metastore.uris这一项。即把hive-site.xml拷贝到Spark安装目录下的conf子目录。
+
+b.demo
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.DataFrame
+val spark = SparkSession.builder()
+                   .config("hive.metastore.uris", s"thrift://hiveHost:9083")
+                   .enableHiveSupport()
+                   .getOrCreate()
+val df: DataFrame = spark.sql(“select * from salaries”) // 读取Hive表，创建DataFrame
+
+c.原理
+总结:
+(1).Spark对于Hive的访问，仅仅涉及到Metastore这一环节。
+(2).对于Hive架构中的其他组件，Spark并未触及。
+即Spark仅仅是“白嫖”了Hive的Metastore，拿到数据集的元信息之后，Spark SQL自行加载数据、自行处理。
+
+
+4.spark-sql CLI + Hive Metastore
+a.如何让spark知道hive的Metastore的地址。
+Spark读取Hive的配置文件hive-site.xml,其中就包括hive.metastore.uris这一项。即把hive-site.xml拷贝到Spark安装目录下的conf子目录。
+
+b.该场景的背景
+不想创建SparkSession,这种编码的方式不适合很多小白用户。
+小白用户就会sql，就希望直接通过写sql的方式去工作。
+
+c.缺点
+这种模式的限制:spark-sql CLI与Hive Metastore必须安装在同一个计算节点。
+换句话说，spark-sql CLI只能在本地访问Hive Metastore，而没有办法通过远程的方式来做到这一点。
+
+5.Beeline + Spark Thrift Server
+a.该场景的背景
+背景是 也是只是想写sql,不想编码的方式写sparkSession,但又可以远程访问hive的Metastore。
+使用Beeline客户端，去连接Spark Thrift Server，从而完成Hive表的访问与处理。
+
+b.实现原理
+Beeline原本是Hive客户端，通过JDBC接入Hive Server 2。
+Hive Server 2可以同时服务多个客户端，从而提供多租户的Hive查询服务。
+由于Hive Server 2的实现采用了Thrift RPC协议框架，因此很多时候我们又把Hive Server 2称为“Hive Thrift Server 2”。
+
+通过Hive Server 2接入的查询请求，经由Hive Driver的解析、规划与优化，交给Hive搭载的计算引擎付诸执行。
+相应地，查询结果再由Hiver Server 2返还给Beeline客户端。
+
+c.如何绕过hive,我们只是想查询hive的Metastore。
+Spark Thrift Server脱胎于Hive Server 2，在接收查询、多租户服务、权限管理等方面，这两个服务端的实现逻辑几乎一模一样。
+它们最大的不同，在于SQL查询接入之后的解析、规划、优化与执行。
+
+我们刚刚说过，Hive Server 2的“后台”是Hive的那套基础架构。而SQL查询在接入到Spark Thrift Server之后，它首先会交由Spark SQL优化引擎进行一系列的优化。
+
+c.服务启动
+理清了Spark Thrift Server与Hive Server 2之间的区别与联系之后，
+接下来，我们来说说Spark Thrift Server的启动与Beeline的具体用法。
+要启动Spark Thrift Server，我们只需调用Spark提供的start-thriftserver.sh脚本即可。
+
+
+cd $SPARK_HOME/sbin // SPARK_HOME环境变量，指向Spark安装目录
+./start-thriftserver.sh // 启动Spark Thrift Server
+脚本执行成功之后，Spark Thrift Server默认在10000端口监听JDBC/ODBC的连接请求。
+
+有意思的是，关于监听端口的设置，Spark复用了Hive的hive.server2.thrift.port参数。
+与其他的Hive参数一样，hive.server2.thrift.port同样要在hive-site.xml配置文件中设置。
+
+一旦Spark Thrift Server启动成功，我们就可以在任意节点上通过Beeline客户端来访问该服务。
+在客户端与服务端之间成功建立连接（Connections）之后，咱们就能在Beeline客户端使用SQL语句处理Hive表了。
+
+需要注意的是，在这种集成模式下，SQL语句背后的优化与计算引擎是Spark。
+
+/**
+用Beeline客户端连接Spark Thrift Server，
+其中，hostname是Spark Thrift Server服务所在节点
+*/
+beeline -u “jdbc:hive2://hostname:10000”
+
+四、Hive on Spark
+1.基本原理
+Hive的松耦合设计，使得它的Metastore、底层文件系统、以及执行引擎都是可插拔、可替换的。
+hive将执行引擎,切换到spark上执行。
+从用户的视角来看，使用Hive on MapReduce或是Hive on Tez与使用Hive on Spark没有任何区别，执行引擎的切换对用户来说是完全透明的。
+不论Hive选择哪一种执行引擎，引擎仅仅负责任务的分布式计算，SQL语句的解析、规划与优化，通通由Hive的Driver来完成。
+
+2.为什么hive on Spark 性能不如spark sql
+在Hive on Spark这种集成模式下，Hive与Spark衔接的部分是Spark Core，而不是Spark SQL，这一点需要我们特别注意。
+这也是为什么，相比Hive on Spark，Spark with Hive的集成在执行性能上会更胜一筹。
+毕竟，Spark SQL + Spark Core这种原装组合，相比Hive Driver + Spark Core这种适配组合，在契合度上要更高一些。
+
+3.集成实现
+hive如何将sql转化成spark的RDD的。
+
+a.准备好spark集群。
+b.修改hive-site.xml中相关的配置项。
+hive.execution.engine=spark //枚举值 mapreduce、tez、spark。即选择hive的后端执行引擎。
+spark.master 指定spark部署在哪里。
+spark.home 为了方便Hive调用Spark的相关脚本与Jar包，我们还需要通过spark.home参数来指定Spark的安装目录。
+
+执行流程:
+sql --> hive driver --> 查询Metastore --> hive优化sql,生产物理计划 --> hive根据物理计划,翻译为spark的RDD语义下的DAG，最后把DAG交给后端的Spark去执行分布式计算。
+
+
+
+

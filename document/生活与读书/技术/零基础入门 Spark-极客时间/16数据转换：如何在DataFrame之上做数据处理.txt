@@ -1,0 +1,97 @@
+一、背景与总结
+
+
+二、createTempView、createGlobalTempView创建临时数据表
+createTempView创建的临时表，其生命周期仅限于SparkSession内部。
+createGlobalTempView创建的临时表，可以在同一个应用程序中跨SparkSession提供访问。
+
+demo:
+import org.apache.spark.sql.DataFrame
+import spark.implicits._
+ 
+val seq = Seq(("Alice", 18), ("Bob", 14))
+val df = seq.toDF("name", "age")
+df.createTempView("t1")
+
+val query: String = "select * from t1"
+val result: DataFrame = spark.sql(query)
+ 
+result.show // 与RDD的开发模式一样，DataFrame之间的转换也属于延迟计算，当且仅当出现Action类算子时，如上表中的show，所有之前的转换过程才会交付执行。即show是action。
+
+三、DataFrame算子
+1.不得不说，DataFrame支持的算子丰富而又全面，
+一方面，DataFrame来自RDD，与RDD具有同源性，因此RDD支持的大部分算子，DataFrame都支持。
+另一方面，DataFrame携带Schema，是结构化数据，因此它必定要提供一套与结构化查询同源的计算算子。
+
+2.常见算子
+a.同源类算子
+数据转换 map/mapPartitions/flatMap/filter
+数据聚合 groupByKey/reduce
+数据准备 union/sample
+数据预处理 repartition/coalesce
+结果收集 first/take/collect
+
+-------
+b.探索类算子
+查看数据格式 columns/schema/printSchema
+查看数据结果 show
+查看数据分布 describe ,比如 df.describe(“age”)，你可以查看age列的极值、平均值、方差等统计数值。
+查看执行计划 explain
+
+-------
+c.清洗类算子
+删除某些列 drop,比如 df.drop(“gender,sex”)
+去重复 distinct,去重所以字段中，完全相同的数据行。
+按照指定列去重复 dropDuplicates,比如 df.dropDuplicates("gender") 
+null值处理 na,它的作用是选取DataFrame中的null数据，na往往要结合drop或是fill来使用。
+	比如df.na.drop用于删除DataFrame中带null值的数据记录。
+  比如df.na.fill(0)用于将null转换成0。
+
+-------
+d.转换类算子
+投影 select,比如 df.select("name", "gender").show
+以sql语句为参数,提取数据 selectExpr,比如df.selectExpr("id", "name", "concat(id, '_', name) as id_name").show,将id和名字拼接产生新的一列。
+过滤 where,比如 df.where(“gender = ‘Male’”)
+字段重命名 withColumnRenamed,比如 df.withColumnRenamed(“gender”, “sex”)。将列名gender改成sex。
+添加列 withColumn,比如 df.withColumn("列名",hash($"age")).show
+展开数组类的数据列 explode 。比如
+val seq = Seq( (1, "John", 26, "Male", Seq("Sports", "News")),
+	(2, "Lily", 28, "Female", Seq("Shopping", "Reading")),
+	(3, "Raymond", 30, "Male", Seq("Sports", "Reading"))
+)
+df.withColumn("interest", explode($"interests")).show //添加一个新列interest,内容是interests数组的展开形式。
+
+-------
+e.分析类算子
+关联 join
+分组 groupBy
+聚合 agg
+排序 sort/orderBy
+
+举例:
+
+sql形式:
+select gender,
+sum(salary) sum_salary,
+avg(salary) avg_salary
+from biao join biao on
+group by gender
+order by sum_salary desc , gender
+
+DataFrame形式:
+val jointDF: DataFrame = salaries.join(employees, Seq("id"), "inner") //salaries join employees on id = id
+val aggResult = jointDF.groupBy("gender").agg(sum("salary").as("sum_salary"), avg("salary").as("avg_salary"))
+aggResult.sort(desc("sum_salary"), asc("gender")).show
+aggResult.orderBy(desc("sum_salary"), asc("gender")).show
+
+注意:
+join第三个参数形式:inner、left、right、anti、semi
+val jointDF: DataFrame = salaries.join(employees, salaries("id") === employees("id"), "inner") //分别来自于不同表的id进行join
+agg是算子，里面参数是一组算组集合,用逗号分隔。
+
+-------
+f.持久化类算子
+数据读取 sparkSession.read.format(文件格式).option(key,value配置项).load(文件路径)
+数据输出 df.write.format(文件格式).option(key,value配置项).save(文件路径)
+
+

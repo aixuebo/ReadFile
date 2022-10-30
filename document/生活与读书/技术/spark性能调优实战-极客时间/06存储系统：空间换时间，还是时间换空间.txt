@@ -1,0 +1,113 @@
+一、背景与总结
+
+
+二、Spark存储系统是为谁服务的
+Spark 存储系统用于存储 3个方面的数据，分别是RDD缓存、Shuffle 中间文件、广播变量。
+
+1.RDD缓存
+指的是将RDD以缓存的形式物化到内存或磁盘的过程。
+
+2.Shuffle中间文件
+Shuffle中间文件实际上就是Shuffle Map阶段的输出结果，这些结果会以文件的形式暂存于本地磁盘。
+Reducer通过网络拉取这些中间文件用于聚合计算，如求和、计数等。在集群范围内，Reducer想要拉取属于自己的那部分中间数据，就必须要知道这些数据都存储在哪些节点，以及什么位置。
+而这些关键的元信息，正是由Spark存储系统保存并维护的。因此你看，没有存储系统，Shuffle是玩不转的。
+
+3.广播变量
+
+三、存储系统的基本组件有哪些
+BlockManager、BlockManagerMaster、MemoryStore、DiskStore和DiskBlockManager等等。
+
+1.BlockManager -- 其中最为重要的组件
+它在Executors端负责统一管理和协调数据的本地存取与跨节点传输。
+a.对外
+与Driver端的BlockManagerMaster通信,汇报本地数据元信息。
+不同Executors的BlockManager之间也会以Server/Client模式跨节点推送和拉取数据块。即做executor之间的数据传输工作。
+b.堆内
+BlockManager通过组合存储系统内部组件的功能来实现数据的存与取、收与发。
+
+2.存储对象 MemoryStore和DiskStore
+BlockManager正是利用它们来分别管理数据在内存和磁盘中的存取。
+
+广播变量由MemoryStore管理。
+Shuffle中间文件往往会落盘到本地节点，所以这些文件的落盘和访问就要经由DiskStore。
+RDD缓存支持内存缓存和磁盘缓存两种模式，因此我们要视情况而定，缓存在内存中的数据会封装到MemoryStore，缓存在磁盘上的数据则交由DiskStore管理。
+
+3.数据存储格式
+有了MemoryStore和DiskStore，我们暂时解决了数据“存在哪儿”的问题。但是，这些数据该以“什么形式”存储到MemoryStore和DiskStore呢？
+对于数据的存储形式，Spark存储系统支持两种类型：对象值（Object Values）和字节数组（Byte Array）。
+它们之间可以相互转换，其中，对象值压缩为字节数组的过程叫做序列化，而字节数组还原成原始对象值的过程就叫做反序列化。
+
+四、透过RDD缓存看MemoryStore
+1.怎么管理内存的。
+MemoryStore同时支持存储对象值和字节数组这两种不同的数据形式，并且统一采用MemoryEntry数据抽象对它们进行封装。
+MemoryEntry有两个实现类：DeserializedMemoryEntry和SerializedMemoryEntry，分别用于封装原始对象值和序列化之后的字节数组。
+DeserializedMemoryEntry用 Array[T]来存储对象值序列，其中T是对象类型，
+而SerializedMemoryEntry使用ByteBuffer来存储序列化后的字节序列。
+
+2.存储与访问数据块。
+定义数据存储字典表 LinkedHashMap[BlockId, MemoryEntry]，即 Key 为BlockId，Value 是MemoryEntry的链式哈希字典。
+有了这个字典，我们通过BlockId即可方便地查找和定位MemoryEntry，实现数据块的快速存取。
+
+3.Blocks是什么 -- 就是一个数据块
+RDD语境下,我们往往用数据分片（Partitions/Splits）来表示一份分布式数据。
+但在存储系统的语境下，我们经常会用数据块（Blocks）来表示数据存储的基本单元。
+因此在逻辑上,RDD的数据分片与存储系统的Block一一对应，也就是说一个RDD数据分片会被物化成一个内存或磁盘上的Block。
+
+4.缓存RDD的过程
+a.Unroll操作
+读取数据块BlockId,产生迭代数据,putIteratorAsValues方法,循环RDD的每一条数据,获取具体的值。然后把值存储到ValuesHolder数据结构里。
+
+b.从Unroll memory到Storage memory的Transfer（转移）操作
+为了节省内存,在ValuesHolder上调用toArray或是toByteBuffer操作,转换为MemoryEntry数据结构。
+因为我们说过 MemoryEntry 存储的是值数组 或者 值的字节数组。所以是可以这样转换的。
+
+注意啦，这一步的转换不涉及内存拷贝，也不产生额外的内存开销，因此Spark官方把这一步叫做“从Unroll memory到Storage memory的Transfer（转移）”。
+
+c.将BlockId与对应的MemoryEntry,存储到LinkedHashMap[BlockId, MemoryEntry]。
+说是内存占用超大,其实不是Hash字典占用内存大,而是MemoryEntry对象占用字节多,毕竟存储的是实打实的数据内容。
+
+d.如果需要把缓存的RDD存储到磁盘,则需要把LinkedHashMap[BlockId, MemoryEntry]存储到磁盘即可物化。
+
+五、透过Shuffle看DiskStore
+参考图3
+
+1.存储方法
+putBytes(BlockID,ByteBuffer)
+getBytes(BlockID)
+
+相比MemoryStore，DiskStore就相对简单很多，因为它并不需要那么多的中间数据结构才能完成数据的存取。
+DiskStore中数据的存取本质上就是字节序列与磁盘文件之间的转换，它通过putBytes方法把字节序列存入磁盘文件，再通过getBytes方法将文件内容转换为数据块。
+
+2.元数据管理
+要想完成两者之间的转换，像数据块与文件的对应关系、文件路径等等这些元数据是必不可少的。
+MemoryStore采用链式哈希字典来维护类似的元数据，DiskStore这个狡猾的家伙并没有亲自维护这些元数据，而是请了DiskBlockManager这个给力的帮手。
+
+3.DiskBlockManager原理
+DiskBlockManager的主要职责就是，记录逻辑数据块Block与磁盘文件系统中物理文件的对应关系，Map<BlockID,磁盘文件>。
+
+DiskBlockManager在初始化的时候，首先根据配置项spark.local.dir在磁盘的相应位置创建文件目录。
+所有这些目录均用于存储通过DiskStore进行物化的数据文件，如RDD缓存文件、Shuffle中间结果文件等。
+
+
+六、透过Shuffle看DiskStore -- 举例
+1.SortShuffleManager
+我们再以Shuffle中间文件为例，来说说DiskStore与DiskBlockManager的交互过程。
+Spark默认采用SortShuffleManager来管理Stages间的数据分发。
+
+2.Shuffle write 生产的中间文件
+在Shuffle write过程中，有3类结果文件：temp_shuffle_XXX、shuffle_XXX.data和shuffle_XXX.index。
+Data文件存储分区数据，它是由temp文件合并而来的，
+而index文件记录data文件内不同分区的偏移地址。
+Shuffle中间文件具体指的就是data文件和index文件，temp文件作为暂存盘文件最终会被删除。
+
+3.文件生产过程 -- Shuffle write阶段
+a.SortShuffleManager准备要写入数据到文件中。
+通过BlockManager调用DiskStore的putBytes(BlockID,ByteBuffer)方法将数据块写入文件。
+b.第一次写入时,要为BlockID创建一个文件。
+文件由DiskBlockManager创建，文件名就是putBytes方法中的BlockID。
+c.文件会以“temp_shuffle”或“shuffle”开头，保存在spark.local.dir目录下的子目录里。
+
+4.文件消费 -- Shuffle read阶段
+a.SortShuffleManager 通过BlockManager调用DiskStore的getBytes方法,读取读取data文件和index文件，将文件内容转化为数据块。
+b.数据块会通过网络分发到Reducer端进行聚合计算。
+

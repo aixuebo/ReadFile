@@ -1,0 +1,70 @@
+一、背景与总结
+1.全文在讲解怎么创建DataFrame。
+为什么要创建DataFrame这么重要？
+因为以下原因:
+通过创建DataFrame并沿用DataFrame开发API,系统会将其转换成sql,进入sql优化器流程,最终转换成物理计划RDD,调用spark core流程。
+即DataFrame --> sql --> 优化器 --> 物理计划RDD --> spark core。
+
+二、从Driver创建DataFrame
+1.createDataFrame方法创建DataFrame
+相比RDD，DataFrame仅仅是多了一个Schema。
+因此流程如下:
+a.创建RDD
+val seq: Seq[(String, Int)] = Seq(("Bob", 14), ("Alice", 18))
+val rdd: RDD[(String, Int)] = sc.parallelize(seq)
+b.追加Schema
+import org.apache.spark.sql.types.{StringType, IntegerType, StructField, StructType}
+val schema:StructType = StructType( 
+Array(
+  StructField("name", StringType),
+  StructField("age", IntegerType)
+))
+c.数据整合
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.DataFrame
+val rowRDD: RDD[Row] = rdd.map(fileds => Row(fileds._1, fileds._2)) //处理rdd,符合schema的定义格式
+val dataFrame: DataFrame = spark.createDataFrame(rowRDD,schema) //传入RDD和schema
+
+d.应用
+dataFrame.show
+
+2.toDF方法,将RDD转换成DataFrame
+import spark.implicits._
+val dataFrame: DataFrame = rdd.toDF 或者 seq.toDF
+dataFrame.printSchema
+
+例子:
+val seq = Seq(("Alice", 18), ("Bob", 14))
+val df = seq.toDF("name", "age")
+三、从文件系统创建DataFrame
+1.核心语法
+sparkSession.read.format(文件格式).option(key,value配置项).load(文件路径)
+
+2.从CSV创建DataFrame。
+a.猜测schema 
+val df: DataFrame = spark.read.format("csv").option("header", true).option("header2", true).load(csvFilePath).
+b.自定义schema
+定义Schema：
+import org.apache.spark.sql.types.{StringType, IntegerType, StructField, StructType}
+val schema:StructType = StructType( 
+Array(
+  StructField("name", StringType),
+  StructField("age", IntegerType)
+))
+
+val df: DataFrame = spark.read.format("csv").schema(schema).option("header", true).load(csvFilePath)
+
+3.从Parquet / ORC创建DataFrame。
+val df: DataFrame = spark.read.format("parquet").load(parquetFilePath)
+val df: DataFrame = spark.read.format("orc").load(orcFilePath)
+
+三、从数据库创建DataFrame
+val sqlQuery: String = “select * from users where gender = ‘female’”
+spark.read.format("jdbc")
+.option("driver", "com.mysql.jdbc.Driver")
+.option("url", "jdbc:mysql://hostname:port/mysql")
+.option("user", "用户名")
+.option("password","密码")
+.option("numPartitions", 20) //设置RDD的并发性,即reduce数量
+.option("dbtable", sqlQuery) //查询sql
+.load()

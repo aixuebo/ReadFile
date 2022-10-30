@@ -1,0 +1,102 @@
+一、背景与总结
+1.容错
+批处理采用checkpoint方式，每次处理一个batch前,把元数据记录好。
+continuous采用水印的方式,定期产生一个水印,每次遇到水印时,把元数据记录好。
+
+二、trigger
+1.作用trigger,决定了引擎在什么时候,以什么样的方式和频率处理数据流。
+引擎什么时候触发的消费数据
+
+2.批处理模式
+batch,将连续的数据流,切割成数据微批次,每次批次执行任务。
+
+数据处理流程: 数据流 --> 切割成一个批次--> spark job ---> spark task --> 依赖spark sql --> 依赖spark core执行。
+
+a.default,默认切割策略,Spark会根据数据流的流入速率，自行决定切割粒度，无需开发者关心。
+b.fixed interval, 时间周期切割策略，比如 Trigger.ProcessingTime(“5 seconds”)，表示的是，每隔5秒钟，切割一个Micro-batch。或者 stream.trigger(processingTime="5 seconds")
+c.one-time，一次性处理所有数据，比如stream.trigger(once=true)
+
+
+3.continuous 连续处理模式
+continuous,不切割数据流,而是以事件/消息（Event / Message）为粒度，用连续的方式来处理数据。
+
+数据处理流程: 数据流 --> Long running job 常驻作业(常驻job里自然包含了常驻的task,时刻等待数据进入后处理) --> 依赖spark sql --> 依赖spark core执行。
+
+比如 stream.trigger(continuous="1 seconds") //指定Epoch游标水印间隔
+
+4.总结
+Batch 吞吐量大、延迟高（秒级）。
+Continuous  吞吐量低、延迟也更低（毫秒级）。
+
+三、容错机制
+1.从数据一致性的角度出发，这种容错的能力，可以划分为3种水平：
+At most once：最多交付一次，数据存在丢失的风险；
+At least once：最少交付一次，数据存在重复的可能；
+Exactly once：交付且仅交付一次，数据不重不漏。
+
+注意:
+容错范围指代的是 从Source到Sink的整个过程。 即被spark管理后的数据。
+如果在Source前，进入Source的数据已经重复添加了，那不在容错范围内体现。
+
+2.Structured Streaming的容错能力
+就Structured Streaming的容错能力来说，Spark社区官方的说法是：“结合幂等的Sink，Structured Streaming能够提供Exactly once的容错能力”。
+
+实际上，这句话应该拆解为两部分。在数据处理上，结合容错机制，Structured Streaming本身能够提供“At least once”的处理能力。
+而结合幂等的Sink，Structured Streaming可以实现端到端的“Exactly once”容错水平。
+
+即容错机制提供了一条数据可以至少被处理一次，即可以处理多次。 + sink的幂等性，即是处理多次，结果也是一致性有保障的。
+
+比方说，应用广泛的Kafka，在Producer级别提供跨会话、跨分区的幂等性。
+结合Kafka这样的Sink，在端到端的处理过程中，Structured Streaming可以实现“Exactly once”，保证数据的不重不漏。
+
+
+不过，在 Structured Streaming 自身的容错机制中，为了在数据处理上做到“At least once”，
+Batch mode 与 Continuous mode 这两种不同的计算模型，分别采用了不同的实现方式。而容错实现的不同，正是导致两种计算模型在延迟方面差异巨大的重要因素之一。
+
+3.Batch如何做到“At least once”至少被处理一次的。
+a.在Batch mode下，Structured Streaming利用Checkpoint机制来实现容错。
+在实际处理数据流中的Micro-batch之前，Checkpoint机制会把该Micro-batch的元信息全部存储到开发者指定的文件系统路径。
+这样一来，当出现作业或是任务失败时，引擎只需要读取这些事先记录好的元信息，就可以恢复数据流的“断点续传”。
+
+b.原理
+在Checkpoint存储目录下，有几个子目录，分别是offsets、sources、commits和state，它们所存储的内容，就是各个Micro-batch的元信息日志。
+offset 存储kafka消息的偏移量。
+sources 存储文件流信息，比如文件名、文件类型等。
+commits 存储batch交付到sink的状态
+state 存储batch处理过程中的中间状态
+
+
+(1).batch在引擎处理之前,Checkpoint机制会先把它的元信息记录到日志文件。简称Write Ahead Log（WAL日志）。
+即数据要流入Source,先去Checkpoint报道,因此报道这一步就会产生一定数据处理延迟。
+(2)..处理完成后,去记录commits和state。
+(3)..每一个batch都会触发一个Spark作业，作业与任务的频繁调度会引入计算开销，因此也会带来不同程度的延迟。
+
+
+c.demo
+df.writeStream
+.format("console")
+.option("truncate", false)
+.option("checkpointLocation", "path/to/HDFS") // 指定Checkpoint存储地址
+.outputMode("complete") // 指定输出模式
+.start() // 启动流处理应用
+.awaitTermination() // 等待中断指令
+
+4.Continuous如何做到“At least once”至少被处理一次的。
+a.原理与效率
+在Batch mode下，Structured Streaming利用Epoch Marker机制，来实现容错。
+
+因为没有批处理,没有了批处理的job调度消耗，达到Source中的消息会被立刻处理。
+但这同时也带来一个问题，那就是引擎如何把当前的处理进度做持久化，从而为失败重试提供可能。
+
+b.产生问题
+为了解决这个问题，Spark引入了Epoch Marker机制。所谓Epoch Marker(“游标水印”)。
+writeStream.trigger(continuous = "1 second") //指定Epoch游标水印间隔
+
+a.定期数据源写入水印。
+b.当引擎处理数据过程中，遇到水印时,会记录此时最后处理的一条消息的Offset写入日志，从而实现容错。
+
+注意:
+网上往往也把它叫作Write Ahead Log,不过我觉得这么叫可能不太妥当，原因在于，准备写入日志的消息，都已经被引擎消费并处理过了。
+Batch mode会先写日志、后处理数据，叫这个没有问题。
+而Continuous是先处理数据、然后再写日志。所以，把Continuous mode的日志称作是“Write After Log”，也许更合适一些。
+

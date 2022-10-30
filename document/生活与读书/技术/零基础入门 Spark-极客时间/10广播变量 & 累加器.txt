@@ -1,0 +1,66 @@
+一、背景与总结
+1.广播变量（Broadcast variables）和累加器（Accumulators）
+
+
+二、广播变量（Broadcast variables）
+1.demo
+val list: List[String] = List("Apache", "Spark")
+val bc = sc.broadcast(list) //存储
+bc.value //读取
+
+2.不广播的话,会发生什么
+val list: List[String] = List("Apache", "Spark")
+val cleanWordRDD: RDD[String] = wordRDD.filter(word => list.contains(word))
+此时list变量本身是在Driver端创建的,因此，在分布式计算的过程中，Spark需要把list变量分发给每一个分布式任务（Task）。
+
+风险点:
+a.RDD并行度较高。
+影响:
+RDD并行度较高，意味着task多。诸如list这样的变量会在网络中分发成千上万次，作业整体的执行效率自然会很差 。
+
+b.变量的尺寸较大。
+影响:
+一个executor的N个并发task,重复存储变量，重复占用内存。尤其变量尺寸越大,浪费越严重。
+网络传输中占用网络IO严重。导致数据在网络中存在大量的开销。
+
+3.广播方式优化
+val bc = sc.broadcast(list)
+val cleanWordRDD: RDD[String] = wordRDD.filter(word => bc.value.contains(word))
+
+在使用广播变量之前，list变量的分发是以Task为粒度的，而在使用广播变量之后，变量分发的粒度变成了以Executors为单位，同一个Executor内多个不同的Tasks只需访问同一份数据拷贝即可。
+换句话说，变量在网络中分发与存储的次数，从RDD的分区数量，锐减到了集群中Executors的个数。
+
+三、累加器（Accumulators）
+1.背景与作用
+主要作用是全局计数（Global counter）。
+
+2.原理
+与广播变量类似，累加器也是在Driver端定义的，但它的更新是通过在RDD算子中调用add函数完成的。在应用执行完毕之后，开发者在Driver端调用累加器的value函数，就能获取全局计数结果。
+
+3.demo
+val ac = sc.longAccumulator("Empty string") // 定义Long类型的累加器
+
+
+val lineRDD: RDD[String] = spark.sparkContext.textFile(file)
+val wordRDD: RDD[String] = lineRDD.flatMap(line => line.split(" "))// 以行为单位做分词
+ 
+// 定义filter算子的判定函数f，注意，f的返回类型必须是Boolean
+def f(x: String): Boolean = {
+	if(x.equals("")) {
+		ac.add(1) // 当遇到空字符串时，累加器加1
+	return false
+	} else {
+		return true
+	}
+}
+ 
+// 使用f对RDD进行过滤
+val cleanWordRDD: RDD[String] = wordRDD.filter(f)
+wordCounts.collect
+ 
+ac.value // 当遇到空字符串时，累加器加1
+
+4.其他累加器
+sc.longAccumulator("Empty string")   long类型累加器。
+doubleAccumulator  double类型累加器。
+collectionAccumulator  允许开发者定义集合类型的累加器

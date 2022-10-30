@@ -1,0 +1,55 @@
+一、背景与总结
+1.广播结果集在executor上只有一份，重复被该节点的所有task使用。
+2.基础配置
+spark.sql.autoBroadcastJoinThreshold 默认10M，自动广播的数据集阈值。
+3.广播hint方式
+
+a./*+ broadcast(t2) */  or /*+ mapjoin(t2) */
+b.table1.join(table2.hint(“broadcast”), Seq(“key”), “inner”) //table2增加hint。
+c.import org.apache.spark.sql.functions.broadcast //利用广播函数 broadcast
+table1.join(broadcast(table2), Seq(“key”), “inner”)
+
+
+
+二、广播RDD结果集
+val df: DataFrame = spark.read.parquet(userFile)
+val bc_df: Broadcast[DataFrame] = spark.sparkContext.broadcast(df)
+
+由于数据源不在driver上，因此步骤1就是Driver从所有的Executors拉取这些数据分区，然后在driver本地构建全量数据。
+然后再将driver上全部的结果集作为广播信息，发送给executor。
+
+注意此时可能会因为driver上收集全部数据，造成driver的oom。
+
+三、编码的方式实现广播
+
+优化前:
+val transactionsDF: DataFrame = _
+val userDF: DataFrame = _
+transactionsDF.join(userDF, Seq(“userID”), “inner”)
+
+优化后:
+val transactionsDF: DataFrame = _
+val userDF: DataFrame = _
+val bcUserDF = broadcast(userDF) //driver上先汇总全部数据，然后广播出去
+transactionsDF.join(bcUserDF, Seq(“userID”), “inner”) 
+
+四、为什么设置了spark.sql.autoBroadcastJoinThreshold=2G，但数据在磁盘上ls -ln后才1G，为什么没有广播join
+因为spark.sql.autoBroadcastJoinThreshold控制的是内存占用大小,而磁盘的1G数据放内存会膨胀。
+比如 字符串“abcd”按理说只需要消耗4个字节，但是，JVM在堆内存储这4个字符串总共需要消耗48个字节。
+
+
+我认为比较靠谱的办法是：
+第一步，把要预估大小的数据表缓存到内存，比如直接在DataFrame或是Dataset上调用cache方法；
+第二步，读取Spark SQL执行计划的统计数据。这是因为，Spark SQL在运行时，就是靠这些统计数据来制定和调整执行策略的。
+
+val df: DataFrame = _
+df.cache.count
+ 
+val plan = df.queryExecution.logical
+val estimated: BigInt = spark
+.sessionState
+.executePlan(plan)
+.optimizedPlan
+.stats
+.sizeInBytes
+

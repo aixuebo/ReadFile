@@ -1,0 +1,112 @@
+一、背景与总结
+
+
+二、Shuffle Hash Join 代替sort merge join
+两张表数据分布均匀。
+内表所有数据分片，能够完全放入内存。
+
+解决方案
+select /*+ shuffle_hash(orders) */
+
+三、数据倾斜
+1.三种情况
+外表倾斜、内表倾斜、两个表都倾斜。
+
+2.解决数据倾斜的策略
+“分而治之”和“两阶段Shuffle”
+
+四、分而治之方案解析
+1.order join user on 。。。
+两个表都是以on条件内容做shuffle的,因此是否倾斜也是取决于on条件的，简称为Join Key是否倾斜。
+既然倾斜了,说明on条件可以把两个表，拆分成4个表，即有无倾斜key的order表、无倾斜key的user表。
+
+2.分而治之的含义就是:
+有倾斜的表做关联 Union 无倾斜的表做关联。
+
+3.进一步优化
+对于Join Keys分布均匀的数据部分，我们可以沿用把Shuffle Sort Merge Join转化为Shuffle Hash Join的方法。
+对于Join Keys存在倾斜问题的数据部分，我们就需要借助“两阶段Shuffle”的调优技巧，来平衡Executors之间的工作负载。那么，什么是“两阶段Shuffle”呢？
+
+五、两阶段Shuffle
+1.两阶段Shuffle总结:
+加盐(数据的Join Keys),使其Shuffle打散到集群中,然后再关联、聚合。
+此时聚合的结果是加盐后的数据。
+将聚合结果去盐化、Shuffle、聚合的过程。
+
+2.第一阶段shuffle
+也就是“加盐、Shuffle、关联、聚合”的计算过程
+a.加盐:实际上就是给倾斜的Join Keys添加后缀,让其进行Shuffle操作的时候可以分布整个集群，解决数据倾斜问题。
+加盐的后缀最好是Executors总数。比如有5个Executors,则随机将倾斜的Join Keys添加1~5的后缀。
+b.为了保持内外表的关联关系不被破坏，外表和内表需要同时做加盐处理，但处理方法稍有不同。
+
+外表的处理称作“随机加盐”，即每一条数据增加一个字段，内容是Join Key的值+随机数。
+比如 Join Key = ‘黄小乙’,加盐后为 Join Key = ‘黄小乙1’
+
+内表处理:因为要确保所有的外表加盐后的数据都可以找到匹配的内表，内表数据需要复制膨胀。
+即找到倾斜的Join Key，添加N分数据，确保随机数都可以被覆盖。
+
+c.内外表分别加盐之后，数据倾斜问题就被消除了。
+这个时候，我们就可以使用常规优化方法，比如，将Shuffle Sort Merge Join转化为Shuffle Hash Join，去继续执行Shuffle、关联和聚合操作。
+
+3.第一阶段shuffle
+第二阶段的计算包含“去盐化、Shuffle、聚合”这3个步骤。
+首先，我们把每一个Join Key的后缀去掉，这一步叫做“去盐化”。
+然后，我们按照原来的Join Key再做一遍Shuffle和聚合计算，这一步计算得到的结果，就是“分而治之”当中倾斜部分的计算结果。
+
+五、案例
+
+1.将数据拆分成倾斜与未倾斜部分:
+
+
+2.未倾斜的数据
+select /*+ shuffle_hash(orders) */ sum(tx.price * tx.quantity) as revenue, o.orderId
+from evenTx as tx inner join evenOrders as o
+on tx.orderId = o.orderId
+where o.status = ‘COMPLETE’
+and o.date between ‘2020-01-01’ and ‘2020-03-31’
+group by o.orderId
+
+union all
+倾斜数据。
+
+3.倾斜部分 需要涉及二阶段shuffle
+
+//外表随机加盐
+val saltedSkewTx = skewTx.withColumn(“joinKey”, concat($“orderId”, lit(“_”), randUdf()))
+ 
+//内表复制加盐
+var saltedskewOrders = skewOrders.withColumn(“joinKey”, concat($“orderId”, lit(“_”), lit(1)))
+for (i <- 2 to numExecutors) {
+saltedskewOrders = saltedskewOrders union skewOrders.withColumn(“joinKey”, concat($“orderId”, lit(“_”), lit(i)))
+}
+
+//将加盐后的数据分别注册为临时表
+saltedSkewTx.createOrReplaceTempView(“saltedSkewTx”)
+saltedskewOrders.createOrReplaceTempView(“saltedskewOrders”)
+ 
+val skewQuery: String = “
+select /*+ shuffle_hash(orders) */ sum(tx.price * tx.quantity) as initialRevenue, o.orderId, o.joinKey
+from saltedSkewTx as tx inner join saltedskewOrders as o
+on tx.joinKey = o.joinKey
+where o.status = ‘COMPLETE’
+and o.date between ‘2020-01-01’ and ‘2020-03-31’
+group by o.joinKey
+”
+//第一阶段加盐、Shuffle、关联、聚合后的初步结果
+val skewInitialResults: DataFrame = spark.sql(skewQuery)
+
+
+即第一阶段按照加盐后的joinKey做了关联。
+
+第二阶段，直接取消joinKey的随机数，然后在按照取消后的joinKey进行shuffle、聚合操作。
+
+
+
+
+
+
+
+
+
+
+

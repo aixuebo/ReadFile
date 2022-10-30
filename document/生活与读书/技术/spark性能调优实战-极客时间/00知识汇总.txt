@@ -1,0 +1,38 @@
+一、背景与结论
+
+
+二、案例1
+正确的方式效率高的原因:
+1.没有多余变量在不断创建与销毁。
+2.不占用内存,返回值是Seq[Row],也许是一个迭代器,而不是真的集合。
+
+错误方式
+val extractFields: Seq[Row] => Seq[(String, Int)] = {
+  (rows: Seq[Row]) => {
+    var fields = Seq[(String, Int)]()
+    rows.map(row => {
+        fields = fields :+ (row.getString(2), row.getInt(4))
+    })
+  fields
+  }
+}
+
+正确方式
+val extractFields: Seq[Row] => Seq[(String, Int)] = {
+  (rows: Seq[Row]) => 
+    rows.map(row => (row.getString(2), row.getInt(4))).toSeq
+}
+
+三、如何理解DDD
+1.从薯片的加工流程看RDD:工坊使用 3 条流水线来同时生产 3 种不同尺寸的桶装薯片。
+参见图1
+
+2.RDD具有4大属性，分别是partitions、partitioner、dependencies和compute属性。
+
+a.横向扩展能力
+RDD的partitions属性对应着RDD分布式数据实体中所有的数据分片，而partitioner属性则定义了划分数据分片的分区规则，如按哈希取模或是按区间划分等。
+
+b.由dependencies和compute属性提供的容错能力。
+在Spark中，任何一个 RDD 都不是凭空产生的，每个 RDD 都是基于某种计算逻辑从某个“数据源”转换而来。
+RDD的dependencies属性记录了生成RDD 所需的“数据源”，术语叫做父依赖（或父RDD），compute方法则封装了从父 RDD到当前RDD转换的计算逻辑。
+基于数据源和转换逻辑，无论RDD有什么差池（如节点宕机造成部分数据分片丢失），在dependencies属性记录的父RDD之上，都可以通过执行compute封装的计算逻辑再次得到当前的RDD。

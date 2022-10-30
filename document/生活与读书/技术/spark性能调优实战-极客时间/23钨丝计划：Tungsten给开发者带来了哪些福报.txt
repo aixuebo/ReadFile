@@ -1,0 +1,180 @@
+一、背景与总结
+1.目标
+它主要围绕内核引擎做了两方面的改进：数据结构设计和全阶段代码生成（WSCG，Whole Stage Code Generation）。
+
+2.参考图12
+
+
+二、数据结构改造 -- 紧凑的二进制格式Unsafe Row
+数据结构 参考 "20RDD和DataFrame既生瑜，何生亮"中钨丝计划部分笔记。
+
+三、数据结构改造 -- 基于内存页的内存管理
+参考图12
+
+1.为了统一管理Off Heap和On Heap内存空间，Tungsten定义了统一的128位(16个byte字节)内存地址，简称Tungsten地址
+Tungsten地址分为两部分：前64位预留给Java Object，后64位是偏移地址Offset。
+但是，同样是128位的Tungsten地址，Off Heap和On Heap两块内存空间在寻址方式上截然不同。
+
+
+如何进行内存寻址的？
+答：为了方便统一管理On-Heap和Off-Heap这两种模式，Tungsten引入了统一的地址表示形式，即通过MemoryLocation类来表示On-Heap或Off-Heap两种内存模式下的地址。
+即MemoryLocation表示内存地址。
+class MemoryLocation(){
+  Object obj;
+  long offset;
+}
+当处于On-Heap模式下，通过使用obj(即为对象的引用)和64 bit的offset来表示内存地址;
+当处于Off-Heap模式下，直接使用64 bit的offset绝对地址来描述内存地址。
+
+而这个64bit 的offset在对外编码时，前13 bit用来表示Page Number，后51 bit用来表示对应的offset。
+
+代表一个内存页page，描述某一个对象以及对应的offset
+public class MemoryLocation 
+  Object obj;
+  long offset;
+
+get方法
+public final Object getBaseObject() return obj;
+public final long getBaseOffset() return offset;
+
+set方法
+  public void setObjAndOffset(Object newObj, long newOffset) {
+    this.obj = newObj;
+    this.offset = newOffset;
+  }
+---------------------
+代表一个数据页 
+public class MemoryBlock extends MemoryLocation {
+
+属性:
+public int pageNumber;//页序号
+private final long length;//数据size
+Object obj;//内存存储的对象引用
+long offset;//内存开始位置
+	即offset+length,即obj在内存中的数据内容。
+
+方法:
+创建一个数据页对象
+  public static MemoryBlock fromLongArray(final long[] array) {
+    return new MemoryBlock(array, Platform.LONG_ARRAY_OFFSET, array.length * 8L);
+  }
+
+long size() return length; 返回内存页size
+
+
+2.对于On Heap空间,因为是堆内内存,所以前64位存储的是JVM堆内对象的引用或者说指针，后64位Offset存储的是数据在该对象内的偏移地址。
+Off Heap空间则完全不同，在堆外的空间中，不存在内存对象的概念，因此前64位存储的是null值，后64位则用于在堆外空间中直接寻址操作系统的内存空间。
+显然,在On Heap内存空间寻址堆内数据必须经过两步：第一步，通过前64位的Object引用来定位JVM对象；第二步，结合Offset提供的偏移地址在堆内内存空间中找到所需的数据。
+
+3.问2:内存块是如何封装的？
+答：会使用一块连续的内存空间来存储数据，通过MemoryBlock类对内存块进行封装。该类继承了MemoryLocation类，采用了组合复用方式，即指定了内存块的地址，也提供了内存块本身的内存大小。
+
+问3:如何组织管理内存块？
+答：使用Page Table方式(其实本质就是一个数组，从源码中就可以看出)来管理内存，
+内部以Page来管理存储内存块(通过MemoryBlock来封装)，通过pageNumber找到对应的Page,
+Page内部会根据Off-Heap或On-Heap两种模式分别存储Page对应内存块的起始地址(或对象内偏移地址)
+
+//Page Number长度位数
+private static final int PAGE_NUMBER_BITS = 13;
+
+//Offset位数
+static final int OFFSET_BITS = 64 - PAGE_NUMBER_BITS;
+
+//Page Table底层实现,其实就是一个MemoryBlock数组
+private final MemoryBlock[] pageTable = new MemoryBlock[PAGE_TABLE_SIZE];
+
+3.Tungsten中到底什么是Page、PageTable？
+a.page是一种数据结构，类似于List等,代表了一块内存。即可以在page内 存放数据。
+b.PageTable是一个数组,用于存储page这个数据结构对象MemoryBlock。
+
+因此当要获得数据的时候，首先要知道在PageTable中的哪个page中。
+然后从该page中根据规则(数据的offset和length),读取数据内容。
+
+4.为什么说page实现了统一管理Off Heap和On Heap内存空间。
+因为Page中的数据可能是On-heap的数据，也可能是Off-heap中的数据。
+
+5.堆外内存方式,如何分配page。
+内存的分配是是由UnsafeMemoryAllocator完成的。
+
+//分配size大小的内存
+public MemoryBlock allocate(long size) throws OutOfMemoryError {
+  long address = Platform.allocateMemory(size);//返回内存地址
+  return new MemoryBlock(null, address, size);//返回page对象，对象的引用为null,address是绝对地址
+}
+
+6.堆内内存方式,如何分配page
+逻辑地址：Pagenumber由13个bit组成,即2^13次方=8192，51bit组成Offset
+如果是On-heap的方式：内存的分配是是由heapMemoryAllocator完成的。
+
+//分配size大小的内存页
+public MemoryBlock allocate(long size) throws OutOfMemoryError {
+  //申请size内存,要充足容纳size大小，但内存申请以long8个字节为单位，比如size50，则要申请8*7=56个字节，以充足容纳50个字节
+  long[] array = new long[(int) ((size + 7) / 8)]; 
+//array里面保存的都是地址，而LONG_ARRAY_OFFSET是偏移量，因此二者就可以定位到绝对地址，然后根据size就可以确定数据。
+  return new MemoryBlock(array, Platform.LONG_ARRAY_OFFSET, size);//创建内存page页,array为存储数据的内存块对象，size为需要内存可用长度为size。第二个参数为初始偏移量。
+}
+一旦有了内存页MemoryBlock,则往里面存储什么数据，就有用户自己决定。
+即unsafe.putInt(array, 10, 20);即向array内存对象中，存入int=20，存入的位置是offset=10开始存储。
+unsafe.getInt(array, 10),即从内存页中offset=10位置，读取一个int值。
+
+
+7.内存页的价值
+a.java中hashmap的实现方式。
+数组+链表。 
+首先设置数组大小，比如100。
+map.put(key,value) --> hash(key) / array.size,比如=30,则将key存储在数组第30的位置上。
+但由于会hash冲突，即不同的key返回的结果都是30，因此数组30的位置上存储的不是具体的value，而是链表的内存地址。
+
+因此数组存储的是链表的内存地址。而内存地址指向的是链表，链表存储的是<key,value,nextKey的内存地址>三元组。
+
+b.hashmap的弊端
+首先:存储了大量的引用指针，是一种内存浪费。
+其次:对GC垃圾回收不友好。
+	假设hashmap存储100万条数据,则会产生至少3百万个JVM对象。因为是三元组。
+	由于JVM的GC效率与对象数量成反比，因此java.util.HashMap的实现方式对于GC并不友好。
+再次：
+	链表这种数据结构的特点是，对写入友好，但访问低效,需要不断next方式访问读取数据；
+	链表优点是充分利用零散的内存区域，提升内存利用率。缺点也很明显，会造成链表从头到尾的全表扫描,引入大量随机内存访问。
+
+c.内存页的优势。
+首先:
+	Tungsten放弃了链表的实现方式，使用数组加内存页的方式来实现HashMap。
+	即数组中存储 hashCode+MemoryBlock对象(该对象表示一块Tungsten内存地址)
+	
+	即 map.put(key,value) --> hash(key) / array.size,比如=30,则将key存储在数组第30的位置上。
+	而30这个位置上不再是一个链表，而是一个对象MemoryBlock,表示一整段内存。
+	所有冲突的key与value都存储在该内存中。
+
+其次:
+	因为MemoryBlock内存页本身就只是一个对象，而一个内存页可以存储非常多条数据，因此JVM对象数量的减少,对GC友好。
+	比如说，我们需要存储一百万条数据记录，标准库的HashMap至少需要三百万的JVM对象才能存下，而Tungsten HashMap可能只需要几个或是十几个内存页MemoryBlock就能存下。
+再次:
+	内存页本质上是JVM对象，其内部使用连续空间来存储数据，内存页加偏移量可以精准地定位到每一个数据元素。
+	因此，内存的访问方式从原来的随机访问变成了顺序读取。
+	所谓顺序读取，即读取一整块连续内存，然后在查找数据的时候，虽然也要依次读取一个内存页内所有的key=value信息对数据，但是顺序扫描的，不需要IO随机寻址。
+	
+	因为map的key和value的对象类型是已知的，因此占用的size也是可算的。所以会很快定位到每一个key的开始位置。
+	
+四、如何理解WSCG
+1.WSCG指的是基于同一Stage内操作符之间的调用关系，生成一份“手写代码”，真正把所有计算融合为一个统一的函数。
+即在同一Stage内,多个RDD之间的计算，捏合成一个，一次性的用在输入数据上。
+比如 
+var count = 0;
+for(vo <- list){
+	if(vo.type = '1') count++;
+}
+
+2.火山模型缺点:
+迭代器嵌套的计算模式会涉及两种操作，一个是内存数据的随机存取，另一个是虚函数调用（next）。这两种操作都会降低CPU的缓存命中率，影响CPU的工作效率
+
+火山模型,依托AST语法树，对所有操作符（如过滤、投影）的计算进行了统一封装，所有操作符都要实现的迭代器抽象。
+简单来说就是，所有操作符都需要实现hasNext和next方法。
+因此，火山模型非常灵活、扩展能力很强，任何一个算子只要实现了迭代器抽象，都可以加入到语法树当中参与计算。
+
+3.WSCG是如何在运行时动态生成代码的
+Spark Plan在转换成Physical Plan之前，会应用一系列的Preparation Rules。这其中很重要的一环就是CollapseCodegenStages规则，它的作用正是尝试为每一个Stages生成“手写代码”。
+
+总的来说，手写代码的生成过程分为两个步骤：
+
+从父节点到子节点，递归调用doProduce，生成代码框架
+从子节点到父节点，递归调用doConsume，向框架填充每一个操作符的运算逻辑

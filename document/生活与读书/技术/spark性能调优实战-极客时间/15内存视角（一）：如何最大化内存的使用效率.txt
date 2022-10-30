@@ -1,0 +1,41 @@
+一、背景与总结
+1.熟悉自己的代码，知道自己的代码使用内存的四个部分，分别占用多少内存。
+基于自己的预估计，分配对应内存变量，是最合适的。
+
+二、确保自己的代码,尽量不要使用User Memory内存。
+val list: List[String] = List("Apache", "Spark")
+val cleanWordRDD: RDD[String] = wordRDD.filter(word => list.contains(word))
+
+这个例子中，每一个executor中，每一个并发的task内，都有list内存占用。而这个不是广播，因此会占用User Memory内存。
+
+接下来是估算数据“行李”大小，由于searchMap并不是分布式数据集，因此我们不必采用先Cache，再提取Spark执行计划统计信息的方式。
+对于这样的Java数据结构，我们完全可以在REPL中，通过Java的常规方法估算数据存储大小，估算得到的searchMap大小记为#size。
+
+比如list本身的大小为#size。
+每一个executor上配置了并发线程数为 #threads。
+
+因此一个executor上,User Memory内存就要使用 #threads * #size。
+而其实这是浪费内存的，因为内存上重复出现#size数据。
+
+三、使用广播变量，让executor上只保留一份数据，因此降低User Memory内存。
+val list: List[String] = List("Apache", "Spark")
+val bc = sc.broadcast(list)
+val cleanWordRDD: RDD[String] = wordRDD.filter(word => bc.value.contains(word))
+
+此时消耗的是Storage Memory内存区域，而这部分内存就等于list本身的大小为#size。是可以计算好的，预先配置即可。
+
+四、如何分配每一个区域内存。
+1.Reserved Memory,固定300M，不需要理会。
+2.User Memory的,先预估自定义数据结构需要的内存大小#size,然后计算好线程并发数量 #threads。因此设置User Memory区域内存为 #threads * #size即可。
+3.Storage Memory,先预估广播变量和待cache的数据集大小，分别为#bc、#cache,把集群中的Executors总数记作#E。
+因此Storage Memory内存为 #bc + #cache / #E。 即每一个executor都有一份广播数据集，以及持有cache的一部分数据。平均值就是cache总大小/executor数量。
+4.Execution Memory,数据reduce分片大小,分片大小取决于数据集大小#dataset和并行度#N。(假设数据不膨胀)。
+同时也取决于线程数#threads。
+因此Execution Memory内存为 #threads * (#dataset / #N)。 
+即一个task需要读取多少数据块(#dataset / #N) * 一共多少个task并发。
+
+
+五、调整内存配置项
+1.spark.memory.fraction可以由公式（#Storage + #Execution）/（#User + #Storage + #Execution）计算得到。
+2.spark.memory.storageFraction的数值应该参考（#Storage）/（#Storage + #Execution）。
+3.spark.executor.memory = 300MB + #User + #Storage + #Execution。

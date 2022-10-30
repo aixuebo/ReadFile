@@ -1,0 +1,58 @@
+一、背景与总结
+参考图8
+
+二、spark core中的RDD有什么问题吗？为什么要推荐用spark sql
+1.为什么spark发布的版本越来越在优化spark sql模块，而淡化spark core、Mllib、Streaming和Graph等。这是否意味着Spark社区逐渐放弃了其他计算领域，只专注于数据分析？
+Spark SQL取代Spark Core，成为新一代的引擎内核，所有其他子框架如Mllib、Streaming和Graph，都可以共享Spark SQL的性能优化，都能从Spark社区对于Spark SQL的投入中受益。
+
+到目前为止，所有子框架的源码实现都已从RDD切换到DataFrame。因此，和PySpark一样，像Streaming、Graph、Mllib这些子框架实际上都是通过DataFrame API运行在Spark SQL之上，它们自然可以共享Spark SQL引入的种种优化机制。
+
+2.为什么需要Spark SQL这个新一代引擎内核？Spark Core有什么问题吗？Spark SQL解决了Spark Core的哪些问题？怎么解决的？
+存在的核心问题:优化空间受限
+RDD使用有门槛，对原理不理解透彻的话，很容易写的代码OOM，或者浪费性能。优化能力完全交给了开发RD的实现,spark内核不能有太多的优化空间。
+
+对于这些高阶算子，开发者需要以Lambda函数的形式自行提供具体的计算逻辑。以map为例，我们需要明确对哪些字段做映射，以什么规则映射。
+也就是说，在RDD的开发模式下，Spark Core只知道“做什么”，而不知道“怎么做”
+
+三、DataFrame 为什么可以解决优化空间受限的问题。以及他是如何解决的。
+1.DataFrame 比 RDD之间的差异 
+a.增加Schema -- 是否携带Schema是它们唯一的区别
+RDD只有数据，DataFrame包含数据+Schema。
+即DataFrame存储的是结构化分布式数据集。
+带Schema的数据表示形式决定了DataFrame只能封装结构化数据，而RDD则没有这个限制，所以除了结构化数据，它还可以封装半结构化和非结构化数据。
+
+b.表达力
+DataFrame表达能力变弱了,只支持固定的算子，比如select、filter、agg、groupBy等等。
+RDD表达能力强，支持各种算子，可以允许灵活实现业务逻辑。
+
+c.标量算子，即大多数都是聚合等数字运算
+DataFrame算子大多数都是标量算子，并且参数都是具体的结构化的列。
+
+2.为什么表达力变弱了，却可以解决RDD的“优化空间受限”问题呢。
+在规则明确下，优化空间，变成了确定问题，一旦规则明确，自然有了优化策略。而牺牲一定的表达力也是值得的，日后只需要丰富必要的表达力即可。
+DataFrame API最大的意义在于，它为Spark引擎的内核优化打开了全新的空间。
+a.Schema所携带的类型信息，明确了具体数据类型，可以优化内存数据模型解结构，减少内存空间浪费，提升数据的存储和访问效率。
+b.明确了固定的标量算子的计算逻辑，让Spark可以基于启发式的规则和策略，甚至是动态的运行时信息去优化DataFrame的计算过程。
+
+
+四、DataFrame实现优化的核心组件
+1.Catalyst优化器
+参考图8 
+a.将sql转换成AST抽象语法树。
+节点是标量算子，比如操作元素，比如select 、scan 、filter、join等。
+边携带操作要处理的信息，比如处理哪些表、哪些列，join的on条件是什么(joinkey)，产生哪些聚合函数(payLoad)。
+b.Unresolved Logical Plan 
+是Catalyst优化过程的起点，即AST。
+因为此事记录的都是一些字符串，比如表名、字段名，都是字符串而已。
+c.Unresolved Logical Plan   -->  Analyzed Logical Plan
+结合schema信息,确认表面、字段名、字段类型是否合法。
+
+d.利用启发式的规则和执行策略，Catalyst最终把逻辑计划转换为可执行的物理计划。
+
+
+2.Tungsten 钨丝计划 --- 数据结构优化,使用Unsafe Row存储数据。
+原因就是有schema信息。一行数据，使用一个对象存储。该对象类型是字节数组。避免了一行数据由jvm的多个基础对象存储带来的性能提升。
+存储格式举例:
+userid int、name string、age int、sex char
+创建字节数组,4byte存储userid、offset(存储name的length在字节数组的开始位置)、4byte存储age、1byte存储sex、length(存储name的长度)、name的length字节内容。
+

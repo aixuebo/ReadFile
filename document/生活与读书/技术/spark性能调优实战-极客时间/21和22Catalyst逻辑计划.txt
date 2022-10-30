@@ -1,0 +1,201 @@
+一、背景与总结
+1.全局demo
+用户表
+select *
+from user 
+where age < 30 and gender in ('M')
+
+### 计算每一个用户的消费金额
+select user.name,user.age,(ord.price * ord.volume) revenue
+from ord join user on ord.userid = user.userId
+group by user.name,user.age
+
+2.sql --> Unresolved Logical Plan -->  Analyzed Logical Plan --> Optimized Logical Plan --> Spark Plan --> 生成Physical Plan
+逻辑计划:sql --> Unresolved Logical Plan -->  Analyzed Logical Plan --> Optimized Logical Plan --> 物理计划
+物理计划:ptimized Logical Plan --> Spark Plan --> 生成Physical Plan
+
+
+3.参考图8、图9、图10 
+
+4.逻辑计划与物理计划都做什么的。
+逻辑计划:逻辑计划解析和逻辑计划优化,最终输出的就是转换后的最优逻辑。但spark做什么，却没有说明。即并没有从执行层面说明具体该“怎么做”。
+物理计划:告诉spark该怎么做。比如join策略。
+
+5.Exchange(按照规则分区,属于shuffle的map阶段内容操作)和sort操作。
+
+
+二、逻辑计划解析
+参考图8
+
+注意事项:
+a.为每一个字段设置全局唯一ID,确保分布在不同表的相同名字的字段,有不同的ID。
+b.Relation 表示数据源是内存关系对象，或者是scan等描述数据源信息。
+c.parquet表示数据格式。
+
+1.sql字符串转换成 Unresolved Logical Plan
+== Parsed Logical Plan ==
+Join Inner,(UserId#56 = userId#66)
+	Project [UserId#56,name#57,age#58]
+  	Filter sex#59 in (M)
+    	Filter age#58 < 30
+    		Project [UserId#56,name#57,age#58,sex#59]
+        	Relation [UserId#56,name#57,age#58,sex#59,email#60] parquet
+	Relation [userId#66,item#67,price#68,quantity#69] parquet
+	
+2.Unresolved Logical Plan 转换为 Analyzed Logical Plan
+已知信息:以上信息告诉我们底表是什么，什么格式，要查询哪4个字段。
+缺少信息:查询字段类型、是否有表存在、是否字段是存在的。
+
+即Analyzed Logical Plan 目的是明确sql信息的正确性,以及追加字段类型信息作为输出。
+== Analyzed Logical Plan ==
+userId:int,name:Strring,age:int,userId:int,itemId:int,price:double,quantity:int
+Join Inner,(UserId#56 = userId#66)
+	Project [UserId#56,name#57,age#58]
+  	Filter sex#59 in (M)
+    	Filter age#58 < 30
+    		Project [UserId#56,name#57,age#58,sex#59]
+        	Relation [UserId#56,name#57,age#58,sex#59,email#60] parquet
+	Relation [userId#66,item#67,price#68,quantity#69] parquet
+
+三、逻辑计划优化
+Catalyst基于一些既定的启发式规则（Heuristics Based Rules）把“Analyzed Logical Plan”转换为“Optimized Logical Plan”。
+1.Catalyst的优化规则
+新发布的Spark 3.0版本中，Catalyst总共有81条优化规则（Rules），这81条规则会分成27组（Batches），其中有些规则会被收纳到多个分组里。
+因此，如果不考虑规则的重复性，27组算下来总共会有129个优化规则。
+
+实际上，如果从优化效果的角度出发，这些规则可以归纳到以下3个范畴：
+
+a.谓词下推（Predicate Pushdown） 
+目标，一次扫描后，减少要计算和传输的数据量。即推到离数据源最近的地方，从而在源头就减少数据扫描量。
+主要是围绕着查询中的过滤条件做文章。比如 age < 30。
+
+优化细节:
+OptimizeIn规则，它会把“gender in ‘M’”优化成“gender = ‘M’”，也就是把谓词in替换成等值谓词。
+CombineFilters规则，它会把“age < 30”和“gender = ‘M’”这两个谓词，捏合成一个谓词：“age != null AND gender != null AND age <30 AND gender = ‘M’”。
+
+b.列剪裁（Column Pruning）
+目标:只读取那些与查询相关的字段，节省网络和磁盘的I/O开销。
+
+c.常量替换 （Constant Folding）
+使用ConstantFolding规则，age < 12 + 18 转换成 age < 30。
+
+2.Analyzed Logical Plan 转换为 Optimized Logical Plan
+使用完优化规则后的sql细节。
+== Optimized Logical Plan ==
+Join Inner,(UserId#56 = userId#66)
+	Project [UserId#56,name#57,age#58]
+    	Filter (isnotnull(ge#58) and isnotnull(sec#59)) and (age#58 < 30) and sex#59=M and isnotnull(userId#56)
+        	Relation [UserId#56,name#57,age#58,sex#59,email#60] parquet
+  Filter isnotnull(userId#66)        
+		Relation [userId#66,item#67,price#68,quantity#69] parquet
+
+四、Catalys的优化过程
+1.这么多优化规则,怎么选择合适的优化规则呢？
+c.不管是逻辑计划（Logical Plan）还是物理计划（Physical Plan），它们都继承自QueryPlan。
+b.TreeNode
+QueryPlan的父类是TreeNode，TreeNode就是语法树中对于节点的抽象。
+TreeNode有一个名叫children的字段，类型是Seq[TreeNode]，利用TreeNode类型，Catalyst可以很容易地构建一个树结构。
+c.TreeNode还定义了很多高阶函数，其中最值得关注的是一个叫做transformDown的方法。
+transformDown的形参，正是Catalyst定义的各种优化规则，方法的返回类型还是TreeNode。
+另外，transformDown是个递归函数，参数的优化规则会先作用（Apply）于当前节点，然后依次作用到children中的子节点，直到整棵树的叶子节点。
+
+总的来说，从“Analyzed Logical Plan”到“Optimized Logical Plan”的转换，就是从一个TreeNode生成另一个TreeNode的过程。
+Analyzed Logical Plan的根节点，通过调用transformDown方法，不停地把各种优化规则作用到整棵树，直到把所有27组规则尝试完毕，且树结构不再发生变化为止。
+这个时候，生成的TreeNode就是Optimized Logical Plan。
+
+2.举例
+//Expression的转换
+import org.apache.spark.sql.catalyst.expressions._
+val myExpr: Expression = Multiply(Subtract(Literal(6), Literal(4)), Subtract(Literal(1), Literal(9)))
+val transformed: Expression = myExpr transformDown {
+  case BinaryOperator(l, r) => Add(l, r)
+  case IntegerLiteral(i) if i > 5 => Literal(1)
+  case IntegerLiteral(i) if i < 5 => Literal(0)
+}
+定义了一个表达式，即(6-4) * (1 - 9)
+然后对表达式进行转换，定义了一个规则。
+规则如下:
+遇到二元符号符号,则转换成加法。
+遇到> 5,则转换成1,遇到 < 5 则转换成0 。
+
+递归的将规则不断赋予表达式去转换。最终表达式转换成:（1 + 0）+（0 + 1）。
+
+五、缓存优化,Cache Manager优化
+从“Analyzed Logical Plan”到“Optimized Logical Plan”的转换，Catalyst除了使用启发式的规则以外，还会利用Cache Manager做进一步的优化。
+
+Cache Manager维护了一个Mapping映射字典，字典的Key是逻辑计划，Value是对应的Cache元信息。
+即维护了每一个逻辑计划 对应的 物理结果数据。
+
+当Catalyst尝试对逻辑计划做优化时，会先尝试对Cache Manager查找，
+看看当前的逻辑计划或是逻辑计划分支，是否已经被记录在Cache Manager的字典里。
+如果在字典中可以查到当前计划或是分支，Catalyst就用InMemoryRelation节点来替换整个计划或是计划的一部分，从而充分利用已有的缓存数据做优化。
+
+
+六、物理计划 -- 优化Spark Plan阶段
+物理计划 = 优化Spark Plan + 生成Physical Plan。 
+
+1.为什么要有物理计划
+== Optimized Logical Plan ==
+Join Inner,(UserId#56 = userId#66)
+逻辑计划显示,需要join,但怎么join,使用什么策略,逻辑计划并没有说。因此逻辑计划不具备可操作性。
+
+2.优化后的Spark Plan --- 显示了join的策略,读取的文件路径等信息。
+//SparkPlan
+SortMergeJoin (UserId#56,userId#66) Inner  ###采用Inner join,join策略是SortMergeJoin,join的on条件是user = user
+	Project [UserId#56,name#57,age#58] ### 最终投影
+    	Filter (isnotnull(ge#58) and isnotnull(sec#59)) and (age#58 < 30) and sex#59=M and isnotnull(userId#56) ### 过滤条件
+      	FileScan parquet [UserId#56,name#57,age#58,sex#59] Batched:true ### 扫描数据格式 + 字段。
+        DataFilters:(isnotnull(ge#58) and isnotnull(sec#59)) and (age#58 < 30) and sex#59=M and isnotnull(userId#56) ### 过滤条件
+        Format:Parquet,Location:InMemoryFileIndex[file:/path/path/file.qarquet],PartitionFiles:[],### 读取的文件路径、文件过滤方式
+        PushedFilters:[isnotnull(age),isnotnull(sex),isnotnull(userId),LessThan(age,30),EqualTo(sex,M)]
+        ReadSchema:struct<userId:int,name:Strring,age:int,userId:int>
+        
+
+七、物理计划 -- 生成Physical Plan
+1.背景
+原来，Shuffle Sort Merge Join的计算需要两个先决条件：Shuffle和排序。
+而Spark Plan中并没有明确指定以哪个字段为基准进行Shuffle，以及按照哪个字段去做排序。
+
+2.从Spark Plan到Physical Plan的转换，需要几组叫做Preparation Rules的规则。这些规则坚守最后一班岗，负责生成Physical Plan
+参考图10 
+
+3.EnsureRequirements规则
+即添加Exchange(按照规则分区,属于shuffle的map阶段内容操作)和sort操作。
+
+EnsureRequirements翻译过来就是“确保满足前提条件”，这是什么意思呢？对于执行计划中的每一个操作符节点，都有4个属性用来分别描述数据输入和输出的分布状态。
+a.outputPartitioning属性,输出数据的分区规则。
+b.outputOrdering属性,输出数据的排序规则。
+c.requireChildDistribution属性,要求输入数据满足某种分区规则。
+d.requireChildOrdering属性,要求输入数据满足某种排序规则。
+
+比如图11.
+比如shuffle的reduce阶段，要求输入按照userid分区,分区数是200.同时输入分区的结果是要按照user排序。但对输出没有要求。
+
+
+我们以小Q的Spark Plan树形结构图为例，可以看到：图中左右两个分支分别表示扫描和处理users表和transactions表。
+在树的最顶端，根节点SortMergeJoin有两个Project子节点，它们分别用来表示users表和transactions表上的投影数据。
+这两个Project的outputPartitioning属性和outputOrdering属性分别是Unknow和None。因此，它们输出的数据没有按照任何列进行Shuffle或是排序。
+
+但是，SortMergeJoin对于输入数据的要求很明确：按照userId分成200个分区且排好序，
+而这两个Project子节点的输出显然并没有满足父节点SortMergeJoin的要求。
+这个时候，EnsureRequirements规则就要介入了，它通过添加必要的操作符，如Shuffle和排序，来保证SortMergeJoin节点对于输入数据的要求一定要得到满足。
+
+4.优化结果:
+== Physical Plan ==
+*(5) SortMergeJoin (UserId#56,userId#66) Inner  ###采用Inner join,join策略是SortMergeJoin,join的on条件是user = user;前面的*5表示第5个stage阶段。
+	*(2) Sort [UserId#56 asc nulls first],false,0 ### 按照什么方式排序
+  		Exchange hashpartitioning(userId#56,200),true,[id#55] ### 表示按照userid进行分区,分区数是200。 后面的id#55我感觉是在给这个过程起一个唯一id。
+				Project [UserId#56,name#57,age#58] ### 最终投影
+    			Filter (isnotnull(ge#58) and isnotnull(sec#59)) and (age#58 < 30) and sex#59=M and isnotnull(userId#56) ### 过滤条件
+            *(1) ColumnarToRow ### 表示钨丝计划Tungsten创建的代码中数据结构,如何表示一行数据。
+            		FileScan parquet [UserId#56,name#57,age#58,sex#59] Batched:true ### 扫描数据格式 + 字段。
+                DataFilters:(isnotnull(ge#58) and isnotnull(sec#59)) and (age#58 < 30) and sex#59=M and isnotnull(userId#56) ### 过滤条件
+                Format:Parquet,Location:InMemoryFileIndex[file:/path/path/file.qarquet],PartitionFiles:[],### 读取的文件路径、文件过滤方式
+                PushedFilters:[isnotnull(age),isnotnull(sex),isnotnull(userId),LessThan(age,30),EqualTo(sex,M)]
+                ReadSchema:struct<userId:int,name:Strring,age:int,userId:int>
+
+注意:
+这种星号“*”标记表示的就是WSCG，后面的数字代表Stage编号。
+
+
+5.CollapseCodegenStages规则，它实际上就是Tungsten的WSCG功能。专门一节课讲这个，因为这个比较重要，内容也比较多。

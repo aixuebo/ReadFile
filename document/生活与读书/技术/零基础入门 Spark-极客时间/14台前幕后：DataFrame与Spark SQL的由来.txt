@@ -1,0 +1,42 @@
+一、背景与总结
+1.为什么有了RDD,还要再造一个轮子DataFrame呢?
+DataFrame的成功,主要是背后英雄Spark SQL的优化。而DataFrame只是可以方便转换sql的一种编程式sql对象。
+因此这个问题可以转换成，为什么有了RDD,还需要sql。
+
+2.DataFrame与sql的关系，为什么sql是幕后英雄的原因
+通过创建DataFrame并沿用DataFrame开发API,系统会将其转换成sql,进入sql优化器流程,最终转换成物理计划RDD,调用spark core流程。
+即DataFrame --> sql --> 优化器 --> 物理计划RDD --> spark core。
+
+换句话说,如果可以写出优秀的sql,性能高的sql,其实没有必要用DataFrame做开发。
+
+
+二、RDD的缺陷
+1.在RDD的开发框架下，Spark Core只知道开发者要“做什么”，而不知道“怎么做”。
+比如 map(f),除了把函数f以闭包的形式打发到Executors以外，实在是没有什么额外的优化空间。而这，就是RDD之殇。
+
+三、DataFrame优化了哪些RDD的不足
+1.携带数据模式（Data Schema）的结构化数据。
+可以根据数据schema,优化内存和磁盘的存储结构,提高访问和存储效率。
+
+2.提供了减少的算子，select、filter、agg、groupBy，等
+优化特定的算子,虽然表达能力变弱,但都是标量函数,更容易在相对规则下,优化性能。
+这些计算逻辑对Spark来说，不再是透明的，spark是知道怎么做的，因此，Spark可以基于启发式的规则或策略，甚至是动态的运行时信息，去优化DataFrame的计算过程。
+
+四、幕后英雄：Spark SQL
+
+那么问题来了，优化空间打开之后，真正负责优化引擎内核（Spark Core）的那个幕后英雄是谁？相信不用我说，你也能猜到，它就是Spark SQL。
+
+1.sparksql与sparkCore的关系:
+a.Spark Core特指Spark底层执行引擎（Execution Engine），它包括了我们在基础知识篇讲过的调度系统、存储系统、内存管理、Shuffle管理等核心功能模块。
+Spark SQL则凌驾于Spark Core之上，是一层独立的优化引擎（Optimization Engine）。
+换句话说，Spark Core负责执行，而Spark SQL负责优化，Spark SQL优化过后的代码，依然要交付Spark Core来做执行。
+
+b.从开发入口来说，在RDD框架下开发的应用程序，会直接交付Spark Core运行。而使用DataFrame API开发的应用，则会先过一遍Spark SQL，由Spark SQL优化过后再交由Spark Core去做执行。
+
+2.基于DataFrame，Spark SQL是如何进行优化的呢？
+我们必须要从Spark SQL的两个核心组件说起：Catalyst优化器和Tungsten。
+
+参考:<spark性能调优实战-极客时间> -21和23讲。
+
+
+

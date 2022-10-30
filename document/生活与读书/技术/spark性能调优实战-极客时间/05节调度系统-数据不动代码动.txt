@@ -1,0 +1,62 @@
+一、背景与总结
+1.核心是分发task计算逻辑，而不是分发数据。
+将task计算逻辑分发到 数据节点 或者 离数据最近的节点，去生产数据。
+
+二、Spark的调度系统是如何工作的
+1.为什么需要调度系统
+Spark调度系统的核心职责与步骤:
+a.将用户构建的DAG转化为分布式任务。
+b.结合分布式集群资源的可用性,即去申请资源执行任务。
+c.基于好的任务调度规则,把分布式任务分发给资源去执行。
+
+2.Spark调度系统的工作流程
+包含如下5个步骤:
+a.将DAG拆分为不同的运行阶段Stages；
+	设计师/开发RD在代码上设计,做到每一个stage独立生产一个产品零件,尽量不需要别人-即不需要shuffle分发。
+b.创建分布式任务Tasks和任务组TaskSet；
+	同一个stage内处理的计算逻辑是一样的，不同点在于输入的数据不同,因此可以并行执行，干活的人是黑盒，输入就是数据,输出就是计算结果。
+	因此对stage的数据做task切分。
+c.获取集群内可用的硬件资源情况；
+	获取集群资源,有资源才可以干活。
+d.按照调度规则决定优先调度哪些任务/组；
+	有了资源,也有了task小任务,因此决定哪个task先去使用资源的问题。
+e.依序将分布式任务分发到执行器Executor。
+	将task的数据与代码,分发给资源,去执行。
+
+三、调度系统中的核心组件有哪些？
+1.Spark调度系统包含3个核心组件，分别是DAGScheduler、TaskScheduler和SchedulerBackend。
+这3个组件都运行在Driver进程中，它们通力合作将用户构建的DAG转化为分布式任务，再把这些任务分发给集群中的Executors去执行。
+
+DAGScheduler:完成a和b步骤工作。
+SchedulerBackend:完成c、e步骤工作。
+TaskScheduler:完成d步骤工作。
+
+2.DAGScheduler
+a.一是把用户DAG拆分为Stages,即基于是否shuffle拆分DAG-->List<Stage>
+b.在Stage内创建计算任务Tasks。
+即task内部 有用户通过组合不同算子实现的数据转换逻辑。
+因此一旦资源执行器Executors接收到Tasks，就可以获取这些计算逻辑,用语数据计算。 即核心是分发task计算逻辑，而不是分发数据。
+
+3.SchedulerBackend
+数据节点如果很繁忙,因此不适合给节点派发新的任务。
+因此，在分发任务之前，调度系统得先判断哪些节点的计算资源空闲，然后再把对应最适合的任务分发过去。
+
+SchedulerBackend就是判断节点是否空闲的。
+实现原理:
+a.SchedulerBackend会用一个叫做ExecutorDataMap的数据结构，来记录每一个计算节点中Executors的资源状态。
+即ExecutorDataMap<String,ExecutorData>,key是Executor的名字字符串，value是ExecutorData的数据结构,可以理解成json。
+ExecutorData用于封装Executor的资源状态，如RPC地址、主机地址、可用CPU核数和满配CPU核数等等。
+
+b.SchedulerBackend对外提供资源,而资源单位要比Executor细粒度，因为一个Executor会被拆分成N个资源。
+SchedulerBackend以WorkerOffer为粒度提供计算资源,WorkerOffer包含<ExecutorId,CPU数>,用来表示一份可用于调度任务的空闲资源。
+
+所谓的资源是否空闲,指代的是是否有可用的WorkerOffer。
+
+4.TaskScheduler
+a.TaskScheduler作用:基于既定的规则与策略达成供需双方的匹配与撮合。
+到现在为止,要调度的计算任务有了，就是DAGScheduler通过Stages创建的Tasks；可用于调度任务的计算资源也有了，即SchedulerBackend提供的一个又一个WorkerOffer。
+如果从供需的角度看待任务调度，DAGScheduler就是需求端，SchedulerBackend就是供给端。
+现在是如何分配。
+
+参考图2
+

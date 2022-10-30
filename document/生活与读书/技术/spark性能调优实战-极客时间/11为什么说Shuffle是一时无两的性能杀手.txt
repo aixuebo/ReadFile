@@ -1,0 +1,58 @@
+一、背景与总结
+1.map端输出的结果有序。
+排序规则是 order by partition,key。即partition按照大小顺序排序，相同的partition内数据按照key排序。
+2.每一个task任务,都会产生一个data、一个index文件,即map阶段产生的数据文件数量与task数量有关系。
+3.深入理解map端shffle write的数据结构差异。
+PartitionedPairBuffer，PartitionedAppendOnlyMap。
+
+
+二、如何理解Shuffle？
+参考图4
+1.map端正常计算。
+2.map端结果排序。
+每一个task任务,都会产生一个data、一个index文件,即map阶段产生的数据文件数量与task数量有关系。
+3.reduce端接收对应的数据。
+
+三、Map阶段是如何输出中间文件的？
+例子:分花朵,将花朵按照颜色分类
+groupBy Key实现key的打散,按照key与partition数量,计算key应该归属到第几个分区。
+val flowers = spark.sparkContext.textFile("flowers.txt")
+val flowersForKids = flowers.coalesce(5) ### 数据源先由5个分区来源组成
+val flowersKV = flowersForKids.map((_, 1)) ### groupBy需要(key,value)形式,所以要map将其转换成pairRDD
+flowersKV.groupByKey.collect ###groupByKey自动基于groupByKey的key分组。
+
+1.数据参与map阶段逻辑计算,计算key是什么,value是什么。
+2.按照key与partition数量,计算key应该归属到第几个分区。
+此时已知key、value、以及存放目标partition分区。
+3.将三元组存放到PartitionedPairBuffer数据结构中。
+每一条元素都会占用数据结构的2个空间，第一个元素是(partition,Key)，第二个元素是Value。
+4.假设PartitionedPairBuffer的size是4，即只能存储4个元素。一旦存满了,就需要落盘。
+5.排序、溢出。
+PartitionedPairBuffer的数据在内存中排序,存储到磁盘,清空内存,继续存储数据。
+排序规则是 order by partition,key。即partition按照大小顺序排序，相同的partition内数据按照key排序。
+6.所有数据都处理后，归并过程中的临时文件。
+因为每一个文件都是有序的,所以很容易归并文件。
+
+四、代码升级
+reduceByKey替换groupByKey。
+原因是reduce端可以操作的是类似sum等操作，而不是count(distinct)操作,因此可以再map端进行combine,减少shuffle的传输量。
+val flowers = spark.sparkContext.textFile("flowers.txt")
+val flowersForKids = flowers.coalesce(5)
+val flowersKV = flowersForKids.map((_, 1))
+flowersKV.reduceByKey(_ + _).collect
+
+原理:
+reduceByKey采用一种叫做PartitionedAppendOnlyMap的数据结构来填充数据记录。这个数据结构是一种Map，而Map的Value值是可累加、可更新的。
+因此，PartitionedAppendOnlyMap非常适合聚合类的计算场景，如计数、求和、均值计算、极值计算等等。
+
+因此，相比PartitionedPairBuffer，PartitionedAppendOnlyMap的存储效率要高得多，溢出数据到磁盘文件的频率也要低得多。
+以此类推，最终合并的数据文件也会小很多。依靠高效的内存数据结构、更少的磁盘文件、更小的文件尺寸，我们就能大幅降低了Shuffle过程中的磁盘和网络开销。
+
+五、Reduce阶段是如何进行数据分发的
+1.任何一个Reduce Task必须先从所有Map Task的中间文件里去拉取属于自己的那部分数据。
+2.map端index文件,用于帮助判定哪部分数据属于哪个Reduce Task。
+3.Reduce Task通过网络拉取中间文件的过程，实际上就是不同Stages之间数据分发的过程。
+4.reduce的性能压力
+如果100个task任务,100个reduce任务,则需要100*100次网络交互,
+显然，Shuffle中数据分发的网络开销，会随着Map Task与Reduce Task的线性增长，呈指数级爆炸。
+5.Reduce Task将拉取到的数据块填充到读缓冲区，然后按照任务的计算逻辑不停地消费、处理缓冲区中的数据记录。

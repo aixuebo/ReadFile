@@ -1,0 +1,115 @@
+一、背景与总结
+1.spark资源是以 CPU核 + 内存的方式分配的。
+但任务执行过程中，有CPU消耗类型的，也有IO密集类型的。如何充分利用内存与CPU的平衡是需要思考的。
+
+二、CPU与内存的平衡本质上是什么？
+要想平衡CPU与执行内存之间的协同和配比，我们需要使用3类配置参数，它们分别控制着并行度、执行内存大小和集群的并行计算能力。
+只有它们设置得当，CPU和执行内存才能同时得到充分利用。否则CPU与执行内存之间的平衡就会被打破，要么CPU工作不饱和，要么OOM内存溢出。
+
+执行内存抢占规则就是，在同一个Executor中，当有多个（记为N）线程尝试抢占执行内存时，需要遵循2条基本原则：
+
+执行内存总大小（记为M）为两部分之和，一部分是Execution Memory初始大小，另一部分是Storage Memory剩余空间
+每个线程分到的可用内存有一定的上下限，下限是M/N/2，上限是M/N，也就是均值
+
+三、三足鼎立：并行度、并发度与执行内存
+1.并行度，reduce的拆分数量，站在拆分数据的角度看。
+spark.default.parallelism 设置RDD的默认并行度，即reduce数量。
+spark.sql.shuffle.partitions。sql环境下,Shuffle Reduce阶段默认的并行度。
+
+2.并发度,Executor同时可并发执行的task数量。
+spark.executor.cores 单个executor分配CPU核数。
+spark.task.cpus 单个task使用CPU核数。默认都是1.
+spark.executor.cores/spark.task.cpus 表示单个executor上可以并发多少个task。即并发度。
+
+又因为，spark.task.cpus默认数值为1，并且通常不需要调整，所以，并发度基本由spark.executor.cores参数敲定。
+而一个task是处理一个分区的数据，因此在运行时，线程、任务与分区是一一对应的关系。
+
+3.执行内存
+堆内执行内存的初始值由很多参数共同决定，具体的计算公式是：spark.executor.memory * spark.memory.fraction * (1 - spark.memory.storageFraction)。
+相比之下，堆外执行内存的计算稍微简单一些：spark.memory.offHeap.size * (1 - spark.memory.storageFraction)。
+
+4.三个关系动态分配
+除此之外，在统一内存管理模式下，在Storage Memory没有被RDD缓存占满的情况下，执行任务可以动态地抢占Storage Memory。
+因此，在计算可用于分配给执行任务的内存总量时，还要把有希望抢占过来的这部分内存空间考虑进来。这也是为什么黄小乙的可耕种土地总面积，会从最开始的500顷逐渐扩展到800顷。
+由此可见，可分配的执行内存总量会随着缓存任务和执行任务的此消彼长，而动态变化。但无论怎么变，可用的执行内存总量，都不会低于配置项设定的初始值。
+
+
+四、案例 -- CPU低效原因之一：线程挂起
+1.挂起原因
+a.在给定执行内存总量M和线程总数N的情况下，spark是用HashMap结构,存储每一个线程 对应的使用内存大小。并确保所有的Value值都不超过M/N。
+b.在一些极端情况下，有些线程申请不到所需的内存空间，能拿到的内存合计还不到M/N/2。这个时候，Spark就会把线程挂起，直到其他线程释放了足够的内存空间为止。
+
+2.为什么会存在线程拿不到内存的情况呢？
+你可能会问：“既然每个线程能拿到的内存上限是M/N，也就是内存总量对线程数取平均值，为什么还会出现有的线程连M/N/2都拿不到呢？这在数学上也不成立呀！”这是个好问题。
+这种情况的出现，源于2方面的变化和作用：
+
+a.动态变化的执行内存总量M
+M总内存初始值是固定的，即spark.executor.memory * spark.memory.fraction，但因为随着RDD缓存逐渐填充Storage Memory,M会越来越小。
+即内存总量M是不断变化的。
+
+b.动态变化的并发度N~
+虽然总线程数是N是固定值，但为了充分利用闲置资源,在分配内存的时候，我们考虑的线程数,不是总线程数,而是可用Executor内当前的并发度。
+因此实际上是N~。N~的含义是Executor内当前的并发度，也就是Executor中当前并行执行的任务数。显然N~ <= N。
+
+即虽然 Executor有N个线程，但有一些线程不在干活，即不见得N个线程都同时拿到了task任务。所以先拿到任务的线程，分配的内存就会多一些。
+不过，随着任务执行和任务调度的推进，N~会迅速地趋近于N，CPU线程挂起和内存分配的情况也会逐渐得到改善。
+
+五、如何优化CPU利用率？
+1.并行度，即reduce数量，控制了每一个reduce数据块的大小。
+2.并发度,即同时执行多少个task，而这些task共享内存。
+而一个task要读取的数据就是一个并行度reduce的数据块大小。
+3.内存如果能保证够用，那就意味着task读取的数据块最好都可以放到内存里，不会OOM。
+即reduce的数据量与内存匹配。   而内存是可以计算的，他的范围在(总内存/2总线程数,总内存/总线程数)之间。
+
+总结:
+a.我们是可以计算好 分配的内存是多少的，也可以计算好分配几个并发度。因此一个task使用的内存范围是已知的。即(总内存/2总线程数,总内存/总线程数)之间。
+b.我们知道数据源是多少大小，控制reduce数量，让他们每一个结果在(总内存/2总线程数,总内存/总线程数)之间就是reduce的数量。
+
+
+
+六、自己的总结
+1.为什么要考虑cpu与内存的关系。
+2.分类
+IO密集型，那就让数据分散一些，产生更多task。
+cpu执行多任务，让每一任务都可以覆盖内存。
+
+CPU密集
+a.上游没有小文件，此时不用多线程。充分压榨cpu资源
+b.上游小文件多，此时需要设置多任务，但应该推动上游治理。而且经过任务内repartition 不应该让小文件多。
+
+3.并行，指代同一个stage阶段，数据源被拆分成多少个子任务，下游并行去执行的调度。属于数据块拆分范畴，reduce数量。
+在关于spark任务并行度的设置中，有两个参数我们会经常遇到，spark.sql.shuffle.partitions 和 spark.default.parallelism, 那么这两个参数到底有什么区别的？
+两者作用都是一样的，都是设置shuffle的reduce数量。
+spark.default.parallelism只有在处理RDD时才会起作用，对Spark SQL的无效。
+spark.sql.shuffle.partitions则是对Spark SQL专用的设置。
+
+object Partitioner {
+		### 计算分区数。
+    val defaultNumPartitions = if (rdd.context.conf.contains("spark.default.parallelism")) {
+      rdd.context.defaultParallelism
+    } else {
+      rdds.map(_.partitions.length).max
+    }
+
+    if (hasMaxPartitioner.nonEmpty && (isEligiblePartitioner(hasMaxPartitioner.get, rdds) ||
+        defaultNumPartitions <= hasMaxPartitioner.get.getNumPartitions)) {
+      hasMaxPartitioner.get.partitioner.get
+    } else {
+      new HashPartitioner(defaultNumPartitions) ### 使用计算好的分区数,生产HashPartitioner对象。
+    }
+}
+
+
+并发指代cpu的多线程任务，高并发。 属于CPU资源拆分的范畴。即给定资源的情况下，我可以并发执行多少个并行任务。
+
+Yarn的task与Spark中task的区别
+在Yarn的NodeManager节点上启动一个map task或者reduce task，在物理上启动的是一个jvm进程；而Spark的task是Executor进程中的一个线程。
+
+Task的最大并发数
+当task被提交到executor之后，会根据executor可用的cpu核数，决定一个executor中最多同时运行多少个task。
+在类TaskSchedulerImpl的resourceOfferSingleTaskSet方法中，CPUS_PER_TASK的定义为val CPUS_PER_TASK = conf.getInt("spark.task.cpus", 1)，
+也就是说默认情况下一个task对应cpu的一个核。如果一个executor可用cpu核数为8，
+那么一个executor中最多同是并发执行8个task；假如设置spark.task.cpus为2，那么同时就只能运行4个task。
+
+内存使用率，指代执行代码的内存，因此是执行内存的使用率。
+

@@ -1,0 +1,68 @@
+一、背景与总结
+1.spark实现流数据处理
+支持从socket监听、监听文件目录、监听kafka
+
+二、数据源是socket情况
+1.创建数据源
+var df: DataFrame = spark.readStream
+.format("socket")
+.option("host", host)
+.option("port", port)
+.load()
+2.默认socket方式创建的DataFramem只有一个字段,叫$value.
+df = df.withColumn("words", split($"value", " "))
+.withColumn("word", explode($"words")) // 把数组words展平为单词word
+.groupBy("word") // 以单词word为Key做分组
+.count()
+3.数据输出
+df.writeStream
+.format("console") // 指定Sink为终端 Console、File、Kafka和Foreach(Batch)
+.option("truncate", false) // 指定输出选项
+.outputMode("complete") // 指定输出模式 枚举值为complete 和 update、Append
+
+4.任务启动
+.start() // 启动流处理应用
+.awaitTermination() // 等待中断指令
+
+
+5.注意事项
+a.理论上流处理job一旦开启后,会一直运行下去,除非我们强制退出。而这，正是函数awaitTermination的作用，顾名思义，它的目的就是在“等待用户中断”。
+b.outputMode 枚举值
+Complete mode：输出到目前为止处理过的全部内容
+Append mode：仅输出最近一次作业的计算结果
+Update mode：仅输出内容有更新的计算结果
+
+举例:假设每个3s输入一段文字如下:
+apache spark
+spark logo
+structured streaming
+
+在Complete mode下，每一批次的计算结果，都会包含系统到目前为止处理的全部数据内容：
+batch1:
+apache 1
+spark 1
+
+batch2:
+apache 1
+spark 2
+logo 1
+
+batch3:
+apache 1
+spark 2
+logo 1
+streaming 1
+structured 1
+
+在Update mode下，每个批次仅输出内容有变化的数据记录。所谓有变化，也就是，要么单词是第一次在本批次录入，计数为1，要么单词是重复录入，计数有所变化:
+batch1:
+apache 1
+spark 1
+
+batch2:
+spark 2
+logo 1
+
+batch3:
+streaming 1
+structured 1

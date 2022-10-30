@@ -1,0 +1,109 @@
+一、背景与总结
+1.流计算中的数据关联，还需要考虑到流处理过程中固有的一些限制，比如说时间窗口、数据延迟容忍度、输出模式，等等
+2.难点依然没有解决疑惑，就是系统压力如何解决的。
+似乎也没有解决，只能通过业务的方式去解决？
+
+二、流批关联
+1.背景
+已知:
+用户离线特征信息表:用户ID、年龄、性别、教育背景、职业
+用户实时行为表:用户ID、视频ID、事件时间戳、事件(点赞、评论、转发)
+目标:求用户特征: 年龄、性别、教育背景、职业、1小时内的点赞数量、转发数量量
+
+2.demo
+a.加载两个数据源
+b.两个数据源做join
+
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.types.StructType
+ 
+// 使用read API读取离线数据，创建DataFrame
+val staticDF: DataFrame = spark.read
+.format("csv")
+.option("header", true)
+.load(s"${rootPath}/userProfile/userProfile.csv")
+ 
+// 定义用户反馈文件的Schema
+val actionSchema = new StructType()
+.add("userId", "integer")
+.add("videoId", "integer")
+.add("event", "string")
+.add("eventTime", "timestamp")
+ 
+//用户实时行为表,以file文件方式读取
+var streamingDF: DataFrame = spark.readStream
+.format("csv")
+.option("header", true)
+// 指定监听目录
+.option("path", s"${rootPath}/interactions")
+.schema(actionSchema)
+.load
+
+//统计每小时内,每一个用户的行为数
+streamingDF = streamingDF
+.withWatermark("eventTime", "30 minutes") // 创建Watermark，设置最大容忍度为30分钟
+.groupBy(window(col("eventTime"), "1 hours"), col("userId"), col("event")) // 按照时间窗口、userId与互动类型event做分组
+.count // 记录不同时间窗口，用户不同类型互动的计数
+
+val jointDF: DataFrame = streamingDF.join(staticDF, streamingDF("userId") === staticDF("id"))
+
+jointDF.writeStream
+.format("console")
+.option("truncate", false)
+.outputMode("update")
+.start()
+.awaitTermination()
+
+三、双流关联
+1.背景
+已知:
+视频发布实时流:视频ID、视频名称、发布时间等。
+视频互动实时流:视频ID、
+目标:
+统计短视频在发布一段时间（比如1个小时、6个小时、12个小时，等等）之后，每个短视频的热度。所谓热度，其实就是转评赞等互动行为的统计计数。
+
+2.案例
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.types.StructType
+ 
+// 定义视频流Schema
+val postSchema = new StructType().add("id", "integer").add("name", "string").add("postTime", "timestamp")
+val postStream: DataFrame = spark.readStream.format("csv")
+.option("header", true)
+.option("path", s"${rootPath}/videoPosting")
+.schema(postSchema).load
+// 定义Watermark，设置Late data容忍度
+val postStreamWithWatermark = postStream.withWatermark("postTime", "5 minutes")
+ 
+// 定义互动流Schema
+val actionSchema = new StructType()
+.add("userId", "integer")
+.add("videoId", "integer")
+.add("event", "string")
+.add("eventTime", "timestamp")
+val actionStream: DataFrame = spark.readStream.format("csv")
+.option("header", true)
+.option("path", s"${rootPath}/interactions")
+.schema(actionSchema).load
+// 定义Watermark，设置Late data容忍度
+val actionStreamWithWatermark = actionStream.withWatermark("eventTime", "1 hours")
+ 
+// 双流关联
+val jointDF: DataFrame = actionStreamWithWatermark
+.join(postStreamWithWatermark,
+expr("""
+videoId = id // 设置Join Keys
+AND // 约束Event time
+eventTime >= postTime AND
+eventTime <= postTime + interval 1 hour
+"""))
+
+3.核心要点分析
+a.除了设置主外键关联外,还设置了时间约束。
+对于任意发布的视频流，我们只关心它一小时以内的互动行为，一小时以外的互动数据，将不再参与关联计算。
+b.在Watermark机制的“保护”之下，事件时间的限制进一步降低了状态数据需要在内存中保存的时间，从而降低系统资源压力。
+Watermark水印只是限制了每一个单独的流内数据量。
+问题是当两个流join的时候，可能会数据膨胀，状态都保存在内存里，显然，状态数据在内存中积压的越久、越多，内存的压力就越大。
+
+因此在join的时候，不仅仅控制单独的流内的数据量(通过水印控制)，还要控制内存中的状态保存的数据量(约束条件)。
+

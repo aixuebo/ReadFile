@@ -1,0 +1,40 @@
+一、背景与总结
+
+
+二、磁盘的作用
+1.shuffle的map阶段，存储临时的splill文件。
+2.存储Shuffle中间文件。即spill文件的merge后的data和index文件。
+3.缓存分布式数据集。
+
+三、磁盘复用
+磁盘复用能给执行性能带来更好的提升。
+所谓磁盘复用，它指的是Shuffle Write阶段产生的中间文件被多次计算重复利用的过程。
+
+1.失败重试中的磁盘复用
+我们经常说，在没有RDD Cache的情况下，一旦某个计算环节出错，就会触发整条DAG从头至尾重新计算，这个过程又叫失败重试。
+严格来说，这种说法是不准确的。因为，失败重试的计算源头并不是整条DAG的“头”，而是与触发点距离最新的Shuffle的中间文件。
+
+2.ReuseExchange机制下的磁盘复用
+ReuseExchange是Spark SQL众多优化策略中的一种，它指的是相同或是相似的物理计划可以共享Shuffle计算的中间结果，也就是我们常说的Shuffle中间文件。
+ReuseExchange机制可以帮我们削减I/O开销，甚至节省Shuffle，来大幅提升执行性能。
+
+那我们该怎么有效利用ReuseExchange机制呢？在数据仓库场景下，为了得到数据报表或是可视化图表，用户往往需要执行多个相似的查询，甚至会把同样的查询语句执行多次。
+在这种情况下，ReuseExchange策略在执行效率方面会带来非常大的收益。
+
+举例:
+分别计算每一个用户的pv和uv，扫描了两次数据源。
+val df: DataFrame = spark.read.parquet(filePath)
+ 
+val dfPV: DataFrame = df.groupBy("userId").agg(count("page").alias("value")).withColumn("metrics", lit("PV"))
+val dfUV: DataFrame = df.groupBy("userId").agg(countDistinct("page").alias("value")).withColumn("metrics ", lit("UV"))
+ 
+val resultDF: DataFrame = dfPV.Union(dfUV)
+优化:
+val df: DataFrame = spark.read.parquet(filePath).repartition($"userId")
+对数据源进行按照userid分区。就可以使用ReuseExchange策略，重复利用分区后的结果集。
+
+ReuseExchange策略的触发条件
+a.多个查询所依赖的分区规则要与Shuffle中间数据的分区规则保持一致
+b.多个查询所涉及的字段（Attributes）要保持一致
+
+

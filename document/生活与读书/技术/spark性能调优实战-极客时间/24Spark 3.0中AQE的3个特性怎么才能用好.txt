@@ -1,0 +1,125 @@
+一、背景与结论
+1.AQE的三大特性
+Join策略调整：如果数据表经过filter后,内容很小,尺寸小于广播变量阈值,会ShuffleSortMergeJoin降级BroadcastHashJoin。
+自动分区合并：在Shuffle过后，Reduce Task数据分布参差不齐，AQE将自动合并过小的数据分区。
+自动倾斜处理：结合配置项，AQE自动拆分Reduce阶段过大的数据分区，降低单个Reduce Task的工作负载。
+
+2.参考图13
+
+二、为什么需要AQE？
+1.spark2.0之前,spark sql使用的是启发式、静态的优化过程，即RBO(Rule Based Optimization，基于规则的优化)。
+
+2.在2.2版本中,Spark社区正是因为意识到了RBO的局限性，因此推出了CBO（Cost Based Optimization，基于成本的优化）。
+CBO的特点是“实事求是”，基于数据表的统计信息（如表大小、数据列分布）来选择优化策略。
+CBO支持的统计信息很丰富，比如数据表的行数、每列的基数（Cardinality）、空值数、最大值、最小值和直方图等等。
+因为有统计数据做支持，所以CBO选择的优化策略往往优于RBO选择的优化规则。
+
+3.CBO有缺点
+a.窄:指的是适用面太窄。
+CBO仅支持注册到Hive Metastore的数据表，但实际上会有很多读取hdfs的数据源,即没有纳入hive的Metastore管理范畴,因私无法使用CBO。如Parquet、ORC、CSV等等。
+b.慢:指的是统计信息的搜集效率比较低
+开发者需要调用ANALYZE TABLE COMPUTE STATISTICS语句收集统计信息，而各类信息的收集会消耗大量时间。
+c.静指的是静态优化。
+CBO结合各类统计信息制定执行计划，一旦执行计划交付运行，CBO的使命就算完成了。换句话说，如果在运行时数据分布发生动态变化，CBO先前制定的执行计划并不会跟着调整、适配。
+
+三、AQE到底是什么
+1.在3.0版本推出了AQE（Adaptive Query Execution，自适应查询执行）。
+QE是Spark SQL的一种动态优化机制，在运行时，每当Shuffle Map阶段执行完毕，AQE都会结合这个阶段的统计信息，
+基于既定的规则动态地调整、修正尚未执行的逻辑计划和物理计划，来完成对原始查询语句的运行时优化。
+
+2.AQE触发时机是Shuffle Map阶段执行完毕。
+也就是说，AQE优化的频次与执行计划中Shuffle的次数一致。反过来说，如果你的查询语句不会引入Shuffle操作，那么Spark SQL是不会触发AQE的。
+对于这样的查询，无论你怎么调整AQE相关的配置项，AQE也都爱莫能助。
+
+3.AQE依赖的统计信息具体是什么？
+a.AQE赖以优化的统计信息与CBO不同，这些统计信息并不是关于某张表或是哪个列，而是Shuffle Map阶段输出的中间文件。
+每个data文件的大小、空文件数量与占比、每个Reduce Task对应的分区大小，所有这些基于中间文件的统计值构成了AQE进行优化的信息来源。
+因此数据会更对优化有帮助。
+
+b.结合Spark SQL端到端优化流程图我们可以看到，AQE从运行时获取统计信息，在条件允许的情况下，优化决策会分别作用到逻辑计划和物理计划。
+
+4.AQE既定的规则和策略具体指什么
+AQE既定的规则和策略主要有4个，分为1个逻辑优化规则和3个物理优化策略。
+	逻辑优化阶段，DemoteBroadcastHashJoin,统计map阶段中间文件大小以及中间空文件占比，用于调整join策略。
+	物理计划阶段,OptimizeLocalShuffleReader,统计map阶段中间文件大小以及中间空文件占比，用于调整join策略。
+	物理计划阶段,CoalesceShufflePartitions,统计每一个reduce的分区大小,用于自动分区合并。
+	物理计划阶段,OptimizeSkewedJoin,统计每一个reduce的分区大小,用于自动处理数据倾斜。
+
+四、Join策略调整：如果数据表经过filter后,内容很小,尺寸小于广播变量阈值,会ShuffleSortMergeJoin降级BroadcastHashJoin。
+1.DemoteBroadcastHashJoin作用，是把SortMergeJoin降级为BroadcastJoins。
+对于参与Join的两张表来说，在它们分别完成Shuffle Map阶段的计算之后，DemoteBroadcastHashJoin会判断中间文件是否满足如下条件：
+a.中间文件尺寸总和小于广播阈值 spark.sql.autoBroadcastJoinThreshold
+b.空文件占比小于配置项spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin
+
+2.OptimizeLocalShuffleReader作用
+a.存在逻辑漏洞
+不知道你注意到没有，我一直强调，AQE依赖的统计信息来自于Shuffle Map阶段生成的中间文件。
+这意味什么呢？这就意味着AQE在开始优化之前，Shuffle操作已经将map阶段执行过半了！
+即map阶段计算完成，并且把中间文件落盘，AQE才能做出决策。
+因此DemoteBroadcastHashJoin没有意义啊？
+
+b.正常来说，map阶段完成后,数据需要网络IO，分发到reduce阶段，在reduce阶段做on join操作。
+正常逻辑看，因为大表的map已经处理完成，所以在广播也无意义。
+
+c.OptimizeLocalShuffleReader的作用凸显。
+此时因为A和B都已经完成了map阶段处理，而又发现B表结果很小，可以广播。
+因此reduce阶段,直接就在A大表的map结果节点进行处理，即不需要大表分发数据，而是将小表B重新拉回到节点即可。
+即采取OptimizeLocalShuffleReader策略可以省去Shuffle常规步骤中的网络分发，Reduce Task可以就地读取本地节点（Local）的中间文件，完成与广播小表的关联操作。
+
+注意:OptimizeLocalShuffleReader生效的前提是spark.sql.adaptive.localShuffleReader.enabled=true。
+如果是false,则AQE的Join策略调整就变成了形同虚设。
+
+五、自动分区合并：在Shuffle过后，Reduce Task数据分布参差不齐，AQE将自动合并过小的数据分区。
+1.配置
+spark.sql.adaptive.advisoryPartitionSizeInBytes，由开发者指定分区合并后的推荐尺寸。
+spark.sql.adaptive.coalescePartitions.minPartitionNum，分区合并后，分区数不能低于该值。
+
+2.原理
+当shuffle的map阶段结束后，按照最初的map阶段后,reduce的数量，比如20个reduce，因此每一个map task节点会有一个data和index文件，并且每一个文件到有20个分区的内容。
+此时如果从头到尾,按照顺序依次计算，计算所有的map结果集,每一个分区的大小,比如前2个分区大小一共才20M，而推荐尺寸是128M，因此可能会合并1 2 3分区为1个大分区。
+
+因此在map的local节点,重新对结果进一步拆分。减少reduce的数量。
+然后再出发reduce操作。
+
+3.注意事项:
+自动分区的合并，一定是连续的分区进行合并。比如1 2 3一起合并，而不能1 3 6跨序号合并。
+
+4.参考图13
+
+六、自动倾斜处理：结合配置项，AQE自动拆分Reduce阶段过大的数据分区，降低单个Reduce Task的工作负载。
+1.配置
+spark.sql.adaptive.skewJoin.skewedPartitionFactor，判定倾斜的膨胀系数
+spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes，判定倾斜的最低阈值
+spark.sql.adaptive.advisoryPartitionSizeInBytes，以字节为单位，定义拆分粒度
+
+2.原理
+a.与自动分区合并相反，自动倾斜处理的操作是“拆”，而不是"合"。
+在Reduce阶段，当Reduce Task所需处理的分区尺寸大于一定阈值时，利用OptimizeSkewedJoin策略，AQE会把大分区拆成多个小分区。
+
+操作是在Reduce阶段执行的
+在同一个Executor内部，本该由一个Task去处理的大分区，被AQE拆成多个小分区并交由多个Task去计算。
+
+3.带来的问题
+a.当多个倾斜key都分发到同一个Executor时，压力并没有缓解。
+
+这样一来，Task之间的计算负载就可以得到平衡。但是，这并不能解决不同Executors之间的负载均衡问题。
+
+我们来举个例子，假设有个Shuffle操作，它的Map阶段有3个分区，Reduce阶段有4个分区。4个分区中的两个都是倾斜的大分区，
+而且这两个倾斜的大分区刚好都分发到了Executor 0。尽管两个大分区被拆分，但横向来看，整个作业的主要负载还是落在了Executor 0的身上。
+Executor 0的计算能力依然是整个作业的瓶颈，这一点并没有因为分区拆分而得到实质性的缓解。
+
+b.表1 join 表2,一个表中key倾斜，另外一个表key不倾斜。
+因为表1发生倾斜，所以AQE会在executor上对表1的数据块做拆分成小子集。但数据表2原来在executor上就有一份数据与表1做join的，因为表1被拆分成子集了，导致表2也要进行复制多份，来保证关联关系不被破坏。
+
+c.b的升级版，如果两个表都有一些key发生倾斜呢？
+那岂不是executor节点上会表1的数据复制多份，表2的数据也复制多份，这样就更乱了。此时AQE显然不划算了。
+
+
+4.总结
+可以依赖AQE的自动倾斜处理的场景: 
+a.一侧倾斜，一侧不倾斜场景。
+b.有倾斜，但倾斜的key分布均匀再多个executor上。
+
+不能使用AQE优化的场景: --- 解决方案参考29节
+a.join的两个表都发生数据倾斜。
+b.凑巧，倾斜的分区刚好全都落在同一个Executor上。或者落在了少数的Executor上。

@@ -1,0 +1,52 @@
+一、背景与总结
+1.存储服务主要服务对象:
+Shuffle中间临时文件
+Shuffle中间文件(data和index)、
+RDD Cache
+广播变量。
+
+2.核心对象关系图
+BlockManagerMaster
+BlockManager
+	MemoryStore
+		Blocks
+	DiskStore
+		DiskBlockManager
+			Blocks
+
+二、存储系统的构成
+1.核心对象
+driver 持有 BlockManagerMaster
+executor 持有 BlockManager,BlockManager用于管理(Shuffle中间文件、RDD Cache以及广播变量)数据文件的存储、读写、收发。
+
+2.流程
+BlockManager向BlockManagerMaster汇报该节点存储的数据信息。
+BlockManager向BlockManagerMaster获取其他BlockManager的存储的信息。
+
+三、存储流程细节
+1.Blocks职责
+executor不管是在内存、还是在磁盘,都是以Blocks为粒度管理数据。对数据的存储、访问都是以该粒度进行。
+而一个Blocks整好是一个partition数据块。
+
+2.BlockManager职责
+用于管理Blocks的元数据。
+<介质、数据块地址、位置、尺寸、状态> 比如 <内存,host0:BlockManager0,/xx/xx/xx,128M,可用>
+
+3.谁负责具体的数据存储呢？
+MemoryStore 负责内存的数据存储/读取
+DiskStore 负责磁盘的数据存储/读取
+
+4.MemoryStore：内存数据访问的case
+a.内存小本子记录数据块信息。LinkedHashMap[BlockId, MemoryEntry] 即数据块ID与数据块内容映射。
+注意:BlockId和MemoryEntry两个对象都占用内存较大，因为这两个对象存储的信息较多。
+b.BlockId<BlockId,BlockName,所属RDD,Block对应的RDD数据分区序号,是否为广播变量,是否为Shuffle Block>
+c.MemoryEntry 数据实体
+数据实体可以是某个RDD的数据分区，也可以是广播变量。
+
+5.DiskStore：磁盘数据访问问的case
+他不自己记录元数据，而是都交给了DiskBlockManager去做元数据管理。
+
+DiskBlockManager负责能力 -- 管理<BlockId,File>的映射。
+
+DiskBlockManager提供了哪些方法 -- getFile(BlockId),返回BlockId对应的数据块文件
+

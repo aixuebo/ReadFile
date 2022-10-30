@@ -1,0 +1,57 @@
+一、背景与总结
+1.kafka与spark结合。
+
+二、spark消费kafka的数据
+1.demo
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.streaming.{OutputMode, Trigger}
+import scala.concurrent.duration._
+
+//kafka数据读取
+val dfCPU:DataFrame = spark.readStream
+.format("kafka")
+.option("kafka.bootstrap.servers", "hostname1:9092,hostname2:9092,hostname3:9092")// 指定Kafka集群Broker地址，多个Broker用逗号隔开
+.option("subscribe", "cpu-monitor") // 订阅相关的Topic，这里以cpu-monitor为例
+.load()
+
+//数据处理后输出
+dfCPU.writeStream
+.outputMode("Complete")
+.format("console")
+.trigger(Trigger.ProcessingTime(10.seconds)) // 每10秒钟，触发一次Micro-batch
+.start()
+.awaitTermination()
+
+//kafka的数据内容如下:key、value、topic、partition、offset、时间戳
+
+//统计10秒钟内cpu使用率的平均值。
+import org.apache.spark.sql.types.StringType
+dfCPU
+.withColumn("clientName", $"key".cast(StringType)) //服务器名称
+.withColumn("cpuUsage", $"value".cast(StringType)) //cpu使用率
+.groupBy($"clientName") // 按照服务器做分组
+.agg(avg($"cpuUsage").cast(StringType).alias("avgCPUUsage")) // 聚合函数求取均值
+.writeStream //输出
+.outputMode("Complete")
+.format("console")
+.trigger(Trigger.ProcessingTime(10.seconds)) // 每10秒触发一次Micro-batch
+.start()
+.awaitTermination()
+
+2.再次写入到kafka
+dfCPU
+.withColumn("key", $"key".cast(StringType))
+.withColumn("value", $"value".cast(StringType))
+.groupBy($"key")
+.agg(avg($"value").cast(StringType).alias("value"))
+.writeStream.outputMode("Complete")
+.format("kafka")
+.option("kafka.bootstrap.servers", "localhost:9092") // 设置Kafka集群信息，本例中只有localhost一个Kafka Broker
+.option("topic", "cpu-monitor-agg-result") // 指定待写入的Kafka Topic，需事先创建好Topic：cpu-monitor-agg-result
+.option("checkpointLocation", "/tmp/checkpoint") // 指定WAL Checkpoint目录地址
+.trigger(Trigger.ProcessingTime(10.seconds))
+.start()
+.awaitTermination()
+
+注意:
+a.写入kafka的时候,dataFrame必须要有key、value字段。

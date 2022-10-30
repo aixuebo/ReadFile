@@ -1,0 +1,53 @@
+一、背景与总结
+1.如何调解内存，与发现问题有关系，针对病因设置内存参数才是对的。
+要问自己3个问题:
+a.发生OOM的LOC（Line Of Code），也就是代码位置在哪？
+看出错位置即可知道，或者看spark sql ui。
+b.OOM发生在Driver端，还是在Executor端？
+知道代码位置，通过分析，知道他是哪个端，从而设置哪个端的内存。
+c.如果是发生在Executor端，OOM到底发生在哪一片内存区域？
+4个区域：Reserved Memory、User Memory、Storage Memory和Execution Memory。这4个区域中都有哪些区域会报OOM异常呢？
+
+二、Driver端的OOM
+1.相对容易解决。
+创建的数据集超过内存上限:因为driver上经常操作是创建分布式数据集，使用parallelize、createDataFrame等API创建数据集。
+收集的结果集超过内存上限:主要发生在driver上take、show、collect等算子把结果收集到Driver端。
+
+2.间接的collect是要关注的。
+RDD的广播，需要先将rdd的数据拉回到driver，然后再广播，因此会出现oom现象。
+
+需要调用函数，计算一下RDD的数据大小。
+val df: DataFrame = _
+df.cache.count
+val plan = df.queryExecution.logical
+val estimated: BigInt = spark
+.sessionState
+.executePlan(plan)
+.optimizedPlan
+.stats
+.sizeInBytes
+
+三、Executor端的OOM
+1.Reserved Memory大小固定为300MB，因为它是硬编码到源码中的，所以不受用户控制，因此基本上不会OOM。
+2.Storage Memory,便数据集不能完全缓存到MemoryStore，Spark也不会抛OOM异常，额外的数据要么落盘（MEMORY_AND_DISK）、要么直接放弃（MEMORY_ONLY）。因此基本上不会OOM。
+3.User Memory 可能会OOM。
+这部分尽量少用内存，而是用广播的方式，使用内存再Storage Memory中。
+如果一定有一些数据结构要用，也尽量是非常占用空间小的固定数据集。
+
+4.Execution Memory 最可能会OOM。
+数据倾斜
+
+四、数据倾斜
+1.问题背景
+executor的task内存，不能覆盖所有的task的数据源，此时最容易出现OOM。
+
+2.解决方案
+a.维持并发度、并行度不变，增大执行内存设置。
+即纯粹的增加内存，解决该问题，此时说明倾斜不严重，比如内存最多设置16G，如果4个task并发，每一个task最多也就拿到4G内存，即如果倾斜在4G内，是可以的。
+倾斜严重肯定该方案不可行。
+b.倾斜严重情况下，但16G内存是可以容纳的。
+并行度不变,增加内存设置，同时减少并发度。
+不要设置多task并发，让一个executor只执行一个task,因此内存都分配给一个task，自然task内存量大了，也就减少了OOM的可能。
+当然可能依然OOM，因为数据严重倾斜，内存设置再大也会超出限制，是有可能的。
+c.说明倾斜非常严重，因此增加并行度。
+让每一个task分配更少的数据量。
