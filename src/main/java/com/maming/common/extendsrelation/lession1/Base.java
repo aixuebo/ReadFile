@@ -7,7 +7,7 @@ public class Base {
 	}
 	
 	public void invokeExecutor(){
-		new ExecutorTest(this);
+		new ExecutorTest(this);//this到底是父类还是子类
 	}
 
 }

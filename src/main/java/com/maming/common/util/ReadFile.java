@@ -8,12 +8,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.logging.log4j.Logger;
+//import org.apache.logging.log4j.Logger;
 
 public abstract class ReadFile {
 
-    private static Logger LOG = LogWriter.getOther();
-    private static Logger ERROR_LOG = LogWriter.getErrorLog();
+//    private static Logger LOG = LogWriter.getOther();
+//    private static Logger ERROR_LOG = LogWriter.getErrorLog();
 
     private String encoding;
 
@@ -41,7 +41,7 @@ public abstract class ReadFile {
 
     public void start() throws RuntimeException {
         //System.out.println("start:"+this.filePath);
-        LOG.info("start:" + this.filePath);
+        //LOG.info("start:" + this.filePath);
         InputStream is = null;
         try {
             is = new FileInputStream(this.filePath);
@@ -67,7 +67,8 @@ public abstract class ReadFile {
                             parse(theLine);
                         }
                     } catch (Exception ex) {
-                        ERROR_LOG.error("ReadFile parse error:" + theLine, ex);
+                    	ex.printStackTrace();
+                        //ERROR_LOG.error("ReadFile parse error:" + theLine, ex);
                     }
                 }
             } while (theLine != null);

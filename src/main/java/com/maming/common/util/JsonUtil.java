@@ -50,4 +50,12 @@ public class JsonUtil {
 			return null;
 		}
 	}
+	
+	public static String stringValue(JSONObject obj,String key) {
+		try {
+			return obj.getString(key);
+		}catch (Exception ex){
+			return null;
+		}
+	}
 }

@@ -12,6 +12,7 @@
 		test.visit(visit);
 	}
 
+
 5.注意:
 a.虽然SqlNode1和SqlNode2中visit方法都相同,但不能把他们抽取到父类中,因为visit要求的参数是具体的子类。
 b.如果换成visit接口是父类,也可以，但这个时候就需要做分流了。参见verson2包

@@ -7,7 +7,7 @@ import java.util.*;
 
 public class CalciteTest {
 
-	String sql = "";
+	String sql = "select a.* from xx a";
 	
 	public void test1() {
 		// System.out.println(sql);
@@ -19,8 +19,8 @@ public class CalciteTest {
 
         try {
             SqlNode sqlNode = parser.parseStmt();
-            sqlNode.accept(new Accept<String>(set));
-            //System.out.println(sqlNode.toString());
+            //sqlNode.accept(new Accept<String>(set));
+            System.out.println(sqlNode.toString());
 
             System.out.println("-----\n\n\n\n");
             for(String str:set){

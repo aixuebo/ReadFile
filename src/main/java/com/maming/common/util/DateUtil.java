@@ -1,5 +1,7 @@
 package com.maming.common.util;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -8,6 +10,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 
 public class DateUtil {
 
@@ -135,6 +138,32 @@ public class DateUtil {
 		}
 	}
 
+	  public static DateTimeZone PST = DateTimeZone.forID("America/Los_Angeles");
+	  public static DateTimeFormatter MINUTE_FORMATTER = getDateTimeFormatter("YYYY-MM-dd-HH-mm");
+
+	  public static DateTimeFormatter getDateTimeFormatter(String str) {
+	    return getDateTimeFormatter(str, PST);
+	  }
+
+	  public static DateTimeFormatter getDateTimeFormatter(String str, DateTimeZone timeZone) {
+	    return DateTimeFormat.forPattern(str).withZone(timeZone);
+	  }
+
+	  public static long getPartition(long timeGranularityMs, long timestamp) {
+	    return (timestamp / timeGranularityMs) * timeGranularityMs;
+	  }
+
+	  public static long getPartition(long timeGranularityMs, long timestamp, DateTimeZone outputDateTimeZone) {
+	    long adjustedTimeStamp = outputDateTimeZone.convertUTCToLocal(timestamp);
+	    long partitionedTime = (adjustedTimeStamp / timeGranularityMs) * timeGranularityMs;
+	    return outputDateTimeZone.convertLocalToUTC(partitionedTime, false);
+	  }
+
+	  public static DateTime getMidnight() {
+	    DateTime time = new DateTime(PST);
+	    return new DateTime(time.getYear(), time.getMonthOfYear(), time.getDayOfMonth(), 0, 0, 0, 0, PST);
+	  }
+	  
 	public static void main(String[] args) {
 		String date = "20141016";
 		String before30Day = DateUtil.dateConvertSingleByDay(date, -29);// 计算前30天的日期
@@ -147,5 +176,18 @@ public class DateUtil {
 
 		System.out.println(DateUtil.weekday("20141203"));
 		System.out.println(dayNum("2017-02-04","2017-02-04"));
+		
+		
+		System.out.println("-----");
+		long outfilePartitionMillis = 86400000;
+		DateTimeZone outputTimeZone = DateTimeZone.forID("Asia/Shanghai");
+		DateTimeFormatter outputDirFormatter = getDateTimeFormatter("'hourly'/YYYY/MM/dd/HH", outputTimeZone).withLocale(Locale.US);
+		System.out.println("-----"+outputDirFormatter);
+	
+		long a = getPartition(outfilePartitionMillis, 1622476900000l, outputDirFormatter.getZone());//
+		DateTime bucket = new DateTime(Long.valueOf(a));
+		System.out.println(bucket.toString(outputDirFormatter)+"-----"+a+"=="+new Date(1622476900000l));
+		
+
 	}
 }

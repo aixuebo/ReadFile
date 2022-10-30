@@ -1,6 +1,7 @@
-package com.maming.common.small.util;
+package com.maming.common.hash;
 
 
+import java.io.File;
 import java.util.*;
 import java.util.Set;
 import org.apache.logging.log4j.Logger;
@@ -44,7 +45,8 @@ public class ReadTestHash extends ReadFile{
 			hash.hash(data[i]);
 			
 		}
-		count++;
+		
+		count = count + data.length;
 		//set.add(hash.hash());
 		set.add(hash3.bytesHash(data, 0x19264330));
 	}
@@ -60,8 +62,15 @@ public class ReadTestHash extends ReadFile{
 	public static void main(String[] args) {
 		
 		String path = "/Users/maming/Downloads/uuid.txt";
+		///Users/maming/Downloads/resourcemanager/checkpoint/linq4j/tree/statement
 		ReadTestHash test = new ReadTestHash(path);
-		test.start();
+		//test.start();
+		
+		path = "/Users/maming/Downloads/resourcemanager/checkpoint/linq4j";
+		String[] a = new File(path).list();
+		for(String aa:a) {
+			System.out.println(aa);
+		}
 	}
 }
 

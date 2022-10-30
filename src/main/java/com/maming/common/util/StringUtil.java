@@ -1,15 +1,17 @@
 package com.maming.common.util;
 
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-
+import org.apache.commons.io.IOUtils;
 
 public class StringUtil {
 
@@ -27,6 +29,11 @@ public class StringUtil {
     public static int toInteger(String value) {
         return toInteger(value, 0);
     }
+    
+    public static int toInteger(Integer value) {
+        if(value == null) return toInteger("");
+        return value;
+    }
 
     public static long toLong(String value, long defaultValue) {
         try {
@@ -43,6 +50,11 @@ public class StringUtil {
         return toLong(value, 0l);
     }
 
+    public static long toLong(Long value) {
+        if(value == null) return toLong("", 0l);
+        return value;
+    }
+    
     public static String trim(String value, String defaultValue) {
         if (value == null || "".equals(value)) return defaultValue;
         else return value.trim();
@@ -68,6 +80,12 @@ public class StringUtil {
 		return toDouble(value, 0d);
 	}
 
+    public static double toDouble(Double value) {
+        if(value == null)
+            return toDouble("", 0d);
+        return value;
+    }
+    
     public static String cut(String value, int len) {
         if (trim(value).length() > len) {
             return value.substring(0, len);
@@ -226,6 +244,16 @@ public class StringUtil {
         StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw, true));
         return sw.getBuffer().toString();
+    }
+    
+    public static String StreamToString(String path) throws RuntimeException{
+    	//String path = "com/maming/common/util/idcardMapping.txt";
+    	InputStream inStream = StringUtil.class.getClassLoader().getResourceAsStream(path);
+    	try {
+    		return IOUtils.toString(inStream, StandardCharsets.UTF_8);
+    	} catch (Exception e) {
+    		 throw new RuntimeException("StreamToString 转换异常");
+    	}
     }
     
     public static void main(String[] args) {
