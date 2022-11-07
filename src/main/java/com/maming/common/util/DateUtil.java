@@ -22,6 +22,9 @@ public class DateUtil {
 	public static final DateFormat YMD_Middler_SINGLE = new SimpleDateFormat(
 			"yyyy-MM-dd");
 	
+	public static final SimpleDateFormat SDF_NORMAL = new SimpleDateFormat(
+			"yyyy-MM-dd HH:mm:ss");
+	
 	//多线程方式
     public static final DateTimeFormatter YMD_ = DateTimeFormat.forPattern("yyyy-MM-dd");
     public static final DateTimeFormatter YMD = DateTimeFormat.forPattern("yyyyMMdd");
@@ -164,6 +167,54 @@ public class DateUtil {
 	    return new DateTime(time.getYear(), time.getMonthOfYear(), time.getDayOfMonth(), 0, 0, 0, 0, PST);
 	  }
 	  
+	  //计算两个日期之间的交集
+	  public static String intersecDate(String date1,String date2) {
+		  
+		  //date1 = "2022-10-16 15:16:18~2022-10-16 17:16:18";//用于测试非正点时间
+		  date1 = "2022-10-16 11:00:00~2022-10-16 13:00:00";
+		 
+		  //两侧--无交集
+		  date2 = "2022-10-16 07:00:00~2022-10-16 08:00:00";
+		  date2 = "2022-10-16 15:00:00~2022-10-16 20:00:00";
+		  
+		  //完全重合
+		  date2 = "2022-10-16 11:00:00~2022-10-16 13:00:00";
+		  //交集 -- 左右两侧分别交集
+		  date2 = "2022-10-16 10:00:00~2022-10-16 12:00:00";
+		  date2 = "2022-10-16 12:00:00~2022-10-16 14:00:00";
+		  
+		  try {
+			  long date1Start = SDF_NORMAL.parse(date1.split("~")[0]).getTime();
+			  long date1End = SDF_NORMAL.parse(date1.split("~")[1]).getTime();
+			  long date2Start = SDF_NORMAL.parse(date2.split("~")[0]).getTime();
+			  long date2End = SDF_NORMAL.parse(date2.split("~")[1]).getTime();
+			  
+			  System.out.println("-----" + date1Start);
+			  System.out.println("-----"+ date1End);
+			  System.out.println("-----"+ date2Start);
+			  System.out.println("-----"+ date2End);
+
+			  //强行校验1 即每一个 date1End > date1Start and date2End > date2Start
+			  if(date1End > date1Start && date2End > date2Start)
+			  {
+				  //计算交接
+				  long intersecStart = Math.max(date1Start, date2Start);
+				  long intersecEnd = Math.min(date1End, date2End);
+				  //换句话说，这两组时间差是合法的
+				  if(intersecEnd >= intersecStart) { //校验2,交集的结果，一定是end > start
+					//2022-10-16 15:16:18~2022-10-16 17:16:18
+					  return SDF_NORMAL.format(new Date(intersecStart)) + "~" + SDF_NORMAL.format(new Date(intersecEnd)); 
+				  }else {
+					  return "无效";
+				  }
+			  } 
+			  return "无交集";
+		  } catch(Exception ex) {
+			  ex.printStackTrace();
+		  }
+		  return "error";
+	  }
+	  
 	public static void main(String[] args) {
 		String date = "20141016";
 		String before30Day = DateUtil.dateConvertSingleByDay(date, -29);// 计算前30天的日期
@@ -188,6 +239,8 @@ public class DateUtil {
 		DateTime bucket = new DateTime(Long.valueOf(a));
 		System.out.println(bucket.toString(outputDirFormatter)+"-----"+a+"=="+new Date(1622476900000l));
 		
-
+		System.out.println("----->"+intersecDate("",""));
+		
+		
 	}
 }
