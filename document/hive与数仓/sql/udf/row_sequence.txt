@@ -1,0 +1,40 @@
+一、背景与总结
+1.为每一个流量设备设置唯一ID,即string转int。
+2.高级点用法，使用时间戳前N位+当天int,可以确保每一天的uuid是不同的值。
+
+
+二、使用
+SELECT 设备id ,row_sequence() AS id
+注意 使用DISTRIBUTE BY 1，确保全局唯一 
+因为DISTRIBUTE BY 表示partition by 含义，所以所有数据都会分发到一个分区内。
+
+三、原理
+@Description(name = "row_sequence",
+    value = "_FUNC_() - Returns a generated row sequence number starting from 1")
+@UDFType(deterministic = false, stateful = true)
+public class UDFRowSequence extends UDF
+{
+  private LongWritable result = new LongWritable();//初始化后,每一个都累加1
+
+  public UDFRowSequence() {
+    result.set(0);
+  }
+
+  public LongWritable evaluate() {
+    result.set(result.get() + 1);
+    return result;
+  }
+}
+
+四、疑问
+1.一定是只有一个reduce吗？ --- 此时也是性能瓶颈处
+否则udf怎么在多节点保持数据不同的。 --- 使用 DISTRIBUTE BY 1
+
+SELECT  设备 ,row_sequence() AS id
+FROM
+(
+	SELECT 设备
+	from 表
+	group by 设备
+	DISTRIBUTE BY 1
+) t1 

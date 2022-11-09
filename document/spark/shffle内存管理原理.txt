@@ -1,4 +1,8 @@
 一、背景与总结
+直接查看stage中统计参数，Shuffle Read Size的百分位数情况。
+比如 很明显shuffle中数据倾斜了， 最后一个百分比处理的数据量特别大
+Shuffle Read Size / Records	0.0 B / 0	0.0 B / 0	0.0 B / 0	71.0 B / 1	12.9 GB / 43684099
+
 1.个人感觉 shuffle的OOM发生不在map阶段,map阶段可控制，在reduce阶段容易发生OOM；适当调低map数量，调高reduce数量，让reduce接收少量的数据，防止oom发生。
 2.减少reduce OOM的方式
 a.避免null或者-1等默认值引起的数据倾斜。将其数据过滤掉或者分发到其他节点去执行。

@@ -13,6 +13,10 @@ reduce数量大，shuffle产生的网络IO大，性能就会差。
 4.查看stage和job模块,input文件的分布,max是不是很小，并且task很多，比如上万个task。
 此时说明上游数据小文件居多，需要优化，上游优化后，减少task数量需求。
 
+5.查看数据是否倾斜
+比如 很明显shuffle中数据倾斜了， 最后一个百分比处理的数据量特别大
+Shuffle Read Size / Records	0.0 B / 0	0.0 B / 0	0.0 B / 0	71.0 B / 1	12.9 GB / 43684099
+
 二、概览
 1.Details for Stage 52 (Attempt 0) 
 明确该stage的唯一序号，以及第几个尝试任务。
@@ -93,6 +97,10 @@ Shuffle Write Size / Records
 Shuffle Remote Reads 从远程节点读取的字节数，他是Shuffle Read Size 的子集，只包含远程的字节数，两者差就是本地读取的字节数。该值越小越好，说明从本地读取的字节数越多。
 Shuffle Read Blocked Time	表示从远程读取数据时，等待耗时，该值越大肯定越不好，说明没有资源去远程读取数据。会增加任务总耗时。
 Shuffle Write Time: is the time that tasks spent writing shuffle data.表示输出到shuffer write写文件的耗时。越小越好。理论上也应该非常小才对。
+
+
+比如 很明显shuffle中数据倾斜了， 最后一个百分比处理的数据量特别大
+Shuffle Read Size / Records	0.0 B / 0	0.0 B / 0	0.0 B / 0	71.0 B / 1	12.9 GB / 43684099
 
 8.内存消耗
 表示当内存不足,需要spill时,会将内存的内容写入到文件中,而此时写入文件后，是序列化的写入。而一部分还在内存中尚未存储到文件中的内容是非序列化的。
