@@ -652,6 +652,11 @@ select explode(split(regexp_replace(mvt,'\\[|\\]',''),'\\},\\{')) from ods where
 30.ateral view --- 参见窗口函数中使用情况
 select *  from A LATERAL VIEW posexplode(shows) t as pos, city 拆分成2部分，一个是序号，一个是具体的拆分字符
 
+
+hive语法 select * from A lateral view explode(scores) t as score
+presto语法  select * from A CROSS JOIN UNNEST(scores) AS t (score);
+
+
 原理
 SELECT dt,myCol
 from date
