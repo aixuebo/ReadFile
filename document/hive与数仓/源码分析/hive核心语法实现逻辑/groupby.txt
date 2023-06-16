@@ -1,0 +1,78 @@
+一、背景与总结
+1.demo
+注意:
+a.查看每个城市，每一个商品品类对应的流量pv、用户数、设备数。
+b.userid是bigint，uuid是string，主要考虑性能问题。
+
+select city,品类,
+count(*),
+count(distinct(user_id)),
+count(distinct(uuid))
+from biao 
+group by city,品类
+
+2.hash、sort两种方法实现
+
+3.set hive.map.aggr=true; 设置map端combine预聚合
+HiveConf中参数
+参数源码以及设置方式
+HIVEMAPSIDEAGGREGATE("hive.map.aggr", true),
+
+
+二、实现大概思路
+1.map阶段，
+输入是string，表示一行数据，输出是key,value。其中key就是group by的内容，value是聚合函数的输出结果。
+
+a.数据提取，提取一行中需要的字段信息。并且组装成key和value，key和value分别有独立的数据类型。其中value是一个vo对象，内部有多个聚合函数的返回值组成的字段。
+b.按照key进行随机分组，每一个分组组成一个partition。比如原始数据10万行，此时分组后依然是10万行。
+
+2.map combine
+同一个key的数据，进行一步预聚合。多少key就有多少行数据。
+
+3.shuffle
+将同一个partition数据，发送到一个reduce中。有网络IO。
+
+4.reduce
+对接收到的N个reduce进行聚合操作，将同一个key对应的List<Value>收集好，进行预处理。
+输出预处理后的结果。
+
+三、细节
+1.每一个阶段的输入输出。  即需要输入、输出、以及中间态结果。
+map <String,<K<A,B,C>,V<A,B,C,D>>>
+combine <<K<A,B,C>,V<A,B,C,D>>,  <K<A,B,C>,V<A,B,C,D>>> 即输入和输出都一样，就是对输入进行预聚合。
+reduce，<K<A,B,C>,V<A,B,C,D>>,输出格式>  对多个reduce输入源进行聚合，将聚合后的结果在输出。
+
+2.sort方式实现。
+map端输出结果，是按照key排序后的结果，这样combine和reduce就可以利用并归排序，不需要内存。缺点是排序需要耗时。
+
+3.hash实现
+map端输出是key无序的，即不需要将key相同的数据放在一起。
+这样combine和reduce拿到的是无序的数据集合，无法进行reduce处理，因为reduce接收的参数是key,list<value>。
+所以需要再内存中把所有reduce接受到的数据放到hashmap中存储，hashmap的key就是key,value就是List<value>。
+这样循环hashmap即可。
+
+缺点是容易OOM。优点是不需要排序，数量小的时候有性能优势。
+
+四、如何优化，提高性能
+1.场景1
+流量表 设备id是string，此时count distinct，意味着map端输出的value不能预聚合，只能到reduce去聚合，有性能损耗。（不能预聚合原因是count distinct必须要全局唯一，map端传出一个bigint结果无效）
+
+如何优化：两种方式
+a.map端输出的结果是set<uuid>，这样是可以预聚合的，即多次出现的明细值被去重复了，减少了网络IO。
+但如果设备号很多，此时内存set会OOM的风险。
+b.bitmap
+所有的输入中不允许出现string，需要将字符串提前转换成int，此时数仓清洗阶段完成即可。(针对多天的数据如何去重复，即全局唯一ID，这个是难点，或者是否意味着某一天去重复就足够满足业务诉求了？)
+此时reduce阶段只能是sort方式实现，不能hash实现，原因是虽然bitmap很小，但如果每一个key都占用一个bitmap内存，体量也是很大的。
+而sort方式是预排序，内存中只需要有一个key对应的一个bitmap内存就够用了，因为reduce一次只能处理一个key。
+
+伪代码实现:
+select count_bitmap(uuid)。此时是一个udaf，内部会中间状态存储为bitmap，即reduce阶段进行bitmap的merge，最终输出bitmap的bit位数即可。
+
+总结:
+不能string，要bigint。
+必须sort方式，不能hash方式。
+
+2.场景2 数据倾斜
+数据倾斜原因就是key发生倾斜了，但map端并不倾斜，reduce才会倾斜，因此map端如何预聚合，那么也可以解决。
+而关键慢的原因是map端没有预聚合，并且 传输的数据是明细，即字符串的count distinct。因此使用count_bitmap(uuid)方案 + sort实现group by + map端预聚合，其实是可以解决数据倾斜问题的。
+

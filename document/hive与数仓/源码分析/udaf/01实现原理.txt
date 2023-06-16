@@ -1,0 +1,251 @@
+一、背景与总结
+1.应用场景
+主要用于group by操作。
+核心入口:org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator
+org.apache.hadoop.hive.ql.exec.GroupByOperator
+
+2.核心流程
+经历的一个过程，需要的几个输入 string，<key,value>，<key,List<value>>,object
+a. map ，输入和输出: String --> <key,value>  对数据进行处理 以及 partition分组
+b. iterate ,输入和输出: <key,value> --> <key,List<value>> 对分组内容进行聚合，然后以hash或者sort方式存储成文件。
+c. terminatePartial/combine，输入和输出: <key,List<value>> --> <key,List<value>> 在map端，对本地的分组的内容进一步聚合。因为会存在多个文件进行再一次merge的过程。
+d. merge/reduce，输入和输出: <key,List<value>> --> <key,List<value>> 在reduce端，对所有节点的分组内容进一步聚合。merge的过程。
+e. terminate，输入和输出: <key,List<value>> --> Object，对聚合后的结果，转换成一个对象，用于网络传输。
+
+二、核心接口方法
+1.ObjectInspector init(Mode m, ObjectInspector[] parameters) 聚合函数的初始化，返回值是聚合函数的输出类型
+输入mode模式，可以知道要调用哪些方法会被执行。
+parameters表示聚合函数需要的参数类型。比如bitmap(字段1,字段2)，则parameters表示字段1和字段2的类型
+
+2.public abstract AggregationBuffer getNewAggregationBuffer()
+创建一个聚合函数的临时存储容器，比如set聚合函数，则在初始化的时候创建一个set对象，在每次处理一条数据的时候，就会往set里存储数据。
+
+3.public abstract void iterate(AggregationBuffer agg, Object[] parameters) 处理一个row,将处理的结果存储到聚合函数临时容器对象agg中。
+agg 表示聚合对象的临时存储容器，比如假设是set函数，则agg就是内存set。
+parameters 聚合函数可能需要参数，此时parameters就表示聚合函数需要的参数信息
+
+注意:
+读取一行数据后，进行一次聚合操作。注意：只有聚合操作，不需要返回值。
+
+4.public abstract Object terminatePartial(AggregationBuffer agg)  map端对聚合函数中间结果需要序列化等操作，转换成一个具体的对象。
+局部终止.获取局部的聚合结果
+
+5.public abstract void merge(AggregationBuffer agg, Object partial)
+reduce端 或者 combine端操作。将接收到的partial数据，循环后存储到agg中。即partial与agg进行merge处理。
+agg表示此时的中间聚合容器。
+partial表示接受到的reduce数据，比如sum场景，接收到的是bigint值。set场景接收到的是List数据。
+
+6.public abstract Object terminate(AggregationBuffer agg) 
+全部终止,获得最终的聚合结果。
+
+7.调用过程:
+  /**
+   * @param agg
+   *          The object to store the aggregation result. 用于存储聚合结果的中间对象
+   * @param parameters
+   *          The row, can be inspected by the OIs passed in init().如果聚合函数需要若干个参数时，该数组表示每一个参数值
+   * 更新聚合函数内容，当一行数据读取后，需要更新聚合结果
+   *
+   * 用于key,list<value>时，处理每一个value阶段，都会调用该函数
+   */
+  public void aggregate(AggregationBuffer agg, Object[] parameters) throws HiveException {
+    if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
+      iterate(agg, parameters);
+    } else {
+      assert (parameters.length == 1);
+      merge(agg, parameters[0]);
+    }
+  }
+
+  /**
+   * This function will be called by GroupByOperator when it sees a new input
+   * row.
+   * 
+   * @param agg
+   *          The object to store the aggregation result.
+   * 当key所有的list<value>都执行完,需要对agg聚合的结果转换成具体的值，用于传输时，调研该函数
+   */
+  public Object evaluate(AggregationBuffer agg) throws HiveException {
+    if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
+      return terminatePartial(agg);//map阶段的combine,与最终的结果返回值是不一样的，所以需要两个不同的terminate函数
+    } else {
+      return terminate(agg);
+    }
+  }
+
+8.案例分享
+a.GenericUDAFCount案例
+	//判断param参数是否非null，如果是非null，则agg中增加计数1
+    public void iterate(AggregationBuffer agg, Object[] parameters) {
+    	 boolean countThisRow = true;
+        for (Object nextParam : parameters) {
+          if (nextParam == null) {
+            countThisRow = false;
+            break;
+          }
+        }
+        if (countThisRow) {
+          ((CountAgg) agg).value++;
+        }
+    }
+
+	//map端聚合结束后，要传输到reduce端，因此要对agg进行转换成可序列化的对象，因此转换成long即可
+    //大多数场景下，terminatePartial与terminate都是可以复用的，即都是将中间的结果转换成固定的类型输出
+    public Object terminatePartial(AggregationBuffer agg) throws HiveException {
+      return terminate(agg);
+    }
+    
+	//reduce或者combie操作,接收到的partial其实是long类型数据，将其聚合到reduce内部的agg中。
+    public void merge(AggregationBuffer agg, Object partial)
+      if (partial != null) {
+        long p = partialCountAggOI.get(partial);//转换成long。
+        ((CountAgg) agg).value += p;
+      }
+    }
+
+	//reduce结束后，将中间聚合容器结果转换成long输出。
+    public Object terminate(AggregationBuffer agg) throws HiveException {
+      result.set(((CountAgg) agg).value);
+      return result;
+    }
+b.GenericUDAFCollectSet案例
+		//map端处理，将参数直接放到agg这个set里
+    public void iterate(AggregationBuffer agg, Object[] parameters)
+        throws HiveException {
+
+      Object p = parameters[0];
+      if (p != null) {
+        MkArrayAggregationBuffer myagg = (MkArrayAggregationBuffer) agg;
+        putIntoSet(p, myagg);
+      }
+    }
+
+    //map端输出 将set转换成list，可序列化输出
+    @Override
+    public Object terminatePartial(AggregationBuffer agg) throws HiveException {
+      MkArrayAggregationBuffer myagg = (MkArrayAggregationBuffer) agg;
+      ArrayList<Object> ret = new ArrayList<Object>(myagg.container.size());
+      ret.addAll(myagg.container);
+      return ret;
+    }
+
+    //reduce端，接收到的partial是一个list类型，循环list，往reduce的agg内存对象中存储
+    public void merge(AggregationBuffer agg, Object partial)
+        throws HiveException {
+      MkArrayAggregationBuffer myagg = (MkArrayAggregationBuffer) agg;
+      ArrayList<Object> partialResult = (ArrayList<Object>) internalMergeOI.getList(partial);
+      for(Object i : partialResult) {
+        putIntoSet(i, myagg);
+      }
+    }
+    
+    //最终reduce将agg的set内容转换成list输出
+    public Object terminate(AggregationBuffer agg) throws HiveException {
+      MkArrayAggregationBuffer myagg = (MkArrayAggregationBuffer) agg;
+      ArrayList<Object> ret = new ArrayList<Object>(myagg.container.size());
+      ret.addAll(myagg.container);
+      return ret;
+    }
+
+
+
+  
+  
+三、如何理解mode
+1.背景解析
+相当于在group by过程中，其实可以map + reduce 逻辑处理、也可以map+combine+reduce，也可以直接map输出。
+因此有多种执行过程，那么函数该如何组合呢？
+因此mode模式不同，组合的结果就不同，通过mode的定义，程序就知道该如何执行GenericUDAFEvaluator定义的四个函数了。
+
+2.mode内容
+a.PARTIAL1
+会执行iterate() and terminatePartial()方法。
+目标是 读取原始数据，对元素数据提取key+value,然后hash或者sort的方式，预聚合到一个集合存储起来。
+相当于map阶段，输入 string，输出 key+List<Value>，即map数据抽取 + iterate 数据本地预聚合 + terminatePartial 预聚合结果转换成可序列化对象输出，纯map流程。
+
+b.PARTIAL2
+会执行merge() and terminatePartial()方法。
+相当于combiner阶段，merge的输入是key+List<Value>，输出也是key+List<Value>。
+即在PARTIAL1后，进行reduce逻辑处理(会执行merge)，并将处理结果再一次序列化成输出对象输出(terminatePartial)
+全流程为: map数据抽取 + iterate 数据本地预聚合 + terminatePartial 预聚合结果转换成可序列化对象输出 + 本地merge +  terminatePartial 将merge后的预聚合结果转换成可序列化对象输出
+
+c.FINAL
+会执行merge() and terminate()方法。
+相当于reduce阶段，merge的输入是key+List<Value>，输出也是key+List<Value>。
+即: merge +  terminate 将merge后的预聚合结果转换成可序列化对象输出。
+
+d.COMPLETE
+会执行iterate() and terminate()方法。
+即map数据抽取 + iterate 数据本地预聚合,然后不需要reduce，直接将聚合结果转换成最终可序列化的结果输出。
+
+3.mode的模式组合
+在执行map-redece的时候，会设置map端执行什么，reduce执行什么， 他们毕竟是不同的class。
+a.无reduce情况，map端设置COMPLETE即可。
+init() --> map() --> iterate() --> terminate()
+即map数据抽取 + iterate 数据本地预聚合,然后不需要reduce，直接将聚合结果转换成最终可序列化的结果输出。
+
+b.有reduce，仅仅map+reduce方案
+map端设置PARTIAL1，reduce端设置为FINAL,
+init() --> map() --> iterate() --> terminatePartial() | init() --> merge() --> terminate()
+即抽取数据 --> 预聚合 --> 序列化输出 --> | shuffle --> reduce端merge --> 序列化输出
+
+c.有reduce，map端有combie操作，即map + combie + reduce方案
+map端设置PARTIAL1,PARTIAL2，reduce端设置为FINAL,
+init() --> map() --> iterate() --> terminatePartial() | init() --> merge() --> terminatePartial() | init() --> merge() --> terminate()
+即抽取数据 --> 预聚合 --> 序列化输出 --> | 本地merge --> 序列化输出 | shuffle --> reduce端merge --> 序列化输出
+    
+注：每个阶段都会执行init()初始化操作。
+  
+四、总结：
+1.init 
+map、combine、reduce都会被各执行一次。
+2.iterate
+map上执行一次。
+3.terminatePartial 
+map端执行1次，或者2次。2次是在有combie时会被调用第二次。
+4.merge
+map端在combine时，会被调用一次。
+reduce端肯定会被调用1次。
+5.terminate 
+在无reduce场景时，map端会被调用一次。
+在有reduce场景时，reduce端会被调用一次。
+
+即map端可能调用的函数：init、iterate、merge、terminatePartial、terminate
+reduce端可能被调用的函数：init、merge、terminate
+
+五、回过头再来看看框架内的模版方法
+1.基于结论：
+map端可能调用的函数：init、iterate、merge、terminatePartial、terminate
+reduce端可能被调用的函数：init、merge、terminate
+
+mode:PARTIAL1、PARTIAL2、FINAL、COMPLETE
+
+每一种模式都是要按照 aggregate + evaluate顺序去执行。
+
+
+2.public void aggregate(AggregationBuffer agg, Object[] parameters) 
+aggregate主要用于参与聚合计算：
+而map阶段中PARTIAL1、COMPLETE都是用iterate方法参与聚合。
+map的combine阶段，使用merge方法参与集合。
+reduce阶段，使用merge方法参与聚合。
+  public void aggregate(AggregationBuffer agg, Object[] parameters) throws HiveException {
+    if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
+      iterate(agg, parameters);
+    } else {
+      assert (parameters.length == 1);
+      merge(agg, parameters[0]);
+    }
+  }
+
+3.Object evaluate(AggregationBuffer agg)
+用于如何序列化聚合结果，将agg转换成可序列化的对象，比如set聚合函数转换成list进行序列化传输。
+map阶段中PARTIAL1、PARTIAL2 使用terminatePartial输出。
+reduce阶段使用terminate输出。
+COMPLETE模式，使用terminate输出。
+  public Object evaluate(AggregationBuffer agg) throws HiveException {
+    if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
+      return terminatePartial(agg);//map阶段的combine,与最终的结果返回值是不一样的，所以需要两个不同的terminate函数
+    } else {
+      return terminate(agg);
+    }
+  }

@@ -1,0 +1,86 @@
+一、背景
+不同用户，看到的数据是不一样的。即行级别用户鉴权。
+
+二、设计
+1.数据本身赋予权限，每一个用户只能查看自己的组织结构的数据。
+即每一个用户对应的组织关系是一层一层递归后的结果。
+这样好比数据表复制多份要更合理，查询性能更好。
+
+比如 用户在部门A，部门A的链路如下:
+部门A -->  部门B --> 部门C ---> 部门D
+结果，uid产生4条数据。即用户拥有子子孙孙所有的部门权限。
+
+2.下拉列表，使用级联筛选器，可以根据查询结果的字段，进行where过滤。
+a.使用sql获取级联的每一个信息，比如级联省市区，则 select 省,市,区 from city group by 省,市,区。
+b.设置筛选器，可以获取3级，每一级获取哪个字段，以及每一个筛选器与字段的绑定关系。
+c.设置筛选器与数据源的绑定关系。
+
+结论
+select *
+from biao
+where 省 in (第一个是筛选器结果) and 市 in (第二个筛选器结果) and 区 in (第三个筛选器结果)
+
+注意:
+筛选器一定默认要选择全部，因为sql生成是in ，所以当全部的时候，其实就是把级联数据源中，所以匹配的信息都放到in里。
+
+
+3.配置维度列，比如设置 字段1、字段2是维度列。相当于进行group by操作
+
+结论:
+经过1和2，可以对用户数据本身鉴权，鉴权的同时增加了where条件。
+配合3，相当于在1和2的结果里，group by 维度字段。
+
+三、实现的功能
+1.数据鉴权，用户只能看到自己的结果。
+2.可以用筛选器，筛选目标的结果。即自定义的缩小看数据结果范围。
+3.可以对最终结果，重新分组看数据，比如想看某几个大区下，每一个城市的结果。
+则用筛选器选中几个大区，同时使用城市字段进行group by即可。
+比如 如果选择若干个城市，不选择维度，则相当于将选择的所有城市的结果，汇总成1条数据。
+
+
+四、数据库鉴权
+select 
+u.uid,
+o.parent_org_id,
+o.org_id
+from 
+(
+        ### 原则 父节点的父节点，继承子节点
+        ### 任意组织节点，拥有下面所有组织节点映射关系,因此拥有所有下面组织节点权限
+        select b.parent_org_id,a.org_id
+        from
+        (
+            ### 叶子节点先打平，获取所有叶子节点的父节点的映射关系
+            select parent_org_id,
+            from 表1
+            LATERAL VIEW explode(split(path,'-')) d as parent_org_id
+        ) a
+        join
+        (
+            ### 父子关系
+            select id org_id,parent_id parent_org_id
+            from 表2
+        ) b on a.parent_org_id = b.org_id
+    union all
+        ### 包含叶子节点与叶子节点的映射
+        select parent_org_id,id org_id
+        from 表1
+        LATERAL VIEW explode(split(path,'-')) d as parent_org_id
+) o
+### 绑定在parent_org_id节点上的人，拥有下游所有节点的权限
+join
+(
+    ### 配置的业务线同事，即每一个uid对应的组织节点
+    select uid,org_id
+    from 表3
+union all
+    ### 配置的白名单同事
+    select uid,org_id
+	from 表4
+) u on o.parent_org_id = u.org_id
+group by 1,2,3
+;
+
+
+
+

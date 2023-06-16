@@ -1,0 +1,11 @@
+一、周号与月号
+周号
+cast(floor((datediff('yyyy-MM-dd','1970-01-01')-32)/7) as int) as wk,
+
+
+### 月号
+year('yyyy-MM-dd')*12 + month('yyyy-MM-dd') as mo,
+substr(dt, 0, 6) mo_name
+
+二、查询整月数据，以及回刷都通用
+dt >= '月初' and dt <= '月末' and dt <= '当天'

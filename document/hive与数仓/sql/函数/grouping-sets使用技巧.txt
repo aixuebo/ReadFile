@@ -1,0 +1,152 @@
+一、总结
+1.cube的排列组合
+com.maming.common.cube.CubeGenerator
+
+一、基础知识。
+1.grouping sets的字段，在查询的时候要有-1(全部)的搜索框,因此在最外层要做coalesce(id,-1) id处理；
+同时要确保所有的group by参与的字段，必须不能为null。因此要设置默认值 coalesce(batch.batch_id,-999) coalesce(batch.batch_name,'未知')
+即union all里面的内容，维度不允许是null，要用-999未知代替；外层select 要处理null null的维度组合，表示全部，使用-1(全部代替)
+2.注意,容易出bug:
+a.如果最终外层的select中，包含去重与不去重的指标，比如count(distinct(id))、与sum(value)，如果其来自不同的union all子查询表，则不能先union all，再grouping sets，这样会存在问题；---详细参见下面的具体答疑环节解答。
+b.解决方法
+即在每一个union all子查询中，都要单独使用grouping sets处理好。即先grouping sets，在union all。
+
+3.grouping sets ((),(city1),(act_type),(city1,act_type))
+分别表示 没有group by,直接求聚合函数；group by city1；group by act_type;group by city1,act_type。
+所以根据需要的不同场景，选择好要cube的集合，这个操作可以减少cube的数据量，根据业务看分组的需求,来进行生产cube。
+
+4.最外层group by 维度,其他指标进行sum处理，因为其他指标分别在union all子查询中已经有结果了，注意union all的子查询维度要与最外层的维度相同。
+
+注意:
+a.一旦涉及到去重复指标(distinct指标)，那就需要单独在明细层对用户count(distinct(id))去聚合。不能与全局维度数据一起使用。容易出现bug。 ---- 参见下面的具体答疑环节解答。
+即每一个union all子查询，都要单独使用grouping sets处理好。不能不处理，在union all最外部，统一使用grouping sets处理，此时是有问题的。
+就是基础知识中"注意,容易出bug:"的问题。
+b.最外层的维度要coalesce(batch_id,-1)处理，因为grouping会产生null与null的组合,此时需要有默认值处理。
+
+正确的demo: 先grouping sets，在union all 
+select 
+### 维度
+wk_name,
+coalesce(batch_id,-1) batch_id,
+coalesce(batch_name,'全部') batch_name,
+### 维值
+sum(user_count) as user_count,
+sum(cost) as cost
+wk
+from
+(
+    ###用户数
+    select 
+    a.wk_name,a.wk,
+    coalesce(batch_id,-999) batch_id,
+    coalesce(batch_id,'未知') batch_name,
+    count(distinct(user_id)) user_count,
+    0 cost
+    from 表1
+    where dt = ？
+    group by wk_name,wk,coalesce(batch_id,-999),coalesce(batch_id,'未知') ### 处理默认值
+    grouping sets((wk_name,wk),(wk_name,wk,coalesce(batch_id,-999),coalesce(batch_id,'未知') ))
+union all
+    ###成本
+    select a.wk_name,a.wk,
+    coalesce(batch.batch_id,-999) batch_id,
+    coalesce(batch.batch_id,'未知') batch_name,
+    0 user_count,
+    sum(amt) cost
+    from 表2
+    where dt = ？
+    group by wk_name,wk,coalesce(batch_id,-999),coalesce(batch_id,'未知') ### 处理默认值
+    grouping sets((wk_name,wk),(wk_name,wk,coalesce(batch_id,-999),coalesce(batch_id,'未知') ))
+) a 
+group by wk_name,wk,batch_id,batch_name ### 维度保持与union all子查询相同
+
+二、答疑
+1.问题:grouping sets 涉及到count(distinct())时,为什么要先单独处理完成后，再union all，否则数据是错误的？
+答案:因为去重复比较特殊，他不能直接sum，所以如果不单独处理，则后期处理的就是单纯的sum操作，这样会将重复数据重复计算。
+ 
+总结: 每一个union all内部子查询,都要单独grouping sets处理，不能union all后在整体grouping sets,会有bug。
+
+ 比如错误版本:
+ ### 全部参与用户数、某一个城市参与用户数、某一个城市+活动参与用户数
+select coalesce(city,'-1') city,
+coalesce(act_type,'-1') act_type,
+sum(share_usr_num) as share_usr_num,
+sum(join_usr_num) as join_usr_num
+from
+(
+     select city1 city,act_type
+     count(distinct share_usr_id) as share_usr_num,###城市 + 活动 + 分享活动用户数
+     0 as join_usr_num
+     from table
+     group by city1,act_type
+ union all
+    select city2 city,act_type
+    0 share_usr_num,
+    count(distinct join_usr_id) as join_usr_num ### 另外一个城市,城市 + 活动 + 接受活动用户数
+    from table
+    group by city2,act_type
+ ) a
+ group by city,act_type
+ grouping sets ((),(city),(act_type),(city,act_type))
+ 
+ 此时已经按照城市+活动类型分组了，这样的查询是没有问题的，但一旦按照city去查询，忽略活动时，则会进行sum，即一个城市下，同一个用户，参与了不同活动，应该算1个人，则被算成N个人。
+比如元数据:
+用户1,北京,活动1,用户分享了活动
+用户1,北京,活动2,用户接受了活动
+ 
+经过处理后:
+用户1,北京,活动1,1,0
+用户1,北京,活动2,0,1
+
+查询:如果按照sum处理的话
+如果按照 group by 北京,活动1,则查询结果没有问题，依然是北京,活动1 有一个用户参与
+但如果按照 group by 北京,则查询结果是 北京 有两个用户参与,显然是错误的。
+ 
+修改:内部先grouping sets ，外部依然套用 group by ，注意：要确保每一个union all对应的分组维度都是与外层的group by 相同。
+select coalesce(city,'-1') city,
+coalesce(act_type,'-1') act_type,
+sum(share_usr_num) as share_usr_num,
+sum(join_usr_num) as join_usr_num
+from
+(
+     select city1 city,act_type
+     count(distinct share_usr_id) as share_usr_num,###城市 + 活动 + 分享活动用户数
+     0 as join_usr_num
+     from table
+     group by city1,act_type
+     grouping sets ((),(city1),(act_type),(city1,act_type))
+ union all
+    select city2 city,act_type
+    0 share_usr_num,
+    count(distinct join_usr_id) as join_usr_num ### 另外一个城市,城市 + 活动 + 接受活动用户数
+    from table
+    group by city2,act_type
+    grouping sets ((),(city2),(act_type),(city2,act_type))
+ ) a
+ group by city,act_type
+ 这样的结果是，每一个union all内部都是已经按照grouping sets打散了，因此再sum就不会出问题了。
+
+三、cube
+select
+coalesce(user_id,-1) user_id,
+coalesce(city_id-1) city_id,
+coalesce(type_id,-1) type_id,
+sum(1) ord_num,
+sum(amt) amt
+from ord
+group by user_id,city_id,type_id
+with cube
+;
+
+注意:
+1.因为大概率user_id,city_id,type_id都不会是null 或者说 如果是null是非法的,所以不需要coalesce处理。
+如果聚合的维度是null是合法的场景，则需要子查询，先将数据清洗成非null(即coalesce处理)，否则在group by null参与的情况下，会出现问题。
+2.无论是否子查询使用coalesce处理null的情况，都要在最终外层select中使用coalesce语法。
+因为经过cube和groupingset后，会产生 维度数null null的组合，此时需要默认值填充用于系统展示和筛选。
+3.group by coalesce处理,则grouping sets也要coalesce处理，很麻烦，不好阅读，所以还是建议用子查询方式实现。
+比如
+select
+coalesce(batch.batch_id,-999) batch_id,
+coalesce(batch.batch_id,'未知') batch_name
+group by wk_name,wk,coalesce(batch_id,-999),coalesce(batch_id,'未知') ### 处理默认值
+grouping sets((wk_name,wk),(wk_name,wk,coalesce(batch_id,-999),coalesce(batch_id,'未知') ))

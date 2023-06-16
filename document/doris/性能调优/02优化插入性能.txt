@@ -1,0 +1,19 @@
+一、背景与总结
+1.如何把大量的数据，更短的时间内，导入到doris中，即优化hive2doris的插入性能。
+分析导入过程中字段的几种方式，可以有效进行单独设置，进而可以优化。
+
+当然hive表中如果可以提前预聚合，比明细表导入会更好一些，但多了一个hive步骤，ROI可以自行评估是否划算。
+
+a.指标是数值类型，sum方式聚合，逻辑简单，无需优化。
+b.指标是数值类型，count distinct方式，使用bitmap作为数据结果。此时不需要编码，因为本身就是数值类型。所以要告知doris，减少编码的成本。
+c.指标是string类型，count distinct方式，使用bitmap作为数据结果，需要编码，并且可能存在null的情况，因此要加一个参数，用于如果是null则不参与编码，即编码的sql where 字段 is not null group by 字段。
+减少编码数据的数量 以及倾斜程度。
+d.既然bitmap类型的数据需要字典，而字典编码是非常耗时的操作，那么字段能复用就更好了，比如同样DAU，首页访问DAU，是否可以复用DAU的字段编码，从而减少一次编码。
+e.--build_independent_dict 是否独立每一个分区一个编码。
+
+二、demo
+--build_independent_dict 
+--disable_dict_columns 数值的bitmap类型字段，忽略编码
+--skip_null_value_columns 字符串的bitmap类型字段，可能存在null导致的数据倾斜问题，进行配置处理。
+--dict_reuse 字段重复使用同一个字典编码
+--spark_conf "spark.executor.memory=10G,spark.executor.cores=1,spark.yarn.executor.memoryOverhead=10G,spark.memory.fraction=0.7" 配置运行参数。

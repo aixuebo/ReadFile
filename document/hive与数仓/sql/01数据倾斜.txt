@@ -1,3 +1,8 @@
+总结
+on if(id=-999,cast(-99*abs(hash(concat(union_id,session_id))%10000) as bigint),t.id) = b.id
+on if(union_id is null or union_id='',concat('-9',abs(hash(session_id)%10000)),union_id)=t1.union_id
+
+
 场景
 流量表中user和uuid大量无效的,会发生数据倾斜。
 同时需要关联user和uuid的维度表，比如判断是否是大学生，判断uuid是否是新用户。
@@ -35,6 +40,7 @@ on case when t1.user_id is null
 
 5.解决数据分布,避免小文件过多,以下sql只会产生500个小文件。
 distribute by abs(hash(id) % 500)
+distribute by abs(hash(concat(id,'_',id,'_',id,'_',id,'_',rand(300))) % 300)
 
 6.如何排查是否数据倾斜。
 a.查看耗时长的job。

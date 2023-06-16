@@ -1,0 +1,167 @@
+一、背景与总结
+1.维度指标矩阵
+维度:城市、商家类型、用户新老客
+指标:基期交易用户数(等于基期留存用户数)、每一期留存用户数、每一期留存用户交易额、每一期留存用户订单量
+
+2.难点
+2.1 留存定义：留存不是指代用户是否留存，而是跟随维度变化而变化。
+比如:
+1日 用户A 北京下单
+2日 用户A 天津下单
+
+如果用户不选择城市，则说明用户下2单，所以是留存用户。
+如果用户选择城市为北京，则用户不是留存用户，因为北京没有下第二单。
+
+2.2 不是所有的维度都计算是否留存，比如用户属性"新老客"没办法计算留存。
+原因是 用户A 在 北京 下单，此时是新客身份，他在任意一个城市下第2单，都肯定是老客，因此此时无论如何都不会有留存情况。
+
+所以又加深了难度，即要考虑部分维度要参与留存定义，部分维度不参与留存定义。
+
+
+二、方案拆解
+1.因为用户输出的是看板，而看板只支持简单的配置，即看板的筛选器虽然是维度，但只能用于where条件。
+比如
+select * from biao where 城市 = ? and 其他维度。
+
+而复杂的sql只能写sql，不能利用看板动态创建。
+比如
+select *
+from 
+(
+	select xx,count(*) c
+	from biao
+	where 城市 = ? 
+	group by xxx
+) a 
+where c > 10
+
+2.因此支持该需求，只能使用cube的方式支持，考虑用户在不同维度组合下，统计结果
+创建表1
+CREATE TABLE IF NOT EXISTS biao1
+(
+  user_id bigint comment '',
+  city_id bigint comment '城市',
+  poi_type int comment '商家业务类型',
+  ord_num bigint comment '订单量-sum',
+  amt double comment '交易额-sum'
+) COMMENT '交易cube_周粒度'
+PARTITIONED BY (wk int COMMENT '周号',
+wk_name string COMMENT '周号名称 比如20091228~20100103',
+wk_dt string COMMENT '周一日期dt')
+STORED AS ORC;
+
+注意事项:
+a.因为是用户粒度的，所以不需要cube,user_id一定要存在，可以减少cube的数据量。
+b.参与cube的计算只有需要计算留存的维度，比如用户类型新老客是用户属性，不需要参与计算。
+
+INSERT OVERWRITE TABLE biao1 PARTITION (wk,wk_name,wk_dt)
+select
+coalesce(user_id,-1) user_id,
+coalesce(city_id,-1) city_id,
+coalesce(poi_type,-1) poi_type,
+sum(1) ord_num,
+sum(ord.total) amt,
+cast(floor((datediff(datekey2date('周开始日期'),'1970-01-01')-32)/7) as int) wk,
+'周开始日期~周结束日期' wk_name,
+'周开始日期' wk_dt
+from ord
+where dt between '周开始' and '周结束'
+group by user_id,city_id,poi_type
+grouping sets 
+(
+(user_id),
+(user_id,city_id),
+(user_id,poi_type),
+(user_id,city_id,poi_type)
+)
+;
+
+3.基于biao1，如何设置留存标识。
+
+创建表biao2
+CREATE TABLE IF NOT EXISTS biao2
+(
+  user_id bigint comment '',
+  city_id bigint comment '',
+  poi_type int comment '',
+  retain_user_id bigint comment '是否留存用户，即留存用户ID-distinct',
+  retain_ord_num bigint comment '留存用户订单量-sum',
+  retain_amt double comment '留存用户交易额-sum'
+) COMMENT '留存信息表cube_周粒度'
+PARTITIONED BY (wk int COMMENT 'base周号',
+wk_name string COMMENT 'base周号名称 比如20091228~20100103',
+wk_dt string COMMENT '周一日期dt',
+retain_period int comment '留存周期,0-12')
+STORED AS ORC;
+
+
+select base.user_id,### base数据
+base.city_id,### base数据
+base.poi_type,### base数据
+t.user_id retain_user_id,### base数据是否在当周有留存 
+COALESCE(t.ord_num,0) retain_ord_num,### base数据是否在当周有留存 ，如果留存，则输出留存的订单量
+COALESCE(t.amt,0) retain_amt,### base数据是否在当周有留存 ，如果留存，则输出留存的实付金额
+base.wk,### base数据
+base.wk_name,### base数据
+base.wk_dt,### base数据
+d.wk - base.wk retain_period ### base数据与当前周做减法，获取周期
+from biao1 base
+join
+(
+    select wk
+    from 查询周号表，获取今天的周号
+    where wk = cast(floor((datediff(datekey2date('${now.datekey}'),'1970-01-01')-32)/7) as int)
+) d on 1 = 1
+left join biao1 t
+on base.user_id = t.user_id
+and base.city_id = t.city_id
+and base.poi_type = t.poi_type
+and t.wk_dt = '今天'
+where base.wk_dt between '12周前' and '当天'
+;
+
+解读:
+a.cube计算是否留存，因此只有所有维度都相同的情况下，还存在，才被定义为留存。
+b.为了减少数据计算量，我们知道前12周是一个稳定的值，我们只需要计算前12周每周的用户，在今天这周依然留存的情况，因此会新创建retain_period留存周期。
+c.首先查询base表，获取12周的数据。
+d.由于12周的数据，在未来不是每一个用户都留存，所以为了确保每一个retain_period分区内都要保留基期所有的用户信息，需要知道当前周的周号，当用户当前周没有留存时，直接使用该值做减法。
+
+4.view视图补充其他信息
+比如需要补充base数据的城市id对应的城市名称、需要补充base数据的user_id在base那周的用户新老客状态。
+
+5.数据应用
+注意:
+a.参与cube的字段，查询时候一定要带上，默认值要添加-1.
+b.不参与cube的字段，如果不需要该维度，一定不要把该维度放到where里 比如 user_type = -1,是错误的，直接不用该字段即可
+
+select wk,wk_name,### 基期
+retain_period,### 每一个基期对应最多12个周期号
+count(distinct(retain_user_id)),### 留存用户数，如果是retain_period=0期，则留存用户数就等于交易用户数
+sum(retain_ord_num),### 留存订单量
+sum(retain_amt) ### 留存实付交易额
+from biao2
+where wk between 周开始 and 周结束
+and city_id = 450400
+and poi_type = -1 ### 参与cube,而筛选器不想看这个维度，因此要添加默认值-1
+group by wk,wk_name,retain_period
+order by wk,retain_period
+
+6.数据展示
+特殊的展示形式，先按wk分组，相同wk的数据，按照retain_period排序，一次排列。
+即第0周、第一周、第二周。。。
+每一个周里面包含 留存用户数、留存订单量、留存实付交易额。
+
+三、细节总结
+1.最终cube其实是用户id+维度的cube。而不是纯维度的cube。
+原因是为了扩展性更高，相当于用户明细表，肯定明细表查询，扩展性更高。
+2.cube一定是用户id粒度的。
+因为cube的结果是用户+维度组合下的各种情况，然后对应的用户订单量、支付交易额的汇总。
+此时cube结果本身是可以作为明细表应用的。
+
+但判断留存周期，依然是用户id相同的情况下，各个组合条件再相同，再判断。
+
+虽然目标是看城市下，留存用户数、交易额，但如果cube本身就是非用户粒度的，而是城市粒度的，有以下问题:
+a.没有办法标注用户是否是留存用户。
+b.cube必须是用户明细，主要是用户是否留存、留存交易额、留存订单量也是用户粒度的。
+两个用户粒度做join，没有问题。如果是城市粒度的，则看sum数据的时候，多个用户可能在同一个维度筛选后，就会出现重复，就有问题了。
+

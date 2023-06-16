@@ -1,0 +1,82 @@
+一、背景与总结
+1.常用 工厂模式 + 策略模式，省略if else 判断
+
+二、定义
+//定义一个策略接口
+public interface Strategy {
+    void strategyImplementation();
+}
+
+//具体的策略实现(可以定义多个具体的策略实现)
+public class StrategyA implements Strategy{
+    @Override
+    public void strategyImplementation() {
+        System.out.println("正在执行策略A");
+    }
+}
+
+//上下文就是一个模板方法，是一个稳定不变的对象，即上下文会获取一个固定的策略，调用策略的方法即可
+//至于怎么获取到一个稳定的策略，那是客户端通过工厂模式，获取到一个具体的策略，然后set到Context即可
+public class Context {
+    private Strategy strategy = null;
+
+    public Context(Strategy strategy) {
+        this.strategy = strategy;
+    }
+  
+    public void doStrategy() {
+        strategy.strategyImplementation();
+    }
+}
+
+
+二、举例
+用户可以有不同的会员等级，不同的会员等级享受不同的优惠策略。
+1.伪代码
+if(user_type = 1) {
+	复杂的业务逻辑实现
+} else if (user_type = 2){
+	复杂的业务逻辑实现
+}
+缺点是所有的业务逻辑都耦合在一起，如果任意一个策略要变化，都要改这部分代码，会有风险。
+
+2.优化
+public interface Strategy {
+    void computer();//子类具体实现策略
+    
+main方法
+if(user_type = 1) {
+	new Strategy1()
+} else if (user_type = 2){
+	new Strategy2()
+}
+缺点是 还是有if else。但代码确实不用耦合在一起了。
+
+3.进一步优化，工厂模式 + 策略模式，省略if else
+
+public interface Strategy {
+    void computer();//子类具体实现策略
+    int type();//标注匹配哪个用户类型时，使用该策略
+    
+public class StrategyFactory {
+	public Map<Integer,Strategy> map = null;
+	public StrategyFactory instance = new StrategyFactory();//单例模式
+	private StrategyFactory(){
+		读取配置文件，所有的策略以及对应的用户类型映射关系，初始化map。
+	}
+	public Strategy getStrategy(Integer type){
+		return map.get(type)
+)
+
+main 客户端调用,避免了if else逻辑
+Strategy s = StrategyFactory.instance.getStrategy(type).computer().
+
+4.策略的Context的意义。
+客户端可以明确到底用哪个策略对象，但使用策略的时候，可能使用前、使用后都会有一些复杂的其他操作，如果都让客户端来做，客户端太重了，所以不需要客户端来做，交给策略的Context来做。
+即策略的Context就是一个模板方法，当获取一个具体的策略后，就可以执行一些列操作了，与客户端解耦，与其他策略解耦。
+
+最终使用策略模式的Context，即客户端不需要关注更多内容，只需要将策略传递给策略Context即可。
+Context context = new Context();
+context.setStrategy(s)
+context.doStrategy();//执行该策略。
+

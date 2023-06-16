@@ -1,0 +1,14 @@
+一、背景与总结
+1.rollup相当于一张小点的表，按照维度group by，指标按照聚合方式聚合。
+因为可能需要原表的一个子集，比如只有某一些维度+某一些指标经常被查询，所以有一个小表。因此rollup需要有指标作为参数被添加。
+
+2.参考信息
+doris -- 性能调优 -- rollup的设置原则。
+
+二、命令
+ALTER TABLE 库.表 ADD ROLLUP name(`维度字段`, `维度字段`, `指标1`, `指标2`)
+
+三、sql加hint ，加了之后查询才能走rollup
+FROM table /*+ PREAGGOPEN */
+
+

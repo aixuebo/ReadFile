@@ -1,0 +1,5 @@
+1.如何做内存join等操作。
+https://github.com/aixuebo/calcite_my.git
+分支  origin/branch-1.0_myself'
+
+inq4j/src/main/java/org/apache/calcite/linq4j/tree/

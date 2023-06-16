@@ -62,3 +62,7 @@ from (
 
 十一、设置让presto使用hive的窗口函数语法
 set compatible.grammar=sparksql;
+
+十二、增加FetchWaitTime时间，当shuffle数据量大的时候，会超时，所以需要修改该参数
+SET spark.shuffle.maxFetchWaitTime=7200s;
+set spark.shuffle.manager=rss;

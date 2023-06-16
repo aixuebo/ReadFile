@@ -1,0 +1,72 @@
+
+一、背景与总结
+1.背景
+数据库存储的是每一个营业时间段区间形式，比如 [00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59] 
+而有一个配置表定义了几个时间段为高峰时间段，比如 11:00-13:00为午高峰。
+问题是营业时间段会横跨多个高峰时间段的定义，因此如何计算每一个高峰时间段营业时长呢？
+
+2.已知输入
+a.配置表，每一个时间段id、时间段开始时间戳、结束时间戳
+也可以追加额外字段，时间段名称、开始时间戳的字符串形式、结束时间戳的字符串形式。
+b.商家营业时间段事实数据
+[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59] 
+
+二、数据处理，将[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59]  转换成多条数据，并且每一条数据为时间戳形式的开始、结束时间
+参考 replace和regexp_replace和lateral与split.txt
+
+最终输出: ---- 输出表A
+商家id、营业时段字符串形式、开始时间戳、结束时间戳。
+111、07:29:13-11:17:53、1672097353、1672111073
+
+2.注意事项:
+为了防止日期有脏数据，比如理论上格式是01:47:20，但真实是01:47。
+因此使用rpad(time,8,':00') 补位，即time保留8位，如果不足,则使用:00补位。
+
+
+三、商家时段营业时长加工逻辑
+注意:
+1.因为要转换成时间戳，然后才能计算好时长，因此dt随意设置固定值即可。
+2.优化:预处理阶段，就把每一条的时间格式转换成时间戳，没必要再里面这么乱遭的重复unix_timestamp，不好阅读
+unix_timestamp(concat(dt,' ',split(open_str, '-')[0]),'yyyyMMdd HH:mm:ss') t1_stamp,###开始在售时间
+unix_timestamp(concat(dt,' ',split(open_str, '-')[1]),'yyyyMMdd HH:mm:ss') t2_stamp,###结束在售时间
+unix_timestamp(concat(dt,' 10:30:00'),'yyyyMMdd HH:mm:ss') as start_stamp,-- 定义午高峰开始在售时间
+unix_timestamp(concat(dt,' 13:29:59'),'yyyyMMdd HH:mm:ss') as end_stamp-- 定义午高峰结束在售时间
+其他高峰时段
+
+select t1.商家ID,
+t2.营业时段,
+sum(
+    case 
+    when t2.start_time > t1.end_time then 0 
+    when t2.end_time < t1.start_time then 0
+    when t2.start_time >= t1.start_time and t1.end_time >= t2.end_time 
+        then unix_timestamp(concat('2017-01-01 ',t2.end_time)) - unix_timestamp(concat('2017-01-01 ',t2.start_time))
+    when t2.start_time >= t1.start_time and t1.end_time <= t2.end_time 
+        then unix_timestamp(concat('2017-01-01 ',t1.end_time)) - unix_timestamp(concat('2017-01-01 ',t2.start_time))
+    when t2.start_time <= t1.start_time and t1.end_time <= t2.end_time 
+        then unix_timestamp(concat('2017-01-01 ',t1.end_time)) - unix_timestamp(concat('2017-01-01 ',t1.start_time))
+    when t2.start_time <= t1.start_time and t1.end_time >= t2.end_time 
+        then unix_timestamp(concat('2017-01-01 ',t2.end_time)) - unix_timestamp(concat('2017-01-01 ',t1.start_time))
+    else 0
+    end
+) 高峰时长         
+from 	
+(
+  ### 一个商家对应多行数据，因为存在多条营业时间段
+  select 商家id,营业时间段开始时间戳start_time,营业时间段结束时间戳end_time
+  from A
+) t1
+join 
+(
+  ### 营业时段配置表
+  select 时段ID,start_time时间戳、end_time时间戳
+) t2
+on 1 = 1
+group by t1.商家id,t2.时段ID
+;
+
+四、最终schema
+CREATE TABLE IF NOT EXISTS xxx
+商家ID,
+时段id,
+时段的营业时长

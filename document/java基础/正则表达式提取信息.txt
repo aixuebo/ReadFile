@@ -95,7 +95,7 @@ b.是否消耗字符
 因为4和5可能很多引擎不支持,所以要用2和3代替他们。
 
 四、常用正则表达式
-for(String str:set) {
+1.for(String str:set) {
     		if(str.matches("^[a-zA-Z]+$")) {//纯英文
     			a1 = a1 + 1;
     		}else if(str.matches("^\\d{1,}$")) {//纯数字
@@ -115,3 +115,6 @@ for(String str:set) {
     			a8 = a8 + 1;
     		}
     	}
+2.按照空白去拆分,多个空格会当成一个分割。
+String[] attrs = line.trim().split("\\s+");
+    	

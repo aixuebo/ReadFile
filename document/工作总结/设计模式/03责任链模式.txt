@@ -1,0 +1,284 @@
+一、背景与总结
+1.背景
+客户端请求一个功能，由于逻辑复杂，需要大量的if else操作，代码不好维护。
+改进方案:
+a.将请求的发送者与处理者解耦，请求者只需要请求，不要关注处理者如何处理的；处理者相当于设置很多小模块，每一个模块处理自己的内容，处理完后，传递给下游，直到走完整个链条；
+b.将逻辑拆分成子模块，将模块串成链。请求者带着参数，访问每一个模块，直到流程走完。
+
+2.优缺点
+a.优点
+降低耦合度：客户端不需要知道请求由哪个处理者处理，而处理者也不需要知道处理者之间的传递关系，由系统灵活的组织和分配。
+良好的扩展性：增加处理者的实现很简单，无须修改原有系统的代码，只需新增处理请求业务逻辑的方法，并在客户端重新建链即可，符合“开闭原则”。
+请求处理对象仅需维持一个指向其后继者的引用，而不需要维持它对所有的候选处理者的引用，可简化对象的相互连接。
+在给对象分派职责时，职责链可以给我们更多的灵活性，可以通过在运行时对该链进行动态的增加或修改来增加或改变处理一个请求的职责。
+
+b.缺点
+由于一个请求没有明确的接收者，那么就不能保证它一定会被处理，该请求可能一直到链的末端都得不到处理；一个请求也可能因职责链没有被正确配置而得不到处理。
+对于比较长的职责链，请求的处理可能涉及到多个处理对象，系统性能将受到一定影响，而且在进行代码调试时不太方便。
+如果建链不当，可能会造成循环调用，将导致系统陷入死循环。
+
+二、case
+1.总结
+main --> 将chain链串起来。 new Logger().setNext(new Logger()) --> 串起来后依然是Logger。相当于暴露个入口
+2.每一个业务逻辑单独处理，
+3.demo
+abstract class Logger 
+{
+    //产生责任链
+    protected Logger next;//下一个该是谁
+    public Logger setNext( Logger l)
+    {
+        next = l;
+        return this;
+    }
+
+    public final void message(参数)
+    {
+        if (判断参数是否符合条件)  //符合条件则执行逻辑
+        {
+            writeMessage(参数传递进去);//处理具体业务逻辑
+            if ( next != null )  next.message( msg, priority ); //下一个责任链调用
+        }
+    }
+    protected abstract void writeMessage( String msg );
+}
+
+三个子类,分别处理不同的逻辑
+class StdoutLogger extends Logger 
+class EmailLogger extends Logger 
+class StderrLogger extends Logger 
+
+
+public class ChainOfResponsibilityExample
+{
+    public static void main( String[] args )
+    {
+        // 创建责任链
+        Logger l = new StdoutLogger( Logger.DEBUG).setNext(
+                            new EmailLogger( Logger.NOTICE ).setNext(
+                            new StderrLogger( Logger.ERR ) ) );
+        l.message( "Entering function y.", Logger.DEBUG );
+    }
+}
+
+三、case --- Servlet中的过滤器(Filter)和过滤器链(FilterChain)
+1.请求者访问系统，需要各种校验，每一种校验逻辑可能完全不一样，因此持有请求者的参数，每一个校验都是独立的Filter，有任意一个Filter失败，都可以直接返回给用户。
+而且每一个Filter自己处理自己的逻辑，处理完成后交给下一个Filter。
+2.我们可以发现，Filter与Filter之间是互相解耦的，我们可以很轻量级的加入一个新的Filter到FilterChain当中。
+3.FilterChain = List<Filter>,FilterChain会知道Filter的顺序，然后依次执行下一个Filter
+当Filter执行完成后，调用chain.doFilter(request, response)，可以让下一个Filter工作了。
+
+public interface FilterChain {
+
+	List<Filter> files 的迭代器;
+    //按照顺序执行每一次Filter
+    public void doFilter(ServletRequest request, ServletResponse response)  throws IOException, ServletException{
+    	files迭代器的nextFile.doFilter()
+    }
+}
+4.Filter 具体的执行代码逻辑
+public interface Filter {
+    public void init(FilterConfig filterConfig) throws ServletException;//初始化方法
+    public void doFilter(ServletRequest request, ServletResponse response,FilterChain chain) throws IOException, ServletException; //处理逻辑，其中chain只是用于在最后处理完成后,调研chain.doFilter,启动下一个filter。
+    public void destroy();//生命周期销毁该filter
+}
+
+四、复杂业务场景
+1.运营上传活动券数据，校验活动券是否正确。 ---- 用户上传的活动券要匹配商品模式、门店类型，等等，这些都需要匹配校验。
+根据上述业务场景，在一次请求中，我们需要做多种校验逻辑：
+a.数据鉴权校验、过滤用户无权限的数据
+b.若用户选择商品，需对商品类型进行校验。(是否匹配用户选择的模式特点)
+c.若用户选择门店，需对门店类型进行校验；（电商的门店类型也有很多，比如线上门店、旗舰店、线下门店等等，需要判断门店是否能够参与优惠活动）
+d.对于不同投放渠道也有不同渠道的校验规则
+e.其他校验规则……
+
+我们需要完整的走完所有校验逻辑，而不能因为中途的一个逻辑校验不通过而阻断校验。
+因为我们需要返回给用户一个完整的数据校验结果；
+举个例子，如果用户上传的商品当中，既存在无权限的商品，又存在不符合商品类型的数据，那么我们需要走完所有校验逻辑，一并给用户返回所有的报错，而不是只返回无权限的商品；
+
+2.使用责任链模式
+定义多个Filter对象，每个对象实现自己的业务校验逻辑；
+同时主干代码上仅需要初始化一个FilterChain，并调用doFilter方法执行链上每一个filter即可。
+
+3.public class CouponFilterChain implements FilterChain { //责任链
+
+	private final List<? extends AbstractOrderFilter> filters;//所有的Filter集合，并且已经排序好,只需要按顺序执行即可
+	private static ThreadLocal<Integer> posLocal = ThreadLocal.withInitial(() -> 0); //当前执行到第几个Filter了
+	public static final ThreadLocal<List<CheckResult>> checkResult = new ThreadLocal<>(); //责任链的校验结果--即需要给用户反馈的校验结果
+	
+	//构造函数传递Filter集合，并且每一个Filter是可以比较的,因此可以排序，即Filter本身是有顺序的，而不是依赖添加的顺序，这样扩展性会更好。
+	public CouponFilterChain(List<? extends AbstractOrderFilter> filters) {
+        filters.sort(AbstractOrderFilter::compareTo);
+        this.filters = filters;
+    }
+
+	//不断调用下一个Filter
+    public void doFilter(FilterRequestDTO filterRequestDTO) {
+        Integer pos = posLocal.get(); //获取当前的Filter
+        if (pos < size) {
+            pos++;
+            posLocal.set(pos);
+            Filter filter = this.filters.get(pos - 1); //获取下一个Filter
+            filter.doFilter(filterRequestDTO, this);//调用下一个Filter，this用于存储Filter结果 以及 调研下一个责任链。
+        }
+    }
+    
+    //对外接口，相当于责任链的入口
+    public BaseResult<CheckResult> process(FilterRequestDTO filterRequestDTO) {
+        this.doFilter(filterRequestDTO);//责任链调用起来
+        return BaseResult.makeSuccess(checkResult.get(););//返回责任链的结果集
+    }
+}
+
+4.main函数
+public class FilterChainManager {
+    private CouponFilterChain couponFilterChain;
+    
+    //初始化责任链
+    private void init() {
+        //总链
+        List<AbstractOrderFilter> filters = new ArrayList<>();
+        //按需添加链上的filter……
+        filters.add(ItemFilter.create(100, ItemManager));
+        this.couponFilterChain = new CouponFilterChain(filters);
+    }
+
+   //对外提供接口，该接口调用责任链，返回结果
+   public BaseResult<CheckResult> process(FilterRequestDTO filterRequestDTO) {
+        BaseResult<CheckResult> result = null;
+        try {
+            //责任链模式，校验每一个参数的合法性并输出错误原因
+            result = couponFilterChain.process(filterRequestDTO);
+            return result
+        } catch (Exception e) {
+            return TMPResult.failOf("system error", e.getMessage());
+        } finally {
+            //这里非常重要 必须重置
+            if (couponFilterChain != null) {
+                couponFilterChain.reset();
+            }
+        }
+    }
+    
+5.Filer的父类，要有排序能力
+public abstract class AbstractOrderFilter implements Filter, Comparable<AbstractOrderFilter> {
+    protected Integer order; //序号 ，子类filter要定义自己的序号
+    public int compareTo(AbstractOrderFilter o) {
+        return getOrder().compareTo(o.getOrder());
+    }
+    //根据Filter自己使用的业务场景，自行定义 ，即判断该filer要不要执行逻辑
+    public boolean accept(FilterRequestDTO filterRequestDTO) {
+        return true;
+    }
+    @Override 具体执行Filter代码逻辑
+    public void doFilter(FilterRequestDTO filterRequestDTO, FilterChain filterChain) {
+    }
+}
+//具体的子Filter
+public class ItemPermissionFilter extends AbstractOrderFilter {
+    private ItemPermissionFilter(Integer order) {
+        super.order = order; //序号
+    }
+    
+    //具体执行逻辑
+    public void doFilter(FilterRequestDTO filterRequestDTO, FilterChain filterChain) {
+        if (accept(filterRequestDTO)) { //判断要不要filter执行该请求
+
+        }
+        filterChain.doFilter(filterRequestDTO);//继续走责任链的下一个filter
+    }
+
+    //对外暴露的create方法 --- 即如何创建该filter
+    public static ItemPermissionFilter create(Integer order, ItemCheckManager itemCheckManager) {
+        return new ItemPermissionFilter(order, itemCheckManager);
+    }
+}
+
+五、组合过滤器CompositeFilter + FilterChain 扩展责任链模式
+1.有时候我们的filter当中可能需要加上一些子处理，为了遵守单一职责原则，不适合将这些业务逻辑放在同一个filter中，于是考虑将多个filter合并组合成一个大的Filter; 
+
+/**
+ * 合成的过滤器，改过滤器内部由多个过滤器组合而成
+ */
+public class CompositeFilter extends AbstractOrderFilter {
+    private List<? extends AbstractOrderFilter> filters = new ArrayList();
+
+    public CompositeFilter(Integer order, List<? extends AbstractOrderFilter> filters) {
+        super.order = order;//组合Filter也是要有自己的序号
+        this.filters = filters;//组合Filter内部要按顺序执行的Filer
+    }
+
+    @Override
+    public void doFilter(FilterRequestDTO filterRequestDTO, FilterChain filterChain) {
+        (new InnerFilterChain(filterChain, this.filters)).doFilter(filterRequestDTO);
+    }
+
+    /**
+     * 内部链处理逻辑，优先将合成过滤器的内部过滤器进行处理，然后再传给下一个过滤器
+     */
+    private static class InnerFilterChain implements FilterChain {
+        private final FilterChain originalChain;
+        private final List<? extends AbstractOrderFilter> additionalFilters;
+        private int currentPosition = 0;
+
+        public InnerFilterChain(FilterChain chain, List<? extends AbstractOrderFilter> additionalFilters) {
+            this.originalChain = chain;
+            this.additionalFilters = additionalFilters;
+        }
+
+        @Override
+        public void doFilter(FilterRequestDTO filterRequestDTO) {
+            if (this.currentPosition >= this.additionalFilters.size()) {
+                //如果已经执行完了内部过滤器，则跳到外部继续执行外部下一个节点的过滤器
+                this.originalChain.doFilter(filterRequestDTO);
+            } else {
+                //继续执行内部过滤器
+                this.currentPosition++;
+                AbstractOrderFilter currentFilter = this.additionalFilters.get(this.currentPosition - 1);
+                currentFilter.doFilter(filterRequestDTO, this);
+            }
+
+        }
+    }
+
+    public static CompositeFilter create(Integer order, List<? extends AbstractOrderFilter> filters) {
+        filters.sort(AbstractOrderFilter::compareTo);
+        return new CompositeFilter(order, filters);
+    }
+}
+
+六、case
+这个例子我觉得很贴切。我们在公司有各种原因需要报销费用，首先我们要找我们的上级领导去审批，报销额度如果在领导的权限范围内，那就审批通过，否则领导在找自己的上级去审批，以此类推。
+
+public abstract class Leader {
+    protected Leader nextHandler;//上级领导处理者
+ 
+    public final void handleRequest(int money){ //处理报销金额
+        if(money <=limit()){//自己报销金额内
+            handle(money);//直接报销
+        }else{
+            System.out.println("报账额度不足，提交领导");
+            if(null != nextHandler){
+                nextHandler.handleRequest(money);//上一级领导审批
+            }
+        }
+    }
+    public abstract int limit();//自身能批复的额度权限
+    public abstract void handle(int money);//处理报账行为
+}
+
+七、结算场景case
+结算信息生成
+普通商户结算流程
+KA商户门店结算流程
+常规结算平台结算流程
+同步账户信息流程
+
+八、首页banner广告位，到底给用户展示什么广告。
+1.流程
+用户访问首页 --> 获取用户经纬度、城市、用户画像 --> 基于用户信息，判断是否给该用户使用该广告位投放广告--> 判断用户城市下有哪些广告 --> 广告排序。
+2.其实这个流程，每一个环节都可以独立解耦，都是一层一层筛选的过程，也是符合责任链模式的，每一个环节对自己的责任负责。
+
+
+
+

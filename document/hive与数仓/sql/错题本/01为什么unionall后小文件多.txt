@@ -1,0 +1,14 @@
+一、背景与总结
+
+
+二、产生原因
+有可能sql很简单，没有shuffle操作，所以SET spark.sql.shuffle.partitions=100;失效。
+而每一个union all的结果都是直接落表，所以会小文件居多。
+
+
+三、解决方式
+SET spark.sql.mergeSmallFileSize=50485760;//触发spark合并小文件的阈值(48M)  怀疑这个参数的意思是对结果进行进一步merge合并文件操作。大于48M的会被保留，小于48M的会被合并。
+
+以下两个参数目的还不太清楚，使用的时候要测试一下。
+SET spark.hadoopRDD.targetBytesInPartition=67108864; //小文件合并参数 64M
+SET spark.sql.adaptive.shuffle.targetPostShuffleInputSize=134217728;//128M

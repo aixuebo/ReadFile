@@ -1,0 +1,32 @@
+一、背景与总结
+1.与GenericUDAFEvaluator中的Mode枚举值不同。
+详细优先阅读 udaf-实现原理.txt
+
+二、Mode
+org.apache.hadoop.hive.ql.plan.GroupByDesc
+在org.apache.hadoop.hive.ql.parse.SemanticAnalyzer中会解析，选择合适的Mode去执行。
+
+基础操作：
+1.COMPLETE
+无reduce,只有map。即map -- iterate -- terminate
+2.PARTIAL1 
+map阶段操作，即map -- iterate -- terminatePartial
+3.PARTIAL2 
+map阶段的combine操作，即map -- iterate -- terminatePartial | --- merge -- terminatePartial
+4.FINAL
+reduce阶段操作，即merge -- terminate
+
+特殊操作:
+1.PARTIALS -- 通过识别distinct关键词，动态设置map阶段mode
+用于map阶段操作。
+如果无distinct关键词，则与PARTIAL2一样。即map + combine操作。
+如果有distinct关键词，则不能combine操作，即reduce才能聚合，因此是与PARTIAL1流程一样。
+
+2.HASH
+用于map阶段操作。
+如果无disinct关键词,则使用PARTIAL1流程一样，即不需要combine操作，但是使用hash的方式聚合，不需要sort排序。原因也是每一个key只保持一个值，占用内存小，不需要combine操作。
+
+3.MERGEPARTIAL -- 注意:没感觉这个方式有用，感觉有漏洞呢
+用于reduce阶段操作。
+如果无disinct关键词,则使用FINAL流程一样，即merge -- terminate。
+如果有disinct关键词,则使用COMPLETE流程一样，即map -- iterate -- terminate.注：不用reduce怎么group by?

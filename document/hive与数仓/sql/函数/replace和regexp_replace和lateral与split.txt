@@ -1,0 +1,52 @@
+一、背景与总结
+1.replace 字符串替换，而不是正则的方式替换。
+因为不是正则，好处是bug少，缺点是当删除多个字符的时候，需要嵌套多次，每次删除一个字符。
+replace(replace(字段,'[',''),']','')   比如先删除[，在删除]
+
+2.regexp_replace 基于正则的方式，替换替换。
+a.好处是一次性可以替换很多字符串，但缺点是容易有bug。容易转义字符上需要测试。
+regexp_replace(字段,'\\[|\\]','')  比如一次性删除[和]
+b.presto环境下，该语法测试失败。当前语法只支持spark和hive。
+presto时，需要使用两次regexp_replace，相当于两次replace逻辑相同。
+
+3.split 函数，很奇怪，为什么要用下标1和2，而不是用0和1.
+经过验证，presto下标从1开始计数，hive和spark用0开始计数，所以才导致这样的错误。
+
+二、
+1.背景
+如果字段time_period格式如下:[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59]
+如何将其拆分成4组时间区间，并且清洗掉[]这样的脏数据。
+
+2.方案1 --- 使用replace非正则的方式删除数据
+select 
+time_period,### 原始内容
+time_period_str,###四段
+replace(replace(time_period_str,'[',''),']','') filter_open_str ### 使用两次replace分别过滤[和]
+from biao
+lateral view explode(split(time_period,',')) time_period_str as time_period_str
+
+3.方案2 --- 使用regexp_replace正则的方式删除数据
+select 
+time_period,### 原始内容
+time_period_str,###四段
+replace(replace(time_period_str,'[',''),']','') filter_open_str ### 使用两次replace分别过滤[和]   --- 可以删除了，已经过滤掉了，直接使用time_period_str即可
+from biao
+lateral view explode(split(regexp_replace(time_period,'\\[|\\]',''),',')) time_period_str as time_period_str
+
+4.结果:
+[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59]	[00:00:00-01:47:20	00:00:00-01:47:20
+[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59]	 07:29:13-11:17:53	 07:29:13-11:17:53
+[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59]	 11:50:15-13:41:29	 11:50:15-13:41:29
+[00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59]	 20:32:10-23:59:59]	 20:32:10-23:59:59
+
+3.最终方案 --- 将00:00:00-01:47:20 转换成对应的时间戳，即begin_time和end_time
+select 
+dt,
+filter_open_str,
+unix_timestamp(concat(dt,' ',split(filter_open_str, '-')[0]),'yyyyMMdd HH:mm:ss') begin_time,
+unix_timestamp(concat(dt,' ',split(filter_open_str, '-')[1]),'yyyyMMdd HH:mm:ss') end_time
+from
+(
+	刚刚的查询结果
+) a
+
