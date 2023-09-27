@@ -1,0 +1,49 @@
+一、背景与总结
+1.结论
+a.参与grouppint set的前提是 维度不允许是null，否则会被转换成-1全部，对结果有影响。
+b.用户需要查询什么，则查询什么。要裁剪维度。
+
+2.grouping set 相当于把所有group by的信息整合在一起。
+(dt),
+(dt,type_id),
+(dt,top_city,first_city_id,first_city_name)
+比如以上三个，代表的是仅包含3种group by 的sql查询
+注意:id与name是成对出现的，当然最优的方案是只有id，name是查询的时候通过id反查组装的。对后端有一定要求。
+
+二、遇到的问题
+1.组织结构需要很多层，比如5层，此时如果参与grouping set，则需要组合2^5，外加上其他维度，可能存在跑不动的情况。
+2.其他非组织结构维度组合（原则是用户常用哪些维度去分组，则预分组）
+
+
+三、解决方案
+1.组织结构单独成维度，使用union all的方式结果拼接。
+同时尽量带少数维度参与组织结构计算，比如城市与组织结构二选一。即组织结构不与城市相关维度一起作用于查询。
+
+        where 组织id_1 is not null and 组织id_1 not in (-999,0) 
+        group by dt,组织id_1,type_id
+        grouping sets 
+        (
+        (dt),
+        (dt,组织id_1),
+        (dt,组织id_1,type_id)
+        )
+union all
+        where 组织id_2 is not null and 组织id_2 not in (-999,0) 
+        group by dt,组织id_2,type_id
+        grouping sets 
+        (
+        (dt),
+        (dt,组织id_2),
+        (dt,组织id_2,type_id)
+        )
+2.其他非组织结构的维度组合
+        group by 所有维度
+        grouping sets 
+        (
+			(dt),
+			(dt,type_id),
+			(dt,top_city),
+			(dt,top_city,first_city_id,first_city_name)
+	        (dt,top_city,first_city_id,first_city_name,second_city_id,second_city_name),
+	        (dt,top_city,first_city_id,first_city_name,second_city_id,second_city_name,third_city_id,third_city_name)
+        )

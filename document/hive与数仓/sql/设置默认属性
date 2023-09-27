@@ -1,3 +1,24 @@
+综合配置
+SET spark.memory.fraction=0.7;
+SET spark.yarn.executor.memoryOverhead=1024;
+SET spark.executor.cores=1;
+
+SET spark.executor.memory=16g;
+SET spark.driver.memory=16g;
+
+SET hive.exec.dynamic.partition.mode=nonstrict;
+SET hive.exec.dynamic.partition=true;
+SET hive.exec.max.dynamic.partitions=1000;
+## 触发spark合并小文件的阈值(1M)
+SET spark.sql.mergeSmallFileSize=5048576;
+## 小文件合并参数
+SET spark.hadoopRDD.targetBytesInPartition=67108864;
+SET spark.sql.adaptive.shuffle.targetPostShuffleInputSize=134217728;
+
+## spark shuffle默认分区数
+SET spark.sql.shuffle.partitions=50;
+
+
 一、设置reduce数量
 set mapred.reduce.tasks = 5;
 
@@ -35,9 +56,12 @@ set mapred.job.name='topic_order-detail-1-${create_time}';
 set hive.output.file.extension=.c1;
 
 六、设置动态分区
-a.set hive.exec.dynamic.partition.mode=nostrick;
+a.
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nostrick;
 set hive.exec.max.dynamic.partitions=5000 最大的分区数量
 set hive.exec.max.dynamic.partitions.pernode=2000
+
 b.insert overwrite table dim.topic_user_partition partition(log_day)
 c.select的最后几个字段的值就是分区的值
 
@@ -66,3 +90,45 @@ set compatible.grammar=sparksql;
 十二、增加FetchWaitTime时间，当shuffle数据量大的时候，会超时，所以需要修改该参数
 SET spark.shuffle.maxFetchWaitTime=7200s;
 set spark.shuffle.manager=rss;
+
+十三、配置默认cu和内存数
+SET spark.memory.fraction=0.7;
+SET spark.yarn.executor.memoryOverhead=1024;
+SET spark.executor.cores=1;
+
+配置内存
+SET spark.executor.memory=16g;
+SET spark.driver.memory=16g;
+
+十四、通用配置
+set mapred.job.name='job名称';
+SET mapreduce.job.queuename=root.xxxx队列名称;
+set hive.mapred.mode=nostrict;
+set hive.auto.convert.join = false;
+set hive.exec.parallel=true;
+set mapred.reduce.tasks = 5;
+
+十五、重新分配partition数量。
+如果上游hive表本身就很少的分区数量，在cube执行过程中就会并发小，执行慢，需要手动调高并发度。
+
+## spark shuffle默认分区数
+SET spark.sql.shuffle.partitions=500;
+
+        from
+        (
+            select *
+            from biao
+            distribute by cast(rand()*300 as int) ### 手动调大300个分区
+        ) t
+十六、小文件merge
+若检测到小文件过多，可参考以下几种常见措施进行优化：
+## 触发spark合并小文件的阈值(1M)
+SET spark.sql.mergeSmallFileSize=5048576;
+## 小文件合并参数
+SET spark.hadoopRDD.targetBytesInPartition=67108864;
+SET spark.sql.adaptive.shuffle.targetPostShuffleInputSize=134217728;
+
+1、当执行的作业没有shuffle阶段，即只有map task，没有reduce task，或者希望每个map task能处理更大的数据量时，可以设置如下参数：
+set spark.hadoopRDD.targetBytesInPartition=67108864;(默认为33554432)；
+2、 当执行的作业存在shuffle阶段，即存在reduce task，希望最后输出的文件数比较少，或者每个reduce task写的单个文件更大时，可以设置如下参数：
+set spark.sql.adaptive.shuffle.targetPostShuffleInputSize=134217728;(默认67108864，64M)。
