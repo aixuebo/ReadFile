@@ -57,6 +57,13 @@ public class TimeRangeMerger {
                     			end;//说明当前的时间段 包含了当前entry的范围,所以不需要更新。
                 }
             }
+            /**
+             * 简单总结：
+             * 1.要么无交集。
+             * 2.要么交集：
+             * a.包含,此时保留原来的区间即可。
+             * b.跨月原始范围,只需要扩展end即可。
+             */
         }
         if (start != null) {
             result.add(new TimeRange(start, end));
