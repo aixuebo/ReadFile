@@ -649,3 +649,28 @@ id 	rank 	maxrank
 0	11	11
 0	11	11
 0	11	11
+
+四、max_by(x, y)	Returns the value of `x` associated with the maximum value of `y`.
+返回与x关联最大的y那条数据。
+
+语法:max_by(expr1, expr2) [FILTER ( WHERE cond ) ]
+还可以使用 OVER 子句将此函数作为窗口函数调用。
+
+参数:
+expr1：一个任意类型的表达式。同时类型表示返回值类型。
+expr2：可以排序的某个类型的表达式。
+cond：一个可选的布尔表达式，可筛选用于聚合的行。
+
+返回值:
+返回max(expr2)匹配的那行 expr1 的值。
+
+比如:
+SELECT max_by(x, y) FROM VALUES (('a', 10)), (('b', 50)), (('c', 20)) AS tab(x, y);
+输出: b
+
+生产环境例子: 为每一个子订单，返回对应匹配的主订单id，即select 订单id、主订单id
+select 订单id,
+max_by(订单id, 是否主订单) OVER (PARTITION BY 包ID) as 主订单id,
+from (
+select 包ID,订单id,是否主订单
+)
