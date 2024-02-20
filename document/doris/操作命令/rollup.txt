@@ -5,10 +5,19 @@
 2.参考信息
 doris -- 性能调优 -- rollup的设置原则。
 
+3.基础命令
+show alter table rollup  ### 查看rollup任务进度
+
 二、命令
+1.删除
+ALTER TABLE 库.表 DROP ROLLUP rollup_name1,rollup_name2,rollup_name3
+2.创建
 ALTER TABLE 库.表 ADD ROLLUP name(`维度字段`, `维度字段`, `指标1`, `指标2`)
 
 三、sql加hint ，加了之后查询才能走rollup
 FROM table /*+ PREAGGOPEN */
 
+四、为什么rollup空表也会很耗时，甚至超过30s都没有创建好rollup?
+创建rollup的时候会先创建分区、分桶 以及 副本，分桶副本量太多超时了。
+比如1000个分区，每一个分区50个分桶，每一个分桶3个副本，则1000*50*3=150,000，需要创建15万个副本。所以需要耗时较久。
 
