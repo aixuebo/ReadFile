@@ -1,4 +1,45 @@
+方案1 ----- 计算每一个商家，每小时的营业时长；然后用户使用的时候，就可以根据每小时的营业时长，自己判断某一个高峰时段对应的营业时长了。
+SELECT 
+poi_id,
+hour,
+sum(time_sectond)
+FROM 
+(
+    SELECT 
+    a.poi_id,
+    b.hour,
+    CASE
+        WHEN a.mih = b.hour and a.mah = b.hour
+        THEN (mam*60+mas)-(mim*60+a.mis)
+        WHEN b.hour = a.mih
+        THEN (60-a.mim)*60-a.mis
+        WHEN b.hour > a.mih
+        AND b.hour<a.mah THEN 3600
+        WHEN b.hour=a.mah THEN a.mam * 60+a.mas
+        else 0
+        END AS time_sectond ## 秒
+    FROM 
+    (
+        ###section的格式内容: [00:07:27-00:30:00, 00:31:10-01:00:00, 10:20:32-23:59:59]
+        ### 删除[]内容；按照逗号拆分；去空格，获取最终的最大值和最小值范围
+        SELECT poi_id,
+        sect.os,
+        hour(trim(split(sect.os, '-')[0]))   AS mih,
+        hour(trim(split(sect.os, '-')[1]))   AS mah,
+        minute(trim(split(sect.os, '-')[0])) AS mim,
+        minute(trim(split(sect.os, '-')[1])) AS mam,
+        second(trim(split(sect.os, '-')[0])) AS mis,
+        second(trim(split(sect.os, '-')[1])) AS mas
+        FROM biao 
+        LATERAL VIEW explode(split(regexp_replace(regexp_replace(section, '\\[', ''), '\\]', ''), ',')) sect AS os
+    )a,24hour b
+    WHERE b.hour >= a.mih
+    AND b.hour <= a.mah
+) a
+GROUP BY poi_id,hour
 
+
+-------------方案2
 一、背景与总结
 1.背景
 数据库存储的是每一个营业时间段区间形式，比如 [00:00:00-01:47:20, 07:29:13-11:17:53, 11:50:15-13:41:29, 20:32:10-23:59:59] 
@@ -70,3 +111,4 @@ CREATE TABLE IF NOT EXISTS xxx
 商家ID,
 时段id,
 时段的营业时长
+
