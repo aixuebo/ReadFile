@@ -1,5 +1,6 @@
 https://github.com/aixuebo/docsify-notes/blob/mm/markdown.md
 
+# 一、常用功能
 # title
 > 内容描述 /docs/study/BigData/Flink
 > 
@@ -44,3 +45,9 @@ https://github.com/aixuebo/docsify-notes/blob/mm/markdown.md
 ## 2.5 分界线
  ---
  
+# 二、其他标签
+## 1.折叠用于笔记中，已经掌握的内容。
+<details>
+  <summary>折叠的内容标题</summary>
+  折叠的文本内容，可以包含任意的 Markdown 格式的文本、列表、代码块等。
+</details>
