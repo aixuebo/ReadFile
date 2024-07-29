@@ -1,0 +1,19 @@
+一、背景与总结
+1.读写文件的能力
+
+二、读写的基础方法
+public Seq[String] read(String path) ---> 读取路径文件,返回文件内容,每一行组成Set的一条数据
+public void write(String path,Iterator[String] action,boolean overwrite) --> 将action结果，写入到path里,每一个action单独写入一行。
+
+public Iterator[FileStatus] listFrom(String patg) ---> 返回path下其他文件集合---获取目录下所有子子孙孙文件
+
+三、获取默认的LogStore实现类
+1.在配置环境中,配置默认的LogStore实现类。key是spark.delta.logStore.class,默认类是HDFSLogStore
+根据配置环境，创造LogStore实现类 ，比如 new HDFSLogStore(SparkConf,hadoopConfiguration);
+
+四、基础方法
+public void invalidateCache()
+public Path resolvePathOnPhysicalStorage(path: Path) --> 返回path全路径
+public boolean isPartialWriteVisible(path: Path)
+
+

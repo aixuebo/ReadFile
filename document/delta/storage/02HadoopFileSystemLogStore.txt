@@ -1,0 +1,32 @@
+一、背景与总结
+1.hdfs上实现存储的抽象类，主要定义了怎么写数据的公共方法。
+
+二、abstract HadoopFileSystemLogStore extends LogStore 构造函数
+HadoopFileSystemLogStore(SparkConf,hadoopConfiguration)
+
+三、公共方法
+public void writeWithRename(String path,Iterator[String] action,boolean overwrite) 让写入操作成一个事务，即先写入临时文件,在改名字
+1.确定path父目录必须存在。
+2.overwrite = true,则重新将内容写入到文件里。
+3.overwrite = false
+a.创建临时文件
+b.将内容写入到临时文件中
+c.使用rename方法做文件剪切。
+
+
+----------------- 本地模式的具体实现类
+class LocalLogStore(SparkConf,hadoopConfiguration) extends HadoopFileSystemLogStore
+多线程同步锁控制写入
+  override def write(path: Path, actions: Iterator[String], overwrite: Boolean = false): Unit = {
+    synchronized {
+      writeWithRename(path, actions, overwrite)
+    }
+  }
+
+  override def invalidateCache(): Unit = {}
+
+  override def isPartialWriteVisible(path: Path): Boolean = true
+
+------------------ 分布式模式的具体实现类
+该对象考虑到了HDFS和LOCAL两种模式,所以是默认的实现类
+class HDFSLogStore(SparkConf,hadoopConfiguration) extends LogStore

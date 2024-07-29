@@ -1,0 +1,44 @@
+一、背景与总结
+1.作为一个提交版本的整体根对象，内部连接很多其他对象。
+
+二、class CommitInfo extends Action with CommitMarker
+任务信息都通过上下文对象可以获取 -- context: Map[String, String]，该上下文对象可以是spark的环境等。
+
+1.提供基础数据的set、get方法，方便获取提交信息的元数据内容。
+2.核心属性 --- who谁,什么时间点when,什么操作what,最终形成版本号内容
+version: Option[Long],//版本号,即json前面的数字 --- 最开始是空的，只有当提交版本号确定后才会set进该参数值。
+timestamp: Timestamp,//文件最后修改时间
+operation: String,//做了什么操作,比如write
+operationParameters: Map[String, String],//其他附加参数 最终会序列化到json的[]里。
+
+3.非核心属性
+userId: Option[String] = context.get("userId") //谁提交的版本
+userName: Option[String] = context.get("user")
+job: Option[JobInfo],//哪个job产生的该事务
+notebook: Option[NotebookInfo],
+clusterId: Option[String] = context.get("clusterId") //yarn集群的ID信息
+
+readVersion: Option[Long],//读取的那个快照版本上操作的
+isolationLevel: Option[String],
+isBlindAppend: Option[Boolean],//true表示仅添加文件,并且添加文件的时候不依赖历史数据,即纯粹的append新数据到表
+operationMetrics: Option[Map[String, String]]) //额外追加到commit里面关于统计的信息
+    
+4.Action方法
+override def wrap: SingleAction = SingleAction(commitInfo = this)
+
+三、CommitMarker -- 描述一个Commit的基础信息 --- 核心内容是 什么时间点进行提交的，提交的版本号是什么
+def getVersion: Long 获取版本号
+def getTimestamp: Long 时间戳的get方法
+def withTimestamp(timestamp: Long) 时间戳的set方法
+
+四、class JobInfo --- yarn上的任务id,即哪个任务产生的这次提交数据
+任务信息都通过上下文对象可以获取 -- context: Map[String, String]，该上下文对象可以是spark的环境等。
+jobId: String = context.get("jobId")  任务ID
+jobName: String = context.get("jobName") 任务名称
+runId: String = context.get("runId")
+jobOwnerId: String = context.get("jobOwnerId") 任务负责人
+triggerType: String = context.get("jobTriggerType")
+
+五、NotebookInfo --- 作用暂时不太清楚，但感觉不是很重要
+notebookId: String = context.get("notebookId")
+

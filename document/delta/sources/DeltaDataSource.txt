@@ -1,0 +1,101 @@
+一、背景与总结
+1.作用：v1版本的数据源，目标是整合delta文件作为数据源,整合到spark中执行。
+
+2.目标
+a.外部系统如何读取delta表定义的schema。
+b.delta加工过的数据，输出sink到其他新系统的方式。
+c.目的是写入数据到指定的输出里，即真实的去输出到其他系统。
+
+
+
+二、class DeltaDataSource
+  extends RelationProvider //spark接口实现
+  with StreamSourceProvider //目标a
+  with StreamSinkProvider //目标b
+  with CreatableRelationProvider //目标c
+  with DataSourceRegister
+
+三、trait StreamSourceProvider
+提供要查询的table的schema信息。输入参数是要查询的table的path
+1.  def sourceSchema(
+      sqlContext: SQLContext,
+      schema: Option[StructType],
+      providerName: String,
+      parameters: Map[String, String]): (String, StructType)
+用于离线数据源，返回数据源的name以及schema信息。
+注意：
+a.name相当于数据源的名字，比如delta，没什么特殊信息；schema比较有价值。
+b.在delta实现里,是不需要提供schema信息的，因为schema信息在delta元数据里存储，不需要用户指定。
+c.delta的实现逻辑是 从parameters参数中，找到delta的元数据，从而获取用户要查询的delta的表的path、schema等信息，让spark等计算引擎可以执行。
+
+实现逻辑:
+a.数据校验
+schema.nonEmpty 则报错，因为schema在delta中有定义，只需要找到delta元数据即可，不需要用户传入。
+parameters参数中是否有path，没有则报错。相当于不知道查询哪个表，因此也找不到对应的schema信息。
+校验path中是否包含了时间戳和版本号，如果包含了也不允许，报错。(不清楚为什么要报错，理论上也可以查询的呀)
+b.根据path信息获取delta对象。
+val deltaLog = DeltaLog.forTable(sqlContext.sparkSession, path)
+if (deltaLog.snapshot.schema.isEmpty) { //schema不允许是空
+  throw DeltaErrors.schemaNotSetException
+}
+c.返回delta的schema元数据信息
+("delta", deltaLog.snapshot.schema) //(delta,delta的schema信息)
+    
+
+2.  def createSource(
+      sqlContext: SQLContext,
+      metadataPath: String,
+      schema: Option[StructType],
+      providerName: String,
+      parameters: Map[String, String]): Source
+用于流数据源,实现逻辑与方法1相似。
+
+四、trait StreamSinkProvider 如何输出
+1.def createSink(
+      sqlContext: SQLContext,
+      parameters: Map[String, String],//配置信息
+      partitionColumns: Seq[String],//分区列
+      outputMode: OutputMode): Sink
+      
+    val path = parameters.getOrElse("path", { //输出到哪个path里
+      throw DeltaErrors.pathNotSpecifiedException
+    })
+    //校验输出写入方式
+    if (outputMode != OutputMode.Append && outputMode != OutputMode.Complete) {
+      throw DeltaErrors.outputModeNotSupportedException(getClass.getName, outputMode)
+    }
+    val deltaOptions = new DeltaOptions(parameters, sqlContext.sparkSession.sessionState.conf)
+    new DeltaSink(sqlContext, new Path(path), partitionColumns, outputMode, deltaOptions)
+    
+五、trait CreatableRelationProvider {
+目的是写入数据到指定的输出里
+1.def createRelation(
+      sqlContext: SQLContext,
+      mode: SaveMode,//如果目标路径已经存在的时候，数据该如何处理，比如是覆盖还是抛异常。
+      parameters: Map[String, String],//配置信息
+      data: DataFrame)//要写入的数据内容，即要先进行query，然后内容输出。
+      : BaseRelation  //返回新的schema信息，因为写入过程中可能会有新增字段等场景，schema会发生变化。
+
+a.parameters中提取path。即输出到哪个delta path表中。
+b.parameters中提取__partition_columns内容，表示json形式的分区信息，即数据写入到path对应的哪个分区信息中。
+c.val deltaLog = DeltaLog.forTable(sqlContext.sparkSession, path) //获取delta表数据内容
+d.向deltaLog表增加数据data.即将data这个DataFrame数据，写入到deltaLog表的partitionColumns分区里。
+    WriteIntoDelta(
+      deltaLog = deltaLog,
+      mode = mode,
+      new DeltaOptions(parameters, sqlContext.sparkSession.sessionState.conf),
+      partitionColumns = partitionColumns,
+      configuration = Map.empty,
+      data = data).run(sqlContext.sparkSession)
+
+    deltaLog.createRelation()
+  }
+
+六、工具方法
+1.def getTimeTravelVersion(parameters: Map[String, String]): Option[DeltaTimeTravelSpec]
+parameters中提取时间戳key对应的value。或者版本号对应的value信息。返回DeltaTimeTravelSpec对象：包含时间戳或者版本号。
+2.def parsePathIdentifier(userPath: String): (Path, Seq[(String, String)], Option[DeltaTimeTravelSpec])
+解析要访问的delta表，返回解析后的结果信息(Path，Set<partitionKey,partitionValue>,DeltaTimeTravelSpec版本对象)
+输入参数: 格式 deltaPath+分区信息+版本信息
+比如 /some/path/partitionKey=partitionValue&partitionKey=partitionValue@v1234
+3.

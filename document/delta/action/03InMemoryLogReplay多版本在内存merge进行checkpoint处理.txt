@@ -1,0 +1,41 @@
+一、背景与总结
+1.多个version版本之间可能存在重复做相同主键的动作，如果每次都进行现merge,浪费存储空间，以及计算资源。
+因此每隔一段时间进行一次checkpoint处理，将重复的动作转换成最后一次动作。简化计算成本，优化存储空间。
+
+
+二、核心元素
+1.元数据存储
+  var currentProtocolVersion: Protocol = null //最新协议
+  var currentMetaData: Metadata = null //最新元数据
+  val transactions = new scala.collection.mutable.HashMap[String, SetTransaction]() //设置事物
+  //key是path
+  val activeFiles = new scala.collection.mutable.HashMap[URI, AddFile]() //有用的文件 --- 存储add文件
+  private val tombstones = new scala.collection.mutable.HashMap[URI, RemoveFile]() //删除无用的文件 --- 存储delete文件
+  
+2.版本号var currentVersion: Long = -1 //当前还原到哪个版本了。
+背景是需要版本号从小到大的顺序，依次存放，因此需要一个局部变量进行保存当前恢复到哪个版本号了。
+
+3.minFileRetentionTimestamp: Long
+如果文件已删除，即进入remove处理，则超过该时间戳之前的文件，解释为彻底释放，不再保存到checkpoint中。
+
+三、核心动作
+1.def append(version: Long, actions: Iterator[Action]): Unit = {
+循环Action,每一个Action已按照version顺序排序号。因此需要每次校验一下version即可。
+每一个action分别是Metadata、Protocol、SetTransaction、AddFile、RemoveFile中的一种。
+将每一个动作存储在内存的局部变量中。
+
+2.删除时间超过范围的文件
+def getTombstones: Iterable[FileAction] 
+	tombstones.values.filter(_.delTimestamp > minFileRetentionTimestamp)
+
+3.对内存的version版本进行merge整合
+  /** Returns the current state of the Table as an iterator of actions.
+    * 保留此刻的checkout动作集合
+    * 注意：此时已经将重复的动作做merge后的结果，因此checkpoint时已经是最简化的数据内容了
+    **/
+  def checkpoint: Iterator[Action] = {
+    Option(currentProtocolVersion).toIterator ++ //一个协议
+    Option(currentMetaData).toIterator ++ //一个元数据
+    transactions.values.toIterator ++ //事物内容
+    (activeFiles.values ++ getTombstones).toSeq.sortBy(_.path).iterator //文件集合
+  }

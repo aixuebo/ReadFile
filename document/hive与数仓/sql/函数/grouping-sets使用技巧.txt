@@ -1,6 +1,13 @@
 一、总结
 1.cube的排列组合
+com.maming.common.cube.CubeTest(推荐)
 com.maming.common.cube.CubeGenerator
+
+2.cube的排序结果
+cube的最终排序数量 = (2^简单维度数量) * (第一组级联层级+1) * (第二组级联层级+1)。
+比如有4个基础维度，第一组级联是一二三级城市，第二组级联是6级的组织。
+cube的结果是 16 * (3+1) * (6+1) = 448种组合。
+测试可以用CubeTest进行测试尝试
 
 一、基础知识。
 1.grouping sets的字段，在查询的时候要有-1(全部)的搜索框,因此在最外层要做coalesce(id,-1) id处理；

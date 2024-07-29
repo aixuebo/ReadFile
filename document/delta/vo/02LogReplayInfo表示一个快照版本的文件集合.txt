@@ -1,0 +1,29 @@
+一、背景与总结
+1.class LogReplayInfo 用于存储每一个快照涉及到的数据文件信息
+
+二、
+  /**
+   * Provides information around which files in the transaction log need to be read to create
+   * the given version of the log.
+   * @param version The Snapshot version to generate
+   * @param deltas The delta files to read
+   * @param checkpoint The checkpoint file to read
+   * @param checkpointVersion The checkpoint version used to start replay
+    * 提供最后一个checkpoint以及后续的json版本文件，用于快照数据回放
+    * 表示一个快照内包含的所有版本号信息以及对应的版本号路径
+   */
+  protected case class LogReplayInfo(
+      version: Long,//系统中已经存在的最后一个版本文件的版本号
+      deltas: DeltaLogFileIndex,//要读取的版本文件集合
+      checkpoint: Option[DeltaLogFileIndex],//最近的checkpoint文件对象
+      checkpointVersion: Option[Long],//checkout文件版本号
+      lastCommitTimestamp: Option[Long]) //最后一个版本文件的更新时间
+}
+
+使用场景
+比如要加载版本号是100的数据快照，他应该等于checkpoint = 90的版本号 + 91~100之间的独立版本号组成的数据版本文件集合。
+因此version 表示版本号100.
+deltas表示 91-100之间的独立版本文件集合。
+checkpoint 表示90这个最近的checkpoint文件路径集合。
+checkpointVersion 表示checkpoint的版本号是90.
+lastCommitTimestamp表示100这个版本号的最后更新时间。

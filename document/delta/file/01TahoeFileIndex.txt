@@ -1,0 +1,85 @@
+一、背景与总结
+1.spark系统协议实现类。
+Tahoe是spark管理分区信息的协议，用户自己实现后，spark可以基于该协议，查询对应的hdfs路径内的文件。
+因此spark通过读取该信息，就可以获取到如何从hdfs上加载file。
+
+2.该协议的价值是告知spark加载哪些文件集合。
+毕竟元数据是在delta上管理的。
+
+二、接口协议 FileIndex
+第一部分 基础信息：知道表对应的根目录，文件大小、分区元数据(相当于子目录结构)、全部数据文件路径、总文件大小
+1.def rootPaths: Seq[Path] 表的根目录。
+2.def partitionSchema: StructType 表的分区字段元数据
+3.def inputFiles: Array[String] 返回表所有的数据文件路径集合 --- 大表的话，这个过程非常耗费性能。
+4.def sizeInBytes: Long 返回该数据表所有的文件所占用字节数。
+
+第二部分：高级信息
+1.def listFiles(partitionFilters: Seq[Expression], dataFilters: Seq[Expression]): Seq[PartitionDirectory]
+如何进一步筛选文件，缩小文件范围。利用分区表达式等信息
+a.partitionFilters 分区字段对应的过滤条件
+b.dataFilters 非分区字段对应的过滤条件
+
+三、case class TahoeLogFileIndex(
+    override val spark: SparkSession,
+    override val deltaLog: DeltaLog,//delta定义的表的一些元数据信息，比如partition的schema信息
+    override val path: Path,//表在hdfs上的根目录
+    partitionFilters: Seq[Expression] = Nil,//要查询的分区限制条件，相当于where，用于减少数据查询范围
+    versionToUse: Option[Long] = None) //使用哪个版本对应的快照表结果 -- 此时可以定位到该版本内所有的数据文件
+  extends TahoeFileIndex(spark, deltaLog, path) {
+1.def rootPaths: Seq[Path] = path :: Nil 就是快照表的根目录。
+2.初始化操作
+  //获取要读取的版本表ID
+  override def tableVersion: Long = versionToUse.getOrElse(deltaLog.snapshot.version) //默认最新版本号
+
+  //找到该版本的快照内容，该内容包含了所有的数据文件，加载速度慢，所以是懒加载。
+  private lazy val historicalSnapshotOpt: Option[Snapshot] = deltaLog.getSnapshotAt(tableVersion)
+
+3.通过快照，获取元数据信息
+override val sizeInBytes: Long = deltaLog.snapshot.sizeInBytes 通过快照可以定位到快照的文件大小。
+override def partitionSchema: StructType = historicalSnapshotOpt.metadata.partitionSchema //该快照版本的分区的schema
+
+4.通过快照内容 + 元数据查询的条件，可以获取缩小后的文件路径 以及 文件集合
+override def matchingFiles(
+      partitionFilters: Seq[Expression],//该函数不包含构造函数初始化对应的分区，即可以再构造函数的分区表达式基础上，进一步利用分区的其他字段，再进一步过滤
+      dataFilters: Seq[Expression],
+      keepStats: Boolean = false): Seq[AddFile] = {
+    historicalSnapshotOpt.filesForScan(projection = Nil, this.partitionFilters(构造函数的分区表达式) ++ partitionFilters(新增的分区表达式) ++ dataFilters(非分区字段对应的过滤条件), keepStats).files
+  }
+
+  //满足分区条件的文件path路径集合
+  override def inputFiles: Array[String] = {
+    historicalSnapshotOpt.filesForScan(
+      projection = Nil, partitionFilters).files
+      .map(f => absolutePath(f.path).toString).toArray
+  }
+
+}
+
+5.核心查询方法 -- 利用了上面的方法，缩小查询范围
+override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {//返回PartitionDirectory表示<分区key,分区下的文件集合做value>
+    val timeZone = spark.sessionState.conf.sessionLocalTimeZone
+    matchingFiles(partitionFilters, dataFilters) //查询的匹配文件集合
+      .groupBy(_.partitionValues) //AddFile --> 转换成Map<分区key,分区值> 即相同分区key=value的信息聚合在一起
+      .map {
+      case (partitionValues, files) => //partitionValues = Map<分区key,分区value>,files = 相同的partitionValues下所有的List<AddFile>
+        val rowValues: Array[Any] = partitionSchema.map { p =>
+          Cast(Literal(partitionValues(p.name)), p.dataType, Option(timeZone)).eval() //分区对象,以及分区对象对应的时间戳
+        }.toArray
+
+        //文件集合,主要是文件最后修改时间
+        val fileStats = files.map { f =>
+          new FileStatus(
+            /* length */ f.size,
+            /* isDir */ false,
+            /* blockReplication */ 0,
+            /* blockSize */ 1,
+            /* modificationTime */ f.modificationTime,
+            absolutePath(f.path))
+        }.toArray
+
+        PartitionDirectory(new GenericInternalRow(rowValues), fileStats) //表示分区目录对象，以及目录下的文件集合
+    }.toSeq
+  }
+

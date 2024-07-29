@@ -1,0 +1,88 @@
+一、背景与总结
+
+
+二、基础操作
+1.准备数据 -- user.csv
+uid,name,age
+10000001,hdfs,12
+10000002,spark,8
+10000003,delta,1
+
+2.创建 Delta Lake 表
+a.查看数据以及测试spark环境
+scala> val USER_INFO_DATA = "/delta/mydelta.db/user_info_source/user.csv"
+val user_info_data_df = spark.read.option("header","true").option("delimiter",",").csv("本地user.csv路径")
+user_info_data_df.count() //输出 3
+b.测试delta能力
+user_info_data_df.write.format("delta").save("/delta/mydelta.db/user_info") //利用delta的能力，上传到 HDFS 的位置为 /delta/mydelta.db/user_info
+
+3.查看 Delta Lake 表结构
+hdfs dfs -ls -R /delta/mydelta.db/user_info //hdfs路径
+
+输出
+/delta/mydelta.db/user_info/_delta_log
+/delta/mydelta.db/user_info/_delta_log/00000000000000000000.json
+/delta/mydelta.db/user_info/part-00000-f504c7cc-7599-4253-8265-5767b86fe133-c000.snappy.parquet
+
+注意:
+user_info/_delta_log 存储user_info表的事物日志
+user_info/*.snappy.parquet存储表的数据文件。
+
+4.更新数据
+将10000002用户的age-2
+scala> val deltaTable = DeltaTable.forPath("/delta/mydelta.db/user_info")
+deltaTable.update(
+	condition = expr("uid == 10000002")
+	set=Map("age"->expr("age -2"))
+)
+deltaTable.toDF.show()
+
+输出
+10000001,hdfs,12
+10000002,spark,6
+10000003,delta,1
+
+5.更新一条记录后，我们查看目录情况：
+/delta/mydelta.db/user_info/_delta_log
+/delta/mydelta.db/user_info/_delta_log/00000000000000000000.json
+/delta/mydelta.db/user_info/_delta_log/00000000000000000001.json //新增
+/delta/mydelta.db/user_info/part-00000-f504c7cc-7599-4253-8265-5767b86fe133-c000.snappy.parquet
+/delta/mydelta.db/user_info/part-00000-81c99f05-7599-4253-8265-5767b86fe133-c000.snappy.parquet //新增
+
+结论:
+事物和数据各增加一个文件。
+
+6.删除一条数据
+deltaTable.delete(condition = expr("name == 'hdfs'"))
+deltaTable.toDF.show()
+
+发现10000001的数据被删除了。
+
+我们再查看目录情况：
+/delta/mydelta.db/user_info/_delta_log
+/delta/mydelta.db/user_info/_delta_log/00000000000000000000.json
+/delta/mydelta.db/user_info/_delta_log/00000000000000000001.json //修改时产生的事物
+/delta/mydelta.db/user_info/_delta_log/00000000000000000002.json //删除时产生的事物
+/delta/mydelta.db/user_info/part-00000-f504c7cc-7599-4253-8265-5767b86fe133-c000.snappy.parquet
+/delta/mydelta.db/user_info/part-00000-81c99f05-7599-4253-8265-5767b86fe133-c000.snappy.parquet //修改文件
+/delta/mydelta.db/user_info/part-00000-b096e3ea-7599-4253-8265-5767b86fe133-c000.snappy.parquet //删除时产生的文件
+事务日志文件和数据文件各增加一个。
+
+7.时间旅行/数据版本控制,来查看表在给定时间点的数据版本内容。
+分别查看0 1 2三个版本对应的全量数据
+spark.read.format("delta").option("versionAsOf",0).load("/delta/mydelta.db/user_info").show()
+spark.read.format("delta").option("versionAsOf",1).load("/delta/mydelta.db/user_info").show()
+spark.read.format("delta").option("versionAsOf",2).load("/delta/mydelta.db/user_info").show()
+
+注意:虽然我们已经删除了数据，但文件还存在，json元数据也存在，只是通过merge json数据时，不会显示对应的已删除的数据而已。
+因此是可以支持时间旅行的方式，查看任意时间点的全量数据的。
+
+8.vacuum 删除delta表json中不在引用的文件 --- 注意历史肯定所有的json都存在的话,肯定不会有无效的数据文件，但由于json也会保留一定周期，时间周期外的json元数据也是会被删除的，因此会存在不引用的文件。
+val deltaTable = DeltaTable.forPath("/delta/mydelta.db/user_info")
+deltaTable.vacuum()
+
+9.检查点文件 -- 参数 checkpointInterval 来控制多久会自动生成检查点文件，默认为10次间隔；检查点文件是在某个时间点保存整个表的快照内容。
+a.再次更新操作，直到有10个json。
+内容如下:
+/delta/mydelta.db/user_info/_delta_log/00000000000000000010.json
+/delta/mydelta.db/user_info/_delta_log/00000000000000000010.checkpoint.parquet --- 他会统计截止到10json之前所有的快照。

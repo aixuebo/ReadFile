@@ -1,0 +1,106 @@
+一、背景与总结
+1.磁盘块设备与文件的区别
+a.ls -l命令第一个字符可以区分。d表示目录，b块设备文件，-普通文件
+b.linux一切都是文件。
+物理磁盘是一个块设备，可以划分为不同的分区；在分区之上再创建文件系统，挂载到某个目录，之后才可以在这个目录中读写文件。 
+在读写普通文件时，会经过文件系统，由文件系统负责与磁盘交互；
+而读写磁盘或者分区时，就会跳过文件系统，也就是所谓的“裸I/O“。这两种读写方式所使用的缓存是不同的，也就是文中所讲的 Cache 和 Buffer 区别。
+c.cache 读写文件，buffer 读写磁盘
+
+2.linux中块设备读写与文件读写区别是什么。
+块设备与文件系统不同：块设备是指存储设备（如硬盘、U盘等），而文件系统是指对这些存储设备的组织和管理。
+块设备操作是以扇区为单位的：块设备的读写操作是以固定大小的扇区为单位进行的，通常是512字节或4KB，而文件的读写则是以任意大小的字节数进行的。
+文件读写具有更高的抽象层次：文件读写在操作系统中具有更高的抽象层次，可以通过各种标准I/O函数（如fread、fwrite等）进行。而块设备读写则需要使用低级别的操作（如read、write）和文件系统层面的交互。
+块设备读写更常用于系统操作：块设备读写主要用于系统的低级别操作（如磁盘分区、格式化、挂载等），而文件读写则用于大部分应用程序中。
+
+3.结论
+Buffer既可以用作“将要写入磁盘数据的缓存”，也可以用作“从磁盘读取数据的缓存”。
+Cache既可以用作“从文件读取数据的页缓存”，也可以用作“写文件的页缓存”。
+
+简单来说，Buffer是对磁盘数据的缓存，而Cache是文件数据的缓存，它们既会用在读请求中，也会用在写请求中。
+大多数应用都是以文件的方式进行IO读写的，因此大多缓存都是影响的Cache。如果监控显示buffer增量较快，影响buff了，就要好好分析原因了。
+
+缓存的价值：
+写：避免频繁的写入小批次的IO，转换成大IO写入；同时应用程序可以在数据真正落盘前，就返回去做其他工作，不需要同步等待磁盘IO操作。
+读: 避免频繁的从磁盘读取数据，而是可以通过缓存读取数据。也降低了频繁 I/O 对磁盘的压力。
+
+二、free命令中buff/cache的概念
+              total        used        free      shared  buff/cache   available
+Mem:        8169348      263524     6875352         668     1030472     7611064
+Swap:             0           0           0
+
+1.缓存是Buffer和Cache两部分的总和
+2.Buffer和Cache区别
+从字面上来说，Buffer是缓冲区，而Cache是缓存，两者都是数据在内存中的临时存储。那么，你知道这两种“临时存储”有什么区别吗？
+buffers:Memory used by kernel buffers (Buffers in /proc/meminfo) 内核缓冲区用到的内存，对应的是 /proc/meminfo 中的 Buffers 值。
+cache：Memory used by the page cache and slabs (Cached and SReclaimable in /proc/meminfo)  内核页缓存和Slab用到的内存，对应的是 /proc/meminfo 中的 Cached 与 SReclaimable 之和。  
+buff/cache = buffers + cache
+3.执行 man proc，你就可以得到 proc 文件系统的详细文档。（注意这个文档比较长，你最好搜索一下（比如搜索 meminfo），以便更快定位到内存部分。）
+Buffers %lu  : Relatively temporary storage for raw disk blocks that shouldn't get tremendously large (20MB or so).
+Cached %lu : In-memory cache for files read from the disk (the page cache).  Doesn't include SwapCached.
+SReclaimable %lu (since Linux 2.6.19) Part of Slab, that might be reclaimed, such as caches.
+SUnreclaim %lu (since Linux 2.6.19) Part of Slab, that cannot be reclaimed on memory pressure.
+Buffers 是对原始磁盘块的临时存储，也就是用来缓存磁盘的数据，通常不会特别大（20MB左右）。这样，内核就可以把分散的写集中起来，统一优化磁盘的写入，比如可以把多次小的写合并成单次大的写等等。
+Cached 是从磁盘读取文件的页缓存，也就是用来缓存从文件读取的数据。这样，下次访问这些文件数据时，就可以直接从内存中快速获取，而不需要再次访问缓慢的磁盘。
+SReclaimable 是 Slab 的一部分。Slab包括两部分，其中的可回收部分，用 SReclaimable 记录；而不可回收部分，用 SUnreclaim 记录。
+
+4.知道这个定义就真的理解了吗？这里我给你提了两个问题，你先想想能不能回答出来。
+第一个问题，Buffer 的文档没有提到这是磁盘读数据还是写数据的缓存，而在很多网络搜索的结果中都会提到 Buffer 只是对将要写入磁盘数据的缓存。那反过来说，它会不会也缓存从磁盘中读取的数据呢？
+第二个问题，文档中提到，Cache 是对从文件读取数据的缓存，那么它是不是也会缓存写文件的数据呢？
+为了解答这两个问题，接下来，我将用几个案例来展示， Buffer 和 Cache 在不同场景下的使用情况。
+
+三、实验环境准备
+1.预先安装 sysstat 包，如 apt install sysstat。
+之所以要安装 sysstat ，是因为我们要用到 vmstat ，来观察 Buffer 和 Cache 的变化情况。虽然从 /proc/meminfo 里也可以读到相同的结果，但毕竟还是 vmstat 的结果更加直观。
+
+2.这几个案例使用了 dd 来模拟磁盘和文件的 I/O，所以我们也需要观测 I/O 的变化情况。
+
+3.准备环节的最后一步，为了减少缓存的影响，记得在第一个终端中，运行下面的命令来清理系统缓存：
+
+# 清理文件页、目录项、Inodes等各种缓存
+$ echo 3 > /proc/sys/vm/drop_caches
+这里的 /proc/sys/vm/drop_caches ，就是通过 proc 文件系统修改内核行为的一个示例，写入 3 表示清理文件页、目录项、Inodes等各种缓存。
+
+四、案例1，对比写入磁盘、写入文件的差异。
+1.# 每隔1秒输出1组数据
+$ vmstat 1
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+0  0      0 7743608   1112  92168    0    0     0     0   52  152  0  1 100  0  0
+ 0  0      0 7743608   1112  92168    0    0     0     0   36   92  0  0 100  0  0
+输出界面里， 内存部分的 buff 和 cache ，以及 io 部分的 bi 和 bo 就是我们要关注的重点。
+
+buff 和 cache 就是我们前面看到的 Buffers 和 Cache，单位是 KB。
+bi 和 bo 则分别表示块设备读取和写入的大小，单位为块/秒。因为 Linux 中块的大小是 1KB，所以这个单位也就等价于 KB/s。 --- 注意单位是每s的读写字节数。
+
+2.正常情况下，空闲系统中，你应该看到的是，这几个值在多次结果中一直保持不变。
+3.写入文件  同时 使用另外一个窗口观察vmstat变化情况
+dd if=/dev/urandom of=/tmp/file bs=1M count=500 
+4.输出:
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+0  0      0 7499460   1344 230484    0    0     0     0   29  145  0  0 100  0  0
+ 1  0      0 7338088   1752 390512    0    0   488     0   39  558  0 47 53  0  0
+ 1  0      0 7158872   1752 568800    0    0     0     4   30  376  1 50 49  0  0
+ 1  0      0 6980308   1752 747860    0    0     0     0   24  360  0 50 50  0  0
+ 0  0      0 6977448   1752 752072    0    0     0     0   29  138  0  0 100  0  0
+ 0  0      0 6977440   1760 752080    0    0     0   152   42  212  0  1 99  1  0
+...
+ 0  1      0 6977216   1768 752104    0    0     4 122880   33  234  0  1 51 49  0
+ 0  1      0 6977440   1768 752108    0    0     0 10240   38  196  0  0 50 50  0
+通过观察 vmstat 的输出，我们发现，在dd命令运行时， Cache在不停地增长，而Buffer基本保持不变。
+再进一步观察I/O的情况，你会看到，
+在 Cache 刚开始增长时，块设备 I/O 很少，bi 只出现了一次 488 KB/s，bo 则只有一次 4KB。而过一段时间后，才会出现大量的块设备写，比如 bo 变成了122880。
+当 dd 命令结束后，Cache 不再增长，但块设备写还会持续一段时间，并且，多次 I/O 写的结果加起来，才是 dd 要写的 500M 的数据。
+
+把这个结果，跟我们刚刚了解到的Cache的定义做个对比，你可能会有点晕乎。为什么前面文档上说 Cache 是文件读的页缓存，怎么现在写文件也有它的份？
+
+即因为是写文件，所以影响的是Cache，而不是buff。
+同时由于写入数据，先写到缓存，所以bi输入基本上没有读取内容，数据都读取到cache了，而bo输出时，开始是0，一下子就变成很大，因为是从cache输出到bo的。
+
+
+5.写入磁盘 对比 dd if=/dev/urandom of=/dev/sdb1 bs=1M count=2048
+结论是buff变化大，cache基本不变化。
+
+五、案例2，对比读磁盘与文件差异
+结论也是一样，读取文件，数据存储到cache，读取磁盘，数据存储到buff中。

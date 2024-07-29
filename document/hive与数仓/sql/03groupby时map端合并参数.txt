@@ -1,0 +1,32 @@
+一、背景与总结
+1.group by 产生了udaf逻辑。
+
+二、HiveConf中参数
+1.参数源码以及设置方式
+HIVEMAPSIDEAGGREGATE("hive.map.aggr", true),
+
+set hive.map.aggr=true;
+
+
+2.Group by执行原理分析
+Group By任务转化为MR任务的流程如下：
+
+Map：生成键值对，以GROUP BY条件中的列作为Key，以聚集函数的结果作为Value
+如果hive.map.aggr=true;则会增加一步map端Combiner操作。
+Shuffle：根据Key的值进行 Hash，按照Hash值将键值对发送至不同的Reducer中
+Reduce：根据SELECT子句的列以及聚集函数进行Reduce
+
+三、原理：数据倾斜处理-hive.groupby.skewindata
+
+在聚合操作时候会遇到数据倾斜问题，由于热门商品比较火爆，对于该商品的行为数据就比较多，这时候Hive提供了hive.groupby.skewindata参数，来控制负载均衡，默认是关闭的， 当设置改参数为True时候，会生成两个job来执行group by操作:
+
+第一个job中，各个map是平均读取分片的，在map阶段对这个分片中的数据根据group by 的key进行局部聚合操作，这里就相当于Combiner操作;
+在第一次的job中，map输出的结果随机分区，这样就可以平均分到reduce中，防止一个key对应的数量过多问题;
+在第一次的job中，reduce中按照group by的key进行分组后聚合，这样就在各个reduce中又进行了一次局部的聚合;
+因为第一个job中分区是随机的，所有reduce结果的数据的key也是随机的，所以第二个job的map读取的数据也是随机的key，所以第二个map中不存在数据倾斜的问题;
+在第二个job的map中，也会进行一次局部聚合;
+第二个job中分区是按照group by的key分区的，这个地方就保证了整体的group by没有问题，相同的key分到了同一个reduce中;
+经过前面几个聚合的局部聚合，这个时候的数据量已经大大减少了，在最后一个reduce里进行最后的整体聚合。
+
+
+问题不是所有场景都能匹配。比如聚合函数式set时。多个count(distinct)函数时，好像也不好使，这个得单独分析一下，暂时没有分析到位。

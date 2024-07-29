@@ -16,3 +16,14 @@ origin.add("4");
 final List<List<String>> origins = Collections.nCopies(2, origin);
 System.out.println(origins); //[[3, 4], [3, 4]]
 输出2行数据,每一行数据的内容是origin
+
+四、List转换成String[]
+String[] dimArr = new String[]{"",""};
+List<String> dimList = new ArrayList<String>();
+this.dimArr = dimList.toArray(new String[0]);
+
+五、将String数组转换成List
+List<String> list = Arrays.asList(array);
+
+六、将数组转换成字符串
+System.out.println(Arrays.toString(result));

@@ -1,0 +1,6 @@
+一、 背景与总结
+1.一致性(consistency)与共识(consensus)的差异
+consistency:多操作、多副本对外呈现的状态
+consensus:多个节点达成一致的方法与过程。
+
+二、

@@ -1,0 +1,31 @@
+一、背景与总结
+1.定义文件格式
+00001.json --> 定义每一次版本commit的元数据
+00001.crc --> 定义每一次版本的校验和
+00001.checkpoint.parquet 表示一次快照版本
+00000000000000004915.checkpoint.0000000020.0000000060.parquet 表示第4915个快照版本,里面还有有60个部分组成,该文件是第20个部分
+
+
+二、常用方法
+1.Path deltaFile(String path,long version) ---> 返回00001.json文件。
+比如version=40,则输出00000000000000000040.json
+2.Path checksumFile(String path,long version) ---> 返回00001.crc文件
+3.Path checkpointPrefix(String path,long version) ---> 返回00001.checkpoint前缀
+Path checkpointFileSingular(String path,long version) ---> 返回00001.checkpoint.parquet文件
+Seq[Path] checkpointFileWithParts(String path,long version,int numParts)
+参数numParts表示一共多少个文件。即获取某一个版本的numParts个文件。
+返回00000000000000004915.checkpoint.0000000020.0000000060.parquet 所有60个文件路径
+
+三、判断文件类型
+1.boolean isCheckpointFile(path: Path)
+是否是00000000000000004915.checkpoint.0000000020.0000000060.parquet格式。
+是否是00001.checkpoint.parquet格式。
+2.boolean isDeltaFile(path: Path) 判断是否是00001.json文件，即commit提交文件
+3.boolean isChecksumFile(path: Path) 判断是否是00001.crc文件，即crc校验和文件
+
+四、获取版本号
+Long deltaVersion(path: Path) --> 参数是00001.json文件,返回版本号1
+Long checksumVersion(path: Path) --> 参数是00001.crc文件,返回版本号1
+Long checkpointVersion(path: Path) --> 参数是00000000000000004915.checkpoint.0000000020.0000000060.parquet，返回4915,即返回checkpoint的版本号
+Int numCheckpointParts(path: Path) --> 参数是00000000000000004915.checkpoint.0000000020.0000000060.parquet，返回60
+

@@ -15,5 +15,5 @@ e.--build_independent_dict 是否独立每一个分区一个编码。
 --build_independent_dict 
 --disable_dict_columns 数值的bitmap类型字段，忽略编码
 --skip_null_value_columns 字符串的bitmap类型字段，可能存在null导致的数据倾斜问题，进行配置处理。
---dict_reuse 字段重复使用同一个字典编码
+--dict_reuse 字段重复使用同一个字典编码   字典字段:复用字典,复用字典%字典字段2:复用字典,复用字典
 --spark_conf "spark.executor.memory=10G,spark.executor.cores=1,spark.yarn.executor.memoryOverhead=10G,spark.memory.fraction=0.7" 配置运行参数。

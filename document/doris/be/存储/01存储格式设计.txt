@@ -1,0 +1,148 @@
+一、背景与总结
+1.数据写入内存，内存排序，按列存储，排序的结果存储到page里。所有内存数据按列的顺序，更新data数据区。
+根据内存的就排序结果，更新索引区。
+2.索引区核心引用
+a.判断某一个值是否存在，使用索引bloom filter。
+b.如果列可以存储bitmap形式，则会加快与或操作效率。筛选匹配的行号。
+c.主键模型，可以判断主键是否在segment里存在，进一步是否需要解析。
+d.short key索引，用于快速查找对应的行号。行号通过ordinal索引快速找数据。
+
+二、第一部分 -- magic code
+三、第二部分 -- Data数据区，存储真实的列数据。
+列A：page0,page1... 列B：page0,page1...
+
+1.列A数据内容，列B数据内容，列C数据内容。
+2.每一个列内容里，最小单位是page0,page1...
+3.page分类
+DataPage根据列是否允许存储null,分为两种：nullable和non-nullable的data page。
+a.nullable内容
+value count 表示page中的行数
+first row id,page中第一行的行号
+bitmap length,表示接下来bitmap的字节数
+null bitmap,null bitmap
+data,具体存储内容
+checksum,存储page粒度的校验和，包括page的header和之后的实际数据
+
+b.non-nullable的内容
+value count 表示page中的行数
+first row id,page中第一行的行号
+data,具体存储内容
+checksum,存储page粒度的校验和，包括page的header和之后的实际数据
+
+四、第三部分 -- 索引区  -- 每一个列都有以下索引信息，因此索引的内容也是以列为单位存储的。
+Index Region: doris中将各个列的index数据统一存储在Index Region，这里的数据会按照列粒度进行加载，所以跟列的数据信息分开存储。
+数据会每一行有一个唯一ID 表示行号，数据会按照行号在data数据区域存储数据，但为了快速定位数据的行号，有各种索引的逻辑。每一种索引都有一种存储方式。
+
+1.主键索引 -- 用于包含主键的数据模型
+a.segment记录该支持的min、max主键，用于判断给定主键id是否在该segment范围内。
+b.为segment下所有的主键，创建bloom filter，快速判断某一个主键是否确定在该segment中存在。
+2.short key索引
+按照key排序的前缀索引，存储前缀key与对应的行号。
+由于key已经排序好，因此二分法查找数据，效率高。doris默认会每隔1024条数据，生产一个key索引。
+3.ordinal索引 -- Doris会为每个page生成一条ordinal索引
+segment内所有的page，记录每一个page中第一条数据的行号，以及page偏移和大小。
+可以快速根据行号，定位到page的偏移量。
+
+4.bitmap索引
+一个列，有多少个枚举值，则产生多少个bitmap，即每一个枚举值对应的bitmap是行号。
+记录列中key字典对应的bitmap信息。用于对该列值进行过滤。
+通过字典找到匹配列中枚举值对应的行号，基于bitmap对多个匹配的条件做与操作很高效。
+
+5.lucene倒排索引
+由于bitmap索引并不适合基数比较大的列（如文本和浮点数），因此Doris引入了lucene索引作为另外一种可选的倒排索引。
+在查询时如果使用了该列作为过滤条件，则可以通过lucene索引搜索返回匹配的行对应的bitmap。对于lucene倒排索引，Doris会将其存储到单独的索引文件中。
+
+6.zone map索引 -- 基于统计信息的索引
+记录page/segment列数据的最大值、最小值及是否存在空值/非空值。
+在查询时如果使用了该列作为过滤条件，则可以通过zone map索引快速判断当前segment/page中是否可能存在满足条件的记录。
+
+7.bloom filter索引
+判断特定值在存储中是否存在的索引。
+
+五、第四部分 -- Footer信息
+FileFooterPB:定义文件的元数据信息
+4个字节的footer pb内容的checksum
+4个字节的FileFooterPB消息长度，用于读取FileFooterPB
+8个字节的MAGIC CODE，之所以在末位存储，是方便不同的场景进行文件类型的识别
+
+六、元数据
+message ColumnPB {
+    required int32 unique_id = 1;   // 这里使用column id, 不使用column name是因为计划支持修改列名
+    optional string name = 2;   // 列的名字,  当name为__DORIS_DELETE_SIGN__, 表示该列为隐藏的删除列
+    required string type = 3;   // 列类型
+    optional bool is_key = 4;   // 是否是主键列
+    optional string aggregation = 5;    // 聚合方式
+    optional bool is_nullable = 6;      // 是否有null
+    optional bytes default_value = 7;   // 默认值
+    optional int32 precision = 8;       // 精度
+    optional int32 frac = 9;
+    optional int32 length = 10;         // 长度
+    optional int32 index_length = 11;   // 索引长度
+    optional bool is_bf_column = 12;    // 是否有bf词典
+    optional bool has_bitmap_index = 15 [default=false];  // 是否有bitmap索引
+}
+
+// page偏移
+message PagePointerPB {
+    required uint64 offset; // page在文件中的偏移
+    required uint32 length; // page的大小
+}
+
+message MetadataPairPB {
+  optional string key = 1;
+  optional bytes value = 2;
+}
+
+message ColumnMetaPB {
+    optional ColumnMessage encoding; // 编码方式
+
+    optional PagePointerPB dict_page // 词典page
+    repeated PagePointerPB bloom_filter_pages; // bloom filter词典信息
+    optional PagePointerPB ordinal_index_page; // 行号索引数据
+    optional PagePointerPB page_zone_map_page; // page级别统计信息索引数据
+
+    optional PagePointerPB bitmap_index_page; // bitmap索引数据
+
+    optional uint64 data_footprint; // 列中索引的大小
+    optional uint64 index_footprint; // 列中数据的大小
+    optional uint64 raw_data_footprint; // 原始列数据大小
+
+    optional CompressKind compress_kind; // 列的压缩方式
+
+    optional ZoneMapPB column_zone_map; //文件级别的过滤条件
+    repeated MetadataPairPB column_meta_datas;
+}
+
+message SegmentFooterPB {
+    optional uint32 version = 2 [default = 1]; // 用于版本兼容和升级使用
+    repeated ColumnPB schema = 5; // 列Schema
+  optional uint64 num_values = 4; // 文件中保存的行数
+  optional uint64 index_footprint = 7; // 索引大小
+  optional uint64 data_footprint = 8; // 数据大小
+    optional uint64 raw_data_footprint = 8; // 原始数据大小
+
+  optional CompressKind compress_kind = 9 [default = COMPRESS_LZO]; // 压缩方式
+  repeated ColumnMetaPB column_metas = 10; // 列元数据
+    optional PagePointerPB key_index_page; // short key索引page
+}
+
+
+七、写入逻辑
+1.segment数据写入的逻辑位于SegmentWriter
+a.调用SegmentWriter::init函数进行初始化，为每一个列创建一个ColumnWriter。创建short key索引和主键索引。
+b.调用SegmentWriter::append_block函数进行写入数据。
+调用各列的ColumnWriter::append函数写入列数据。
+根据键类型使用ShortKeyIndexBuilder或PrimaryKeyIndexBuilder写入short key或主键。
+c.数据存储在内存中，并且排序。
+d.segment或者page写满后，调用SegmentWriter::finalize函数完成写入流程。
+每列，调用finish，完成page的物化，以及索引的物化。
+e.调用finalize_footer函数写入footer信息
+
+2.ColumnWriter::init函数负责对当前ColumnWriter进行初始化，
+根据元数据中的压缩信息和编码方式（不编码/前缀编码/RLE编码/字典编码/bit_shuffle编码/FOR编码）创建PageBuilder，用于构建data page。
+创建用于保存ordinal索引的OrdinalIndexWriter。
+创建用于保存空值信息的NullBitmapBuilder。
+如果需要创建zone map索引，则创建ZoneMapIndexWriter用于索引构建。
+如果需要创建bitmap索引，则创建BitmapIndexWriter用于索引构建。
+如果需要创建lucene倒排索引，则创建InvertedIndexColumnWriter用于索引构建。
+如果需要创建bloom filter索引，则创建BloomFilterIndexWriter用于索引构建。

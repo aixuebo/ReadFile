@@ -1,0 +1,30 @@
+一、背景与总结
+1.特点
+a.delta是构建在 Apache Spark 之上的开源的存储层组件。
+b.架构基础是基于事务日志，因此可以天然的支持原子操作(INSERT或者UPDATE支持事务，要么全成功，要么全失败)、ACID事务、时间旅行/版本控制、并发读写等。
+
+
+二、deltaLog表示一个delta维护的hive表
+1.文件类型
+00001.json --> 定义每一次版本commit的元数据
+00001.crc --> 定义每一次版本的校验和
+00001.checkpoint.parquet 表示一次快照版本
+00000000000000004915.checkpoint.0000000020.0000000060.parquet 表示第4915个快照版本,里面还有有60个部分组成,该文件是第20个部分。
+
+2.目录类型
+
+三、集中概念的关系
+1.基础概念
+version 每一次产生的版本信息。
+Snapshot 快照，定位某一个版本前所有的version信息。不需要每次从0version开始查找快照需要的数据版本文件。
+checkpoint 将Snapshot进行保存,并且记录尚未添加到Snapshot的文件信息。 某一个Snapshot对应的所有version的action信息做整合。
+
+2.checkpoint与Snapshot区别是什么?
+Apache Delta是一个用于增量处理大型数据集的框架，它可以有效地在大型数据集中处理增量数据。Checkpoint和Snapshot是Apache Delta框架中两个非常重要的概念。
+Checkpoint是指在增量计算中，对数据集更新的备份。当发生故障时，可以使用Checkpoint来恢复计算状态并继续进行增量计算。Checkpoint是存储在硬盘上的，
+因此它可以保持持久化，即使系统崩溃也不会丢失。
+另一方面，Snapshot是指对数据集的一份快照。在许多情况下，Delta使用Snapshot来保持数据一致性。在Delta中，每个Snapshot都是由许多Delta文件组成的。
+因此，Checkpoint和Snapshot的主要区别在于它们的用途和持久性。Checkpoint用于故障恢复和继续增量计算，而Snapshot用于保持数据一致性。
+Checkpoint是持久化的，而Snapshot则可以随时丢弃或创建新的。
+
+

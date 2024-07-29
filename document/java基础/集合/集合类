@@ -94,4 +94,10 @@ public static void main(String[] args) {
     list1.removeAll(list2);
 }
 
+六、List转换成String[]
+String[] dimArr = new String[]{"",""};
+List<String> dimList = new ArrayList<String>();
+this.dimArr = dimList.toArray(new String[0]);  或者 this.dimArr = dimList.toArray(new String[dimList.size()]);
 
+七、排序 
+Collections.sort(list)

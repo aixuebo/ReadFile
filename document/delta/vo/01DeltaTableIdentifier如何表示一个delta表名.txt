@@ -1,0 +1,20 @@
+一、背景与总结
+1.该对象仅仅表示delta的hive表名字。而不是表示delta表对象。
+
+二、构造函数
+1.如何表示一个delta的hive表
+a.spark的catalog上就已经定义了一个hive表。
+此时使用TableIdentifier表示，即包含库名 + 表名
+注意：此时要求spark的库名字一定是"delta"
+b.spark上没有该hive表，本地使用path定义唯一一个表。
+此时使用string path表示。
+2.构造函数
+public DeltaTableIdentifier(String path,TableIdentifier vo)
+两个参数必须有一个参数。
+
+三、简单的函数
+1.public string database() ---> 已知hive表时，直接返回对应的数据库名
+2.public string identifier() ---> 已知hive表时，直接返回对应的表名；已知path时,直接返回path。
+3.public Path getPath(spark: SparkSession) --> 从spark环境中，解析hive表对应的path。
+4.public DeltaLog getDeltaLog(spark: SparkSession) ---> DeltaLog.forTable(spark, getPath(spark))
+table已经被spark管理了,从spark中加载table,转换成DeltaLog对象

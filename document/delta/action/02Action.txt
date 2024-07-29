@@ -1,0 +1,87 @@
+一、背景与总结
+
+二、Action
+Action内部持有一个SingleAction对象；以及将SingleAction对象转换成json字符串的函数
+1.public SingleAction wrap;//具体持有的action对象
+2.public String json(SingleAction wrap) //action对象与string json的转换。
+3.public Action fromJson(String json) //将json 转换成具体的SingleAction子类。
+
+三、SingleAction
+1.属性，持有所有具体的Action实现类。都有set方法，但只有一个对象是非null的。
+protocol: Protocol = null,//delta执行的版本号
+commitInfo: CommitInfo = null //提交行为
+add: AddFile = null,//为数据库表增加数据文件
+remove: RemoveFile = null,//为数据库表删除数据文件
+metaData: Metadata = null,//元数据信息，比如库的名字，表的名字等
+txn: SetTransaction = null,
+
+2.public Action unwrap() return 非null的SingleAction对象。
+
+三、Protocol extends Action
+1.public SingleAction wrap = new SingleAction();
+wrap.protocol(this);//即Protocol
+2.版本号属性
+minReaderVersion: Int = Action.readerVersion,
+minWriterVersion: Int = Action.writerVersion
+    
+四、AddFile extends Action 代表一个数据表中的数据(可能归属于某个分区)
+1.属性
+public String path;
+public boolean dataChange;//文件是否数据有变化
+long size 文件大小
+long modificationTime 文件最后修改时间戳
+Map[String, String] partitionValues //文件分区字段信息
+String stats 文件状态
+Map[String, String] tags 文件额外属性信息
+
+
+2.public SingleAction wrap = new SingleAction();
+wrap.protocol(this);//即AddFile
+
+3.public RemoveFile remove() 将文件删除操作,返回删除动作。
+new RemoveFile(path,System.currentTimeMillis(),true)
+
+
+五、RemoveFile extends Action 代表一个数据表中的数据已经被删除了
+1.属性
+public String path;
+public boolean dataChange;//文件是否数据有变化,一般被删除文件的都是true
+public long deletionTimestamp;//什么时间点删除的该文件
+
+2.public SingleAction wrap = new SingleAction();
+wrap.protocol(this);//即RemoveFile
+
+六、SetTransaction extends Action 暂时不知道做什么的
+1.属性
+string appId
+long version 版本号
+long lastUpdated
+2.public SingleAction wrap = new SingleAction();
+wrap.protocol(this);//即SetTransaction
+
+七、CommitInfo extends Action 提交动作
+public SingleAction wrap = new SingleAction();
+wrap.protocol(this);//即CommitInfo
+
+八、Metadata extends Action
+1.public SingleAction wrap = new SingleAction();
+wrap.protocol(this);//即Metadata
+
+2.属性
+String id = java.util.UUID.randomUUID().toString
+String name//表名
+String description 表描述
+String schemaString 表的schema信息,json形式,可以转换成StructType对象
+Format format;//hive表中文件存储格式,比如orc等
+Seq[String] partitionColumns;//分区字段集合,该字段在schema中定义
+Long createdTime;//表的创建时间
+Map[String, String] configuration;//表的额外配置自定义信息
+
+3.方法
+public StructType schema(schemaString) 将表的schema字符串，转换成StructType对象。
+public StructType partitionSchema(Set<String> partitionColumns) 将表的分区字段，转换成StructType对象，该对象内容是分区字段数组类型组成。所以从schema中获取分区字段对应的StructField类型
+public StructType dataSchema(Set<String> partitionColumns) 获取数据类型，即不是分区字段的都是数据类型。
+
+九、Format --- 定义存储的文件格式
+String provider = "parquet"//默认文件存储格式类型。
+Map[String, String] options //文件存储格式需要的额外参数配置,比如压缩比等。

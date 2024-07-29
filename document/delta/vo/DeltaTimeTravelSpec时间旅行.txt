@@ -1,0 +1,17 @@
+一、背景与总结
+1.回溯某一个快照的全量数据，怎么办。
+两种解决方案:
+a.告诉系统，表名，以及时间点。即返回时间点前表的所有数据。  格式:concat(表名,'@',yyyyMMddHHmmssSSS字符串组成的时间点),比如user@yyyyMMddHHmmssSSS
+b.告诉系统，表名，以及版本号。即返回版本号前表的所有数据。  格式:concat(表名,'@','V',版本号数字)，比如 user@v12 表示12版本的user表
+
+二、构造函数
+1.public DeltaTimeTravelSpec(Timestamp 时间戳对象,Long 版本号,String 数据源名字) 
+要求前两个参数必须存在一个。
+
+三、基础函数
+1.boolean identifierContainsTimeTravel(String identifier) 校验参数是否满足两种格式。
+2.将yyyyMMddHHmmssSSS转换成Timestamp对象。
+3.Expression parseTimestamp(String 格式a, String 时区 ): Expression 
+将格式a进行解析，解析yyyyMMddHHmmssSSS，并且转换成TimestampType类型对象。
+4.resolvePath(identifier: String): (DeltaTimeTravelSpec, String) 
+解析字符串，转换成 <DeltaTimeTravelSpec,表名>,其中DeltaTimeTravelSpec包含了哪个时间戳或者版本号进行处理该表。

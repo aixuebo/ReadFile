@@ -1,0 +1,110 @@
+一、背景与总结
+1.核心对象，控制事务冲突的逻辑代码，相对其他class,该对象属于逻辑复杂的。
+
+
+二、OptimisticTransaction extends OptimisticTransactionImpl 
+对外提供操作的事务对象，对一个delta表进行包装
+public OptimisticTransaction(DeltaLog deltaLog,Snapshot deltaLog.snapshot) //持有delta表以及对应的快照
+
+单节点内确保线程安全，每一个线程job只能处理一个delta表(好像是无可厚非的事儿)
+private val active = new ThreadLocal[OptimisticTransaction]
+def getActive(): Option[OptimisticTransaction] = Option(active.get())
+private[delta] def setActive(txn: OptimisticTransaction): Unit = active.set(txn)
+private[delta] def clearActive(): Unit = active.set(null)
+
+三、提交状态信息对象表
+case class CommitStats(
+  /** The version read by the txn when it starts.事务开始读的时候版本 */
+  startVersion: Long,
+  /** The version committed by the txn.最终提交的版本 */
+  commitVersion: Long,
+  /** The version read by the txn right after it commits. It usually equals to commitVersion,
+   * but can be larger than commitVersion when there are concurrent commits.
+    * 提交后再去的时候版本号,通常是等于 commitVersion,但是也可能大于commitVersion,原因是并发提交时会产生这种case
+    **/
+  readVersion: Long,
+  txnDurationMs: Long,//从事务开启 到 提交之间的时间消耗
+  commitDurationMs: Long,
+  numAdd: Int,//新添加多少个文件
+  numRemove: Int,//删除多少个文件
+  bytesNew: Long,//新产生多少个字节
+  /** The number of files in the table as of version `readVersion`. */
+  numFilesTotal: Long,//该版本快照一共有多少文件
+  /** The table size in bytes as of version `readVersion`. */
+  sizeInBytesTotal: Long,//该版本快照一共多少字节
+  /** The protocol as of version `readVersion`. */
+  protocol: Protocol,//协议
+  info: CommitInfo,
+  newMetadata: Option[Metadata],//新的元数据
+  numAbsolutePathsInAdd: Int,
+  numDistinctPartitionsInAdd: Int,//更改了多少个分区
+  isolationLevel: String)
+
+四、核心的事务方法 OptimisticTransactionImpl extends TransactionalWrite with SQLMetricsReporting 
+1.核心属性
+  val deltaLog: DeltaLog  表对象
+  val snapshot: Snapshot  快照对象
+  
+2.提交流程
+prepareCommit(提前交的校验工作) --> doCommit(提交) --> postCommit(提交后的清理工作,checkpoint等)
+
+3.具体实现
+Long commit(Seq[Action] actions,DeltaOperations.Operation op) 提交一组动作，返回提交成功后的版本号
+a.actions = prepareCommit(actions, op) //做一些初始化校验工作，返回值会增加一些action，比如Metadata、Protocol等action。
+①判断是否有Metadata，如果有，则判断是否仅有1个Metadata，并且对Metadata进行合法性校验
+②第一次commit时候,要对Metadata对象进行默认值初始化配置；要增加Protocol信息；
+③本次操作是否有RemoveFile操作，如果有，则判断是否该表允许做RemoveFile操作，如果不允许，直接抛异常。
+b.判断是否只有append 文件操作，没有delete、update操作。
+val isBlindAppend = actions.collect { case f: FileAction => f }.forall(_.isInstanceOf[AddFile])  //true表示仅添加文件,即纯粹的append新数据到表
+c.在actions队列前面，添加CommitInfo这个action对象
+        commitInfo = CommitInfo(
+          clock.getTimeMillis(),//提交时间
+          op.name,
+          op.jsonEncodedValues,
+          Map.empty,
+          Some(readVersion).filter(_ >= 0),//读取的那个快照版本上操作的
+          None,
+          Some(isBlindAppend),
+          getOperationMetrics(op))
+        actions = commitInfo +: finalActions //追加一个动作
+d.注册钩子
+e. val commitVersion = doCommit(预期的版本号,actions,尝试次数,事务隔离级别) //执行提交,返回提交成功的version
+f.postCommit(commitVersion, actions) 收尾工作
+提交完成后的一些额外操作，比如设置提交完成状态；做checkpoint操作
+deltaLog.checkpoint()
+g.runPostCommitHooks(version, actions) 执行钩子
+
+public Long doCommit(attemptVersion: Long,//尝试的版本号
+      actions: Seq[Action],
+      attemptNumber: Int,//尝试次数
+      isolationLevel: IsolationLevel)
+a.在操作系统上创建version.json文件。并且写入action数据到文件内。
+注意：一旦写入成功，就说明提交成功了，不会发生冲突了；虽然可以同一时间有多个job一起写这个文件，但操作系统会保障只有一个文件会被写成功，因此写入成功就说明提交成功了。
+b.val postCommitSnapshot = deltaLog.update() //获取快照最新版
+c.校验最新快照版本 postCommitSnapshot 是不是就是预期的快照版本，如果不是，则说明有冲突，要重新提交。
+//可能在提交过程中会产生多个版本，因此可能最高版本快照比提交版本高
+d.如果不冲突，则设置CommitStats提交状态对象。并且记录日志。
+e.如果冲突，则checkAndRetry(attemptVersion, actions, attemptNumber, isolationLevel)，重新解决冲突问题。
+
+public Long checkAndRetry(
+      checkVersion: Long,
+      actions: Seq[Action],
+      attemptNumber: Int,
+      commitIsolationLevel: IsolationLevel)
+
+参考 delta核心功能介绍与demo/03并发读写如何实现.txt，描述了冲突如何检查与解决的。
+
+五、如果读取当前版本对应的数据 --- 返回匹配的文件集合
+  def filterFiles(filters: Seq[Expression]): Seq[AddFile] = {
+    val scan = snapshot.filesForScan(Nil, filters) //筛选满足分区列条件的文件集合 Seq[AddFile] --- 此时扫描的是AddFile,即只是找到满足分区key的AddFile集合
+
+    //表达式中涉及到分区字段的表达式集合
+    val partitionFilters = filters.filter { f =>
+      DeltaTableUtils.isPredicatePartitionColumnsOnly(f, metadata.partitionColumns, spark) //是否该表达式需要的字段,在分区字段集合中
+    }
+
+    //将分区key=value这类表达式,转换成一个and表达式
+    readPredicates += partitionFilters.reduceLeftOption(And).getOrElse(Literal(true)) //分区表达式集合,比如name = a and id = 7,如果没有分区表达式,则直接返回true,表示全部数据都要
+    readFiles ++= scan.files
+    scan.files
+  }

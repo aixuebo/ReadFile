@@ -1,0 +1,42 @@
+一、背景与总结
+1.参考 图1
+
+二、存储设计 与 索引
+1.主体流程
+a.doris数据写入时，会先写入Tablet 对应的 MemTable 中，内存中进行按照key排序，当内存写满后，flush到磁盘，生成不超过256MB的Segment 文件。
+b.由于doris是列存储方式存储数据，因此每一个列会被存储在多个Data Page中。
+即整体上若干行数据，会排序后存储在Segment文件里，而Segment文件会按照列去划分，每一个列的数据会被集中存储，而且列存储的数据会被存储在多个Data Page中。
+参考图1
+
+为了加快查询，存储数据过程中会创建各种索引：
+2.前缀索引（Short Key Index）
+Segment 文件是按 Key 排序的，因此，前缀索引项也是按 Key 排序的。每隔1024条数据，记录一个前缀索引key与行号映射关系。
+Short Key Page 在 Segment 中的 offset 和大小会被保存在Segment文件的footer中，方便读取segement时，优先把前缀索引加载到内存。
+
+作用：核心用于过滤条件的筛选，过滤条件命中key排序时，可以减少筛选key的行号范围。
+
+3.Ordinal 索引
+每一个列存储中的page页的第一行，会被索引，即该page在segment的偏移量、page大小、开始行号。
+作用是知道行号，可以快速定位所在page页信息。
+
+4 Zone Map 索引
+a.Segment文件中会为列中的每一个Data Page添加Zone Map索引。
+即每一个列的每一个page都会产生一个数据。
+数据包含该page的列值最大值、最小值、是否有null、是否有非null值。
+b.作用：对列值进行过滤，选择是否读取该page。
+判断列是否为null；判断列是否非null；判断列值是否在一个范围内；
+field = value、field < value、field <= value、>= 、> ,判断value是否在page列值范围内。
+field in (value1, value2) 判断value是否在page列值范围内。
+field != value,判断value值与最小值、最大值的比较。
+
+5.Bitmap 索引
+a.为了加速数据查询，Apache Doris支持用户为某些字段添加Bitmap索引.
+即该列的每一个枚举值，都会有一个bitmap，记录存在该枚举值的行号，这样可用于 & 或者 | 操作。定位筛选行号范围。
+b.添加索引命令  ALTER TABLE table_name ADD INDEX index_name (column_name) USING BITMAP COMMENT ‘’;
+
+6.Bloom Filter索引
+索引创建语法:ALTER TABLE table_name SET (“bloom_filter_columns”=”c1, c2, c3”);
+a.每一个列的page，都可以创建一个独立的Bloom Filter索引，用于判断该列是否包含xx属性值。
+b.数据结构：Bloom分配一段内存，然后划分成不同的block（每个block为32个字节，256bit）。
+c.生成逻辑：将每一列值，hash处理，计算出一个64位的hashcode。其中高32位，用于判断哪个block，低32位用于标注该block的位置为1.
+d.用于某一个列值频繁查询是否存在时，即该列有较大区分度时使用该索引效率更高。

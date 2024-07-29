@@ -1,0 +1,28 @@
+一、背景与总结
+1.查询历史commit提交的信息
+相当于git log mingling 查看最近提交的commit信息，因为commit信息就在版本号的json文件的第一行里，只需要解析每一个版本json文件即可。
+
+二、核心方法
+1.查询历史的commit提交信息
+def getHistory(limitOpt: Option[Int]): Seq[CommitInfo] 查询最后limitOpt次CommitInfo提交信息。
+def getHistory(start: Long, end: Option[Long]): Seq[CommitInfo] 查询某一段区间的CommitInfo提交信息。
+a.获取需要查询的start和end版本区间，做成spark集合，去分布式查询每一个版本信息。
+b.分布式去hdfs上获取版本号对应的提交json信息 --> 解析每一行json的内容 --> 找到每次版本号对应的提交json对应的提交信息CommitInfo对象。
+
+2.def checkVersionExists(version: Long) 校验传入的版本号 一定在 最早的版本号 与 最新的版本号之间，否则抛异常。
+
+
+3.def getActiveCommitAtTime(
+      timestamp: Timestamp,//要查询的时间戳
+      canReturnLastCommit: Boolean,
+      mustBeRecreatable: Boolean = true) //是否重新计算最早的版本号
+      : Commit 基于时间戳，获取时间戳之前最后一次提交的版本
+
+比如要查询的版本号区间较大，比如从1-100万个版本号，找一个时间戳前最后一个版本。即按照时间戳查找版本。
+此时一个一个比较版本号比较麻烦，利用分布式能力，每一个节点计算 start + step个版本，获取满足时间戳的最大的版本即可
+默认值 step = maxKeysPerList = 1000.
+
+a.分布式去计算所有的版本号与给定时间的关系，找到时间戳后，最后一次提交的版本号
+b.做校验，返回版本号即可
+
+

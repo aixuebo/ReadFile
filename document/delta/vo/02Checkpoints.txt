@@ -1,0 +1,66 @@
+一、背景与总结
+1.定义checkpoint核心逻辑
+2.00000000000000004915.checkpoint.0000000020.0000000060.parquet 表示第4915个checkpoint文件,有60个部分组成,该文件是第20个部分
+
+二、Checkpoin的元数据
+case class CheckpointMetaData (
+    version: Long,//版本号
+    size: Long,//包含多少个action动作
+    parts: Option[Int]) checkpoint的版本号中第几个checkpoint。如果参数是null,则表示checkpoint只有一个文件。
+    
+三、Checkpoin实例 -- 表示一个checkpoint，即一个checkpoint的某一个parts。
+case class CheckpointInstance(
+    version: Long,//该checkpoint对应的版本号
+    numParts: Option[Int]) //该checkpoint版本的某一个part序号
+  extends Ordered[CheckpointInstance] { //支持排序，先按照版本号排序,再按照part块排序
+
+1.构造函数
+  def apply(path: Path): CheckpointInstance = {
+    CheckpointInstance(checkpointVersion(path), numCheckpointParts(path)) //通过checkpoint文件名,转换成CheckpointInstance对象
+  }
+
+  def apply(metadata: CheckpointMetaData): CheckpointInstance = {
+    CheckpointInstance(metadata.version, metadata.parts)
+  }
+
+2.比较函数
+def isEarlierThan(other: CheckpointInstance): Boolean  实例要比参数小，则返回true
+
+3.def getCorrespondingFiles(path: Path): Seq[Path] 获取checkpoint文件集合
+
+四、Checkpoints
+1.基础元素
+  def logPath: Path
+  def dataPath: Path
+  def snapshot: Snapshot
+  protected def store: LogStore
+  protected def metadata: Metadata
+  
+2.属性
+val LAST_CHECKPOINT = new Path(logPath, "_last_checkpoint") 存储最后一个版本的checkpoint内容
+
+3.找到最新的checkpoint元数据
+def lastCheckpoint: Option[CheckpointMetaData] = loadMetadataFromFile(参数尝试次数)
+a.读取LAST_CHECKPOINT文件内容。
+b.获取元数据信息。
+
+从所有数据中找到离参数对应的版本号最近的checkpoint
+def findLastCompleteCheckpoint(cv: CheckpointInstance): Option[CheckpointInstance]
+比如要查找第1000个版本号对应的最近的checkpoint
+a.先查询第9000-1000之间的版本号前缀的文件，获取所有的checkpoint文件集合，从而获取最新的一个checkpoint。
+b.如果没有checkpoint，则再循环向前查找其次的1000个版本。
+
+4.创建一个checkpoint
+a.获取当前delta表的snapshot快照，此时可以知道所有的数据文件。
+b.基于snapshot快照，Checkpoints.writeCheckpoint(spark, this, Snapshot)，创建CheckpointMetaData元数据。
+c.将CheckpointMetaData元数据，转换成json，输出到LAST_CHECKPOINT文件中。
+
+
+5.核心逻辑，将Snapshot内容，输出成一个Checkpoint文件。
+def writeCheckpoint(
+      spark: SparkSession,
+      deltaLog: DeltaLog,
+      snapshot: Snapshot): CheckpointMetaData
+
+将Snapshot中所有的action,序列化输出到hdfs上。
+返回CheckpointMetaData(snapshot.version, 有多少个action, None)

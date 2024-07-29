@@ -1,0 +1,95 @@
+一、背景与总结
+1.SnapshotManagement是管理一个delta表的快照信息。
+a.获取某一个快照涉及的所有json版本文件，从而获取所有涉及的数据文件集合。
+
+2.每一次任务提交都会产生一个version -->  定期会将多个version组合成一个快照Snapshot --> checkpoint 将Snapshot进行保存,并且记录尚未添加到Snapshot的文件信息。
+因此随意一个version会在比version更大的Snapshot中都会存在，所以定位某一个version时，找到比该version小的Snapshot即可 + 其他version即可。
+
+二、基础方法
+1.获取指定版本号对应的数据文件索引。
+即获取某一个快照涉及的所有json版本文件，从而获取所有涉及的数据文件集合。
+  protected def getFileIndices(
+      startingCheckpoint: Option[CheckpointInstance],//从哪个Checkpoint开始查找版本号，避免从0开始查找版本号，减少缩小查询范围
+      versionToLoad: Option[Long] = None):  //加载版本到什么为止，比如该参数是100，则说明要保留0-100之间所有的版本信息
+      Option[LogReplayInfo] = {
+第一种场景：如果startingCheckpoint 是 null。
+①循环所有的版本json文件，找到小于参数versionToLoad版本的所有版本号json文件。
+校验:
+a.版本号要连贯。
+b.版本号从0开始，以参数versionToLoad结尾。
+②简单计算json版本集合中，最后一个版本号、最后一个版本对应的时间戳
+③返回 LogReplayInfo(最后一个版本号, 所有独立版本json文件集合, None, None, 最后一个版本对应的时间戳)
+
+第二种场景：如果startingCheckpoint is not null，即不是从0版本开始加载，而是从一个checkpoint开始加载，即checkpoint+version组成。
+①从startingCheckpoint参数，获取checkpoint的版本号chkVersion、checkpoint对应的version版本json文件集合checkpointFiles(checkpoint对应的是若干个json文件)。
+②获取chkVersion之后的独立小version版本号集合、version文件集合。 version范围是(chkVersion,versionToLoad]。
+校验:
+a.版本号要连贯。并且版本号是从chkVersion+1k开始。
+b.版本号从chkVersion+1开始，以参数versionToLoad结尾。
+③返回 LogReplayInfo(最后一个版本号, 所有独立版本json文件集合, checkpoint对应的version文件集合,checkpoint的版本号, 最后一个版本对应的时间戳)
+
+
+2.判断是否要做快照。（多久更新一次快照，默认超过这段时间，一定会被更新一次快照，将version集合做一次merge）
+def isSnapshotStale: Boolean  true表示可以做快照了。
+目标是定期的对所有version信息做一次快照。规则如下:距离上次快照超过一定时间，则返回true。
+
+三、更新快照
+1.背景
+每一次任务提交都会产生一个version -->  定期会将多个version组合成一个快照Snapshot --> 手动checkpoint 将Snapshot进行保存。
+因此随意一个version会在比version更大的Snapshot中都会存在，所以定位某一个version时，找到比该version小的Snapshot即可 + 其他version即可。
+
+2.问题
+该什么时间点开始创建新的Snapshot呢？
+答:随着调用update方法就有可能创建Snapshot，此时是否创建Snapshot，需要看update逻辑。
+
+3.def update(stalenessAcceptable: Boolean = false): Snapshot  返回一个快照。
+参数stalenessAcceptable 表示是否接受陈旧的版本，true表示接受。
+
+a.boolean doAsync //手动操作还是异步操作。如果该结果是false，表示同步执行。如果是true表示异步执行。
+b.同步执行 updateInternal(false)。
+异步执行 判断异步执行任务是否空闲，如果空闲，则可以异步执行updateInternal(true)。
+
+c.doAsync什么场景会是true
+stalenessAcceptable = true (允许接受可陈旧的版本) and 已经超过一定周期内没有更新了。 
+即如果不接受可陈旧的版本，那肯定需要手动同步更新。接受不了异步。
+
+
+
+4.updateInternal(isAsync) 如何更新Snapshot?
+a.getFilesForUpdate 获取增量的文件。
+b.创建一个新的Snapshot。
+
+
+5.def getFilesForUpdate: Option[LogReplayInfo]  返回在上一个Snapshot之后新增的版本文件，包含checkpoint + delta。
+a.在checkpoint中，获取当前快照版本之后，产生的所有的checkpoint文件+version文件。
+b.LogReplayInfo(
+        newVersion,//最后一个版本号
+        deltaIndex,//delta版本文件集合
+        Some(checkpointIndex),//delta的checkpoint集合
+        newCheckpoint.map(_.version),//checkpoint的版本
+        deltas.lastOption.map(_.getModificationTime)) 返回新增的数据信息
+        
+四、如何根据版本号或者时间戳 定位一个Snapshot。
+  def getSnapshotAt(
+      version: Long,
+      commitTimestamp: Option[Long] = None,
+      lastCheckpointHint: Option[CheckpointInstance] = None) //按时从这个checkpoint开始查找版本信息
+       : Snapshot = {
+1.如果当前快照的版本，就是等于 version，则直接返回当前Snapshot即可。
+    val current = snapshot //当前快照
+    if (current.version == version) {
+      return current
+    }
+2.如果有暗示lastCheckpointHint，并且lastCheckpointHint <= version,则选择次checkpoint对应的版本，
+如果没有暗示，或者暗示的版本比 需要的版本大，则计算比version小 但最接近version的Checkpoint。
+
+3.从Checkpoint开始，使用Checkpoint + 小version，汇总收集所有属于该快照的版本信息。将其创建成快照对象。
+
+4.创建快照对象。
+createSnapshot(
+      version,
+      None,
+      info.checkpoint.toSeq :+ info.deltas,
+      minFileRetentionTimestamp,
+      info.lastCommitTimestamp.getOrElse(-1L),
+      1)
