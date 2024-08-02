@@ -9,12 +9,18 @@ boolean、tinyint、smallint、int、bigint、float、double、decimal、string�
 count默认值是0，sum默认值是null,因此sum最好里面加入if(条件,1,0),而不是if(条件,1,NULL)
 
 使用hash(id) % 10 代替 rand()*10。
+distribute by hash(id) % 10
+distribute by abs(hash(id) % 500)
+distribute by abs(hash(concat(id,'_',id,'_',id,'_',id,'_',rand(300))) % 300)
 提出了distribute by来再分区。distribute by的原理很简单，就是把后面跟着的字段作为key，key相同则分发到相同的partition进行处理。
 distribute by 分区列,case when 大分区 then cast(rand()*10 as int) when 小分区 then 1 end 
 这样同一个分区字段，根据分区业务上的数据内容多少，可以固定设置每一个分区多少个分区。
 但由于每次rand会变化，当发生在部分任务重导时，数据会被错误分发(结果数据总行数正确，但是一部分数据重复出现了2次，相应地一部分数据缺失。)，
 因此每一条数据分发到哪个分区，会因为重导后变化。推荐使用如下方式cast(hash(id) % 10 as int) 固定散列。
 
+shuffle:
+on if(id=-999,cast(-99*abs(hash(concat(union_id,session_id))%10000) as bigint),t.id) = b.id
+on if(union_id is null or union_id='',concat('-9',abs(hash(session_id)%10000)),union_id)=t1.union_id
 
 常用函数
 COALESCE(null,'aaa')
@@ -27,11 +33,21 @@ COALESCE(null,'aaa')
 count(distinct dt,id) 合法 
 count(distinct (dt,id)) 不合法
 
-创造语法用于测试
+创造语法用于测试 --- 一对多
 set compatible.grammar=sparksql;
 select explode(array(1,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0)) as id
 LATERAL VIEW explode(split(id_list,',')) ids AS id
 输出:每一个元素都是一行数据,用id表示该列name
+
+比如: --- 一对多,用来代替三组union all操作
+select poi_id,
+explode(array(first_city_id, second_city_id, third_city_id)) as city_id
+from biao
+where poi_id = 2132 
+输出:
+2132  first_city_id
+2132  second_city_id
+2132  third_city_id
 
 先分步排序，然后在写集合，确保集合有顺序,能保证spark和hive都能运行成功
 
@@ -66,6 +82,24 @@ year('$now.date')*12+month('$now.date')  转月号
 IF(org_name_5 LIKE '%联络点',org_name_5,org_name_6)
 
 一、普通UDF
+0.补充核心函数
+01.double rand()、double rand(seed) 返回一个0到1范围内的随机double结果。如果指定种子seed，则会等到一个稳定的随机数序列。
+select rand(100000000) ,
+-rand(100000000),
+cast(-rand() * 100000000 as bigint),
+-cast(-rand() * 100000000 as bigint)
+输出：
+0.6531049639112907	-0.6531049639112907	-84548249	53786285
+0.9820979225109578	-0.9820979225109578	-36991555	38216662
+结论:
+a.第1-2列，rand(100000000) 当有seed的时候，每一行的随机结果是下相同的。
+b.第3-4列，rand()无seed的时候,每一行的随机结果是不同的。
+c.结果肯定是double类型的,所以如果需要bigint时,需要强转成bigint类型。
+d.建议解决数据倾斜问题的时候，随机数使用负数，因为大多数的id都不会是负数的。
+case when id = -999 then cast(-rand()*1000000 as bigint) else id end = b.id
+或者
+on t2.dt = t1.dt and if(t1.id is null or t1.id = 0, concat('-9',abs(hash(t1.session_id)%10000)), t1.id) = t2.id
+
 1.concat_ws
 例如ELECT concat_ws('.', 'www', array('facebook', 'com')) FROM src LIMIT 1
  返回www.facebook.com
@@ -176,17 +210,7 @@ round(5.32,1) 四舍五入保留一位小数点
 14. length(str | binary)
  1.如果是str参数,返回字符串的个数,字母是1个,汉字也是1个,因为汉字是用UTF-8编码的,会依据UTF-8的分隔符进行查找多少个汉字
  2.如果是binary参数,则返回字节数组的个数
-15.regexp_replace('100-200', '(\\d+)', 'num') 返回值num-num,将所有的整数替换成num字符串
- 将全部符合正则表达式的地方都替换成指定值
- select regexp_replace('iOS|AppStore|1.0|F222A316-8545-46F4-9FFC-E33799D310B3|iPhone Simulator|no|no|wifi', '\\s+','|') 将空格都替换成|
- regexp_replace(get_json_object(content,'$.idlist.id'),'\\[|\\]','') 注意转义\\
-注意,在脚本中 hive <<EOF 执行的时候,要对\进行转义,即\\s+要改成\\\\s+
 
-注意:
-presto 的正则,不需要\\两个转义字符,使用一个即可,这个是和hive的区别,比如这个形式就可以正确运行:regexp_extract(diff,'是否生效\s*\:\s*.*?\=>(.*?)\;',1)
-
-regexp_replace(column_name,'\t|\n|\r|\u0001|\u0002|\u0003|\u0004|\u0005','')，### 在不改变字段内容可读性情况下，把所以可能相关的特殊字符都替换成空,避免串行
-      
 16.rlike(string,regexp) 校验string是否匹配正则表达式
    regexp(string,regexp) 校验string是否匹配正则表达式   src/java/org/apache/hadoop/hive/ql/udf/UDFRegExp.java
    常用语where条件中,因为regexp返回值是boolean类型,因此where条件中true满足条件的将会被返回
@@ -387,8 +411,14 @@ c.将10位的int转换成任意字符串的功能
 
 比如:select from_unixtime(1546831968,'yyyyMMdd HH:mm:ss') from dual; 比如1546831968 转换成2019-01-07 11:32:48
 
+### 注意注意注意:
+from_unixtime spark中单位一定是秒，而不是毫秒，而presto是兼容的，所以容易出现presto跑正确的，在spark生产环境是错误的
+select from_unixtime((1700045594873 + 86400000)/1000,'yyyyMMdd'),## 输出 20231116 是正确的
+from_unixtime(1700045594873 + 86400000,'yyyyMMdd') ### 输出 558450114 是错误的
+
 
 d.unix_timestamp 将任意字符串转换成时间戳 --- 当前时间戳
+
 注意:输出的时间戳是10位的
 select unix_timestamp() from dual; 没有参数 表示获取此时的10位的时间戳  1603788901
 from_unixtime(unix_timestamp(),'yyyyMMdd HH:mm:ss') 将当前时间戳转换成任意日期格式
@@ -523,35 +553,6 @@ select from_unixtime(cast(1495037476000/1000 as bigint),'yyyy/MM/dd HH:mm:ss');
 select from_unixtime(INT(substr(occurrencetime,0,10)),'yyyy-MM-dd HH:mm:ss') //即只要时间戳的前10位,并且字符串转换成int
 select unix_timestamp(substr(create_time,0,19),'yyyy-MM-dd HH:mm:ss') 将日期时间字符串形式,格式为第二个参数的形式,转换成时间戳,但是该时间戳要*1000才是真的时间戳
 
-26.json
-a.SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.owner');
-打印 amy
-b.hive> SELECT get_json_object('{"store":{"fruit":\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.store.fruit\[0]');
-打印 {"weight":8,"type":"apple"}
-c.打印数组全部内容 --->$.store.fruit
-d.获取数组内容
-select get_json_object('{"store":{"fruit":[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],"bicycle":{"price":19.95,"color":"red"}},"email":"amy@only_for_json_udf_test.net", "owner":"amy"}', '$.store.fruit[*].weight')
-输出 [8,9] 数组形式
-注意:如果 json上来就是数组,则使用$[*]比如get_json_object(json,'$[*].table')
-
-d.两个数组,比如[数据库1,数据库2,数据库3] [表1,表2,表3] ,按照数组顺序,组装成数据库.表
-set compatible.grammar = sparksql;
-select *
-from 
-(
-  select tables,
-  get_json_object(tables,'$[*].db') db_arr,
-  get_json_object(tables,'$[*].table') table_arr
-  from biao
-) c 
-lateral view posexplode(split(db_arr, ',')) a1 as a,db 
-lateral view posexplode(split(table_arr, ',')) a2 as b,tab
-where a = b
-
-注意:
-解析失败的,或者没有找到节点path路径的,则返回NULL
-
-
 27.sort_array(array(1, 2, 2,5, 3, 3)); 对数据排序,大多数情况下使用在group by中
 
 28.str_to_map  将一个字符串转换成map字段类型
@@ -607,14 +608,14 @@ from
   row_number() over (partition by 1 order by rand desc) row_number
   from
   (
-    select id,rand(100) as rand ### 0-100之间随机数
+    select id,rand(99) * 100 as rand ### 0-100之间随机数,其中99表示种子
     from biao
   ) a
 ) b
 where row_number <= 10000
 
 或者
-select id,rand(100) as rand
+select id,rand(99) * 100 as rand
 from biao
 order by rand desc
 limit 1000
@@ -801,6 +802,18 @@ union all
 instr(name,brand_name) > 0
 SELECT _FUNC_('Facebook', 'boo') FROM src LIMIT 1;\n" + "  5")
 
+
+/**
+   * Locate the position of the first occurrence of substr column in the given string.
+   * Returns null if either of the arguments are null.
+   *
+   * @note The position is not zero based, but 1 based index. Returns 0 if substr
+   * could not be found in str.
+   从1开始计数，而不是从0开始计数；
+   如果找不到则返回0
+   */
+  def instr(str: Column, substring: String): Column = Column.fn("instr", str, lit(substring))
+  
 34.交集、并集、差集的sql形式
 union all 并集
 join 交集
@@ -957,3 +970,27 @@ str_to_map(concat_ws('-', collect_set(concat(name,':',value))),'-',':')
 show functions; 查看全部函数
 show functions like "xpath_shor*";  模糊查询以什么开头的函数
 desc  FUNCTION "xpath_short"; 查看该函数的详细参数信息以及说明
+
+五、特殊语法
+1.插入数据 insert into 
+select page_id,
+dim_item['page_id'],
+dim_item['page_name']
+from
+(
+  select page_id,
+  array(
+      named_struct('page_id',page_id,'page_name','测试1'),### 字段名，字段值，字段名，字段值；### 字段值可以是固定的字符串，也可以是动态的字段内容。
+      named_struct('page_id',page_id,'page_name','测试2'),### 插入多行，组成数组
+      named_struct('page_id',page_id,'page_name','测试3')
+  ) dim_array
+  from 表
+) t
+LATERAL VIEW explode(dim_array) a AS dim_item ### 一拆多行
+
+# 六、发现好用的函数
+## 1.比较函数，用于计算最大值、最小值
+ctime = 1658820155365 小
+utime = 1659656095290 大
+LEAST(ctime,utime) 获取小的结果 --> 1658820155365
+GREATEST(ctime,utime) 获取大的结果 --> 1659656095290
