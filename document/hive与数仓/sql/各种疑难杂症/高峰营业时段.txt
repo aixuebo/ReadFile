@@ -1,4 +1,4 @@
-方案1 ----- 计算每一个商家，每小时的营业时长；然后用户使用的时候，就可以根据每小时的营业时长，自己判断某一个高峰时段对应的营业时长了。
+方案1 --- 高优推荐 ----- 计算每一个商家，每小时的营业时长；然后用户使用的时候，就可以根据每小时的营业时长，自己判断某一个高峰时段对应的营业时长了。
 SELECT 
 poi_id,
 hour,
@@ -9,13 +9,17 @@ FROM
     a.poi_id,
     b.hour,
     CASE
-        WHEN a.mih = b.hour and a.mah = b.hour
-        THEN (mam*60+mas)-(mim*60+a.mis)
-        WHEN b.hour = a.mih
-        THEN (60-a.mim)*60-a.mis
-        WHEN b.hour > a.mih
-        AND b.hour<a.mah THEN 3600
-        WHEN b.hour=a.mah THEN a.mam * 60+a.mas
+    	### 匹配区间都在同一个小时内的数据， 比如00:07:27-00:30:00，此时耗时max的(分钟+秒) - min(分钟+秒)，即30:00 - 07:27
+        WHEN a.mih = b.hour and a.mah = b.hour THEN (mam*60+mas)-(mim*60+a.mis)
+        
+        ### 匹配区间跨小时了,比如00:07:27-05:30:00，此时匹配了00这个小时的数据，因此转换成00:07:27-00:60:59，所以是59:59 - 07:27，优化下，把一小时59分:59秒，转换成60分
+        WHEN b.hour = a.mih THEN (60-a.mim)*60-a.mis
+        
+        ### 匹配区间跨小时了,比如00:07:27-05:30:00，此时匹配了01/02/03/04这几种case的小时的数据，即此时结论就是3600秒都被占用
+        WHEN b.hour > a.mih AND b.hour<a.mah THEN 3600
+        
+        ### 匹配区间跨小时了,比如00:07:27-05:30:00，此时匹配了05这种case的小时的数据，因此计算的就是05:30:00中30:00占用多少秒
+        WHEN b.hour = a.mah THEN a.mam * 60+a.mas
         else 0
         END AS time_sectond ## 秒
     FROM 
@@ -34,10 +38,12 @@ FROM
         LATERAL VIEW explode(split(regexp_replace(regexp_replace(section, '\\[', ''), '\\]', ''), ',')) sect AS os
     )a,24hour b
     WHERE b.hour >= a.mih
-    AND b.hour <= a.mah
+    AND b.hour <= a.mah ### 让每一条数据都关联24个小时，即膨胀24倍，通过where明确最终保留几个小时的数据，比如00:31:10-01:00:00 --> 保留 00、01两条数据的膨胀
 ) a
 GROUP BY poi_id,hour
 
+
+24hour 表有hour字段，里面有0 1 2 3 ... 23 这24个结果。
 
 -------------方案2
 一、背景与总结
