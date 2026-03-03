@@ -100,7 +100,7 @@ case when id = -999 then cast(-rand()*1000000 as bigint) else id end = b.id
 或者
 on t2.dt = t1.dt and if(t1.id is null or t1.id = 0, concat('-9',abs(hash(t1.session_id)%10000)), t1.id) = t2.id
 
-1.concat_ws
+1.concat_ws  --- concat_ws(' | ',array_sort(collect_set(xxx))) 注意，排序函数好像叫sort_array
 例如ELECT concat_ws('.', 'www', array('facebook', 'com')) FROM src LIMIT 1
  返回www.facebook.com
  
@@ -994,3 +994,7 @@ ctime = 1658820155365 小
 utime = 1659656095290 大
 LEAST(ctime,utime) 获取小的结果 --> 1658820155365
 GREATEST(ctime,utime) 获取大的结果 --> 1659656095290
+
+## 2.交集
+SELECT array_intersect(ARRAY[1, 2, 3, 2, null], ARRAY[1,2, 2, 4, null]) -- 输出交集 ARRAY[1, 2, null] 
+SELECT size(array_intersect(ARRAY[1, 2, 3, 2, null], ARRAY[1,2, 2, 4])) -- 判断size>0表示有交集

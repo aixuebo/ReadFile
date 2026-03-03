@@ -15,10 +15,10 @@ public class CubeGenerator {
     }
     
     public void generator() {
-        for (int i = 0; i < Math.pow(2, DIMENSION); i++) {
+        for (int i = 0; i < Math.pow(2, DIMENSION); i++) {//计算所有的维度组合对应的正数
             List<String> combination = new ArrayList<>();
-            for (int j = 0; j < DIMENSION; j++) {
-                if ((i & (1 << j)) != 0) {
+            for (int j = 0; j < DIMENSION; j++) {//循环维度
+                if ((i & (1 << j)) != 0) { //说明i这个数字对应的j维度是1,则要添加该维度
                     combination.add(DIMENSIONS[j]);
                 }
             }
